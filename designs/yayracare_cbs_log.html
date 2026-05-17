@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Community-Based Supports Log — YayraCare</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/1.119.0/iconfont/tabler-icons.min.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f5f7;display:flex;height:100vh;overflow:hidden;}
+:root{--navy:#0d2d5e;--green:#2d7d4e;--blue:#1a56db;--red:#e24b4a;}
+
+/* ── Nav ── */
+.nav{width:220px;min-width:220px;background:#002830;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.nl{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px;}
+.ni-icon{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#008080,#30B060);display:flex;align-items:center;justify-content:center;}
+.ni-icon svg{width:20px;height:20px;fill:white;}
+.nb-b{font-size:16px;font-weight:500;color:#fff;}.nb-b span{color:#30B060;}
+.nu{padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px;}
+.na{width:32px;height:32px;border-radius:50%;background:#008080;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:white;flex-shrink:0;}
+.nn{font-size:13px;color:white;font-weight:500;}.nr{font-size:11px;color:#a8c8cc;}
+.nd{width:7px;height:7px;border-radius:50%;background:#30B060;margin-left:auto;}
+.ns{padding:14px 18px 6px;font-size:10px;font-weight:500;color:rgba(168,200,204,.5);letter-spacing:.08em;text-transform:uppercase;}
+.ni{display:flex;align-items:center;gap:10px;padding:8px 18px;cursor:pointer;font-size:13px;color:#a8c8cc;transition:all .15s;position:relative;}
+.ni:hover{color:white;background:rgba(255,255,255,.05);}
+.ni.active{color:white;background:rgba(48,176,96,.18);}
+.ni.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#30B060;border-radius:0 2px 2px 0;}
+.ni i{font-size:16px;width:18px;}
+.nbw{margin-left:auto;background:#BA7517;color:white;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:500;}
+.nsp{flex:1;}.nbt{padding:12px 18px;border-top:1px solid rgba(255,255,255,.07);}
+.nsb{display:flex;align-items:center;gap:10px;padding:6px 18px 6px 46px;cursor:pointer;font-size:12px;color:rgba(168,200,204,.7);}
+.nsb.dl{color:#00A090;}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{background:white;border-bottom:1px solid #e5e7eb;padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.tb-title{font-size:15px;font-weight:600;color:#1a1a1a;}
+.tb-sp{flex:1;}
+.tb-btn{font-size:12px;padding:6px 14px;border-radius:8px;border:1px solid #d1d5db;background:transparent;color:#374151;cursor:pointer;display:flex;align-items:center;gap:5px;}
+.tb-btn:hover{background:#f9fafb;}
+.content{flex:1;overflow-y:auto;padding:20px 24px;}
+
+/* ── Section blocks ── */
+.sb{border:1px solid #d8dde6;border-radius:10px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.sh{background:var(--navy);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;}
+.sh-t{font-size:14px;font-weight:700;color:white;}
+.sh-r{font-size:13px;color:rgba(255,255,255,.8);}
+.sh-r.grn{color:#4ade80;font-weight:600;}
+.sh-r a{color:rgba(255,255,255,.8);cursor:pointer;text-decoration:none;}
+.sh-r a:hover{color:white;text-decoration:underline;}
+.sb-body{background:white;padding:20px;}
+
+/* ── Field labels ── */
+.fl{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#374151;margin-bottom:7px;display:flex;align-items:center;gap:8px;}
+.at{font-size:10px;font-weight:400;color:#9ca3af;font-style:italic;text-transform:none;letter-spacing:0;}
+.req{color:#e24b4a;}
+.mb{margin-bottom:16px;}
+
+/* ── Inputs ── */
+.ro{width:100%;font-size:14px;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;outline:none;font-family:inherit;}
+.ro.ta{min-height:80px;resize:vertical;line-height:1.6;}
+.fi{width:100%;font-size:14px;color:#1a1a1a;background:white;border:1px solid #d1d5db;border-radius:8px;padding:11px 14px;outline:none;font-family:inherit;}
+.fi:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(26,86,219,.1);}
+.sw{position:relative;}
+.sw select{width:100%;font-size:14px;color:#1a1a1a;background:white;border:1px solid #d1d5db;border-radius:8px;padding:11px 40px 11px 14px;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;font-family:inherit;}
+.sw select:focus{border-color:var(--blue);}
+.sw::after{content:'❯';position:absolute;right:14px;top:50%;transform:translateY(-50%) rotate(90deg);font-size:14px;color:var(--blue);pointer-events:none;font-weight:700;}
+.wdb{background:#e8f0fe;border-radius:8px;padding:13px 16px;text-align:center;font-size:15px;font-weight:700;color:var(--navy);margin-top:10px;}
+
+/* ── Strategy list ── */
+.stl{display:flex;flex-direction:column;}
+.sti{display:flex;align-items:flex-start;gap:14px;padding:16px 4px;border-bottom:1px solid #f3f4f6;cursor:pointer;transition:background .1s;}
+.sti:last-child{border-bottom:none;}
+.sti:hover{background:#fafbff;}
+.scb{width:22px;height:22px;border:2px solid #d1d5db;border-radius:5px;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.scb.on{background:var(--navy);border-color:var(--navy);}
+.scb.on::after{content:'✓';color:white;font-size:13px;font-weight:700;}
+.st-t{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:3px;}
+.st-d{font-size:13px;color:#6b7280;line-height:1.5;}
+
+/* ── Entry cards ── */
+.ec{border:1px solid #d1d5db;border-radius:10px;overflow:hidden;margin-bottom:12px;}
+.eh{background:#dce8f5;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+.en{font-size:14px;font-weight:700;color:var(--navy);}
+.edl{font-size:13px;color:#555;}
+.rb{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:#e24b4a;background:#fff0f0;border:1px solid #fca5a5;border-radius:6px;padding:5px 12px;cursor:pointer;font-family:inherit;}
+.rb:hover{background:#ffe4e4;}
+.eb{padding:18px 16px;background:white;}
+.er{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:flex-end;}
+.ta2{width:100%;font-size:13px;color:#1a1a1a;background:white;border:1px solid #d1d5db;border-radius:8px;padding:11px 14px;outline:none;resize:vertical;min-height:90px;line-height:1.6;font-family:inherit;}
+.ta2:focus{border-color:var(--blue);}
+.ast{font-size:11px;color:#9ca3af;font-weight:400;font-style:italic;margin-left:6px;text-transform:none;letter-spacing:0;}
+
+/* ── Add entry ── */
+.aeb{width:100%;padding:18px;border:2.5px dashed var(--blue);border-radius:10px;background:#f0f5ff;color:var(--navy);font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;}
+.aeb:hover{background:#e0ecff;}
+
+/* ── Submit ── */
+.subrow{display:flex;align-items:center;gap:16px;margin-bottom:24px;}
+.subg{font-size:15px;font-weight:700;padding:16px 28px;border-radius:8px;border:none;background:var(--green);color:white;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;}
+.subg:hover{background:#236040;}
+.clr{font-size:14px;font-weight:600;color:#374151;background:transparent;border:none;cursor:pointer;padding:16px 20px;font-family:inherit;}
+.clr:hover{color:var(--red);}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:20px;right:20px;background:#0d2d5e;color:white;font-size:13px;padding:10px 18px;border-radius:8px;display:none;align-items:center;gap:8px;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,.2);}
+.toast.show{display:flex;}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"><span>✓</span><span id="toastMsg"></span></div>
+
+<nav class="nav">
+  <div class="nl"><div class="ni-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg></div><span class="nb-b">Yayra<span>Care</span></span></div>
+  <div class="nu"><div class="na">MS</div><div><div class="nn">Maria Santos</div><div class="nr">DSP Staff</div></div><div class="nd"></div></div>
+  <div class="ns">Main</div>
+  <div class="ni"><i class="ti ti-layout-dashboard"></i> My overview</div>
+  <div class="ni"><i class="ti ti-id"></i> Profile details</div>
+  <div class="ns">Applications</div>
+  <div class="ni"><i class="ti ti-file-text"></i> DSP application</div>
+  <div class="ni"><i class="ti ti-clipboard-list"></i> Onboarding forms <span class="nbw">2</span></div>
+  <div class="ns">Work</div>
+  <div class="ni"><i class="ti ti-clock"></i> My timesheet</div>
+  <div class="ni active"><i class="ti ti-notes"></i> My case notes</div>
+  <div class="ns">Resources</div>
+  <div class="ni"><i class="ti ti-certificate"></i> My training <span class="nbw">1</span></div>
+  <div class="ni"><i class="ti ti-folder"></i> My documents</div>
+  <div class="nsb dl"><i class="ti ti-download"></i> Employee handbook</div>
+  <div class="nsp"></div>
+  <div class="nbt">
+    <div class="ni" style="padding:8px 0;"><i class="ti ti-settings"></i> Settings</div>
+    <div class="ni" style="padding:8px 0;"><i class="ti ti-logout"></i> Logout</div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-title">Community-Based Supports Log</span>
+    <div class="tb-sp"></div>
+    <button class="tb-btn" onclick="showToast('Opening history...')"><i class="ti ti-history"></i> View history</button>
+  </div>
+  <div class="content">
+
+    <!-- CLIENT INFORMATION -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">Client Information</span><span class="sh-r grn" id="ltag" style="display:none;">✓ Loaded</span></div>
+      <div class="sb-body">
+        <div class="mb"><div class="fl">Select client <span class="req">*</span></div>
+          <div class="sw"><select id="csel" onchange="loadClient()"><option value="">— Select your assigned client —</option><option value="rj">Robert Johnson</option><option value="am">Angela Moore</option><option value="tw">Thomas Williams</option></select></div>
+        </div>
+        <div class="mb"><div class="fl">Client name <span class="at">auto-filled</span></div><input class="ro" id="cname" readonly placeholder="Select a client above"/></div>
+        <div class="mb"><div class="fl">Service plan year <span class="at">auto-filled</span></div><input class="ro" id="pyear" readonly/></div>
+        <div><div class="fl">ISP outcome <span class="at">auto-filled</span></div><textarea class="ro ta" id="isp" readonly placeholder="Select a client to populate"></textarea></div>
+      </div>
+    </div>
+
+    <!-- SERVICE WEEK -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">Service Week</span><span class="sh-r">Sunday – Saturday</span></div>
+      <div class="sb-body">
+        <div class="fl mb" style="margin-bottom:7px;">Select service week <span class="req">*</span></div>
+        <div class="sw mb"><select id="wsel" onchange="upWD()">
+          <option>May 10, 2026 – May 16, 2026</option>
+          <option>May 17, 2026 – May 23, 2026</option>
+          <option>May 24, 2026 – May 30, 2026</option>
+          <option>May 3, 2026 – May 9, 2026</option>
+          <option>Apr 26, 2026 – May 2, 2026</option>
+        </select></div>
+        <div class="wdb" id="wdisp">May 10, 2026 – May 16, 2026</div>
+      </div>
+    </div>
+
+    <!-- SERVICE STRATEGIES -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">Service Strategies</span><a class="sh-r" onclick="checkAll()">Check all rendered</a></div>
+      <div class="sb-body" style="padding:4px 20px;"><div class="stl" id="strat"></div></div>
+    </div>
+
+    <!-- DAILY ACTIVITY LOG -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">Daily Activity Log</span></div>
+      <div class="sb-body" style="padding:16px;">
+        <div id="entries"></div>
+        <button class="aeb" onclick="addEntry()">+ Add Activity Entry</button>
+      </div>
+    </div>
+
+    <!-- COMPLETED BY -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">Completed By</span></div>
+      <div class="sb-body"><div class="fl">Staff name <span class="at">auto-filled</span></div><input class="ro" value="Maria Santos" readonly/></div>
+    </div>
+
+    <!-- SUBMIT -->
+    <div class="subrow">
+      <button class="subg" onclick="doSubmit()">📄 Submit &amp; Save PDF to Google Drive</button>
+      <button class="clr" onclick="clearForm()">Clear Form</button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const CD={
+  rj:{name:'Robert Johnson',year:'2025–2026',isp:'Robert will increase his participation in community activities and social events with support from his DSP, working toward greater independence and quality of life.'},
+  am:{name:'Angela Moore',year:'2025–2026',isp:'Angela will increase her independence in activities of daily living, including personal hygiene, meal preparation, and household management with DSP support.'},
+  tw:{name:'Thomas Williams',year:'2025–2026',isp:'Thomas will develop vocational skills and employment readiness, including job-specific tasks, workplace behavior, and community integration with DSP support.'}
+};
+const SS=[
+  {t:'Assistance with Activities of Daily Living',d:'Getting dressed, eating, personal hygiene, etc.'},
+  {t:'Assistance with Increasing Community Participation',d:'Daily errands, attending events, restaurant, purchasing items, travel training, etc.'},
+  {t:'Assistance with Increasing Independence',d:'Laundry, cooking, cleaning, dressing, grocery shopping, paying for items, etc.'},
+  {t:'Assistance with On-The-Job Support',d:'Safety awareness, restroom use, attending to task, lunch/breaks, etc.'},
+  {t:'Assistance with Learning Activities',d:'Basic tutoring – math, reading, writing; support attending a class; etc.'},
+  {t:'Assistance with Socialization',d:'Conversation skills, peer interaction, community events, clubs, etc.'},
+  {t:'Assistance with Health & Wellness',d:'Medical appointments, exercise, nutrition, medication reminders, etc.'},
+  {t:'Assistance with Transportation',d:'Travel training, bus routes, ride scheduling, safety in transit, etc.'},
+];
+const WS={'May 10, 2026 – May 16, 2026':new Date(2026,4,10),'May 17, 2026 – May 23, 2026':new Date(2026,4,17),'May 24, 2026 – May 30, 2026':new Date(2026,4,24),'May 3, 2026 – May 9, 2026':new Date(2026,4,3),'Apr 26, 2026 – May 2, 2026':new Date(2026,3,26)};
+const DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],MONS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let ec=0,sc=new Array(SS.length).fill(false);
+
+function buildStrats(){
+  const el=document.getElementById('strat');
+  SS.forEach((s,i)=>{
+    const d=document.createElement('div');d.className='sti';d.onclick=()=>tog(i);
+    d.innerHTML=`<div class="scb" id="scb${i}"></div><div><div class="st-t">${s.t}</div><div class="st-d">${s.d}</div></div>`;
+    el.appendChild(d);
+  });
+}
+function tog(i){sc[i]=!sc[i];document.getElementById('scb'+i).classList.toggle('on',sc[i]);}
+function checkAll(){sc=sc.map(()=>true);SS.forEach((_,i)=>document.getElementById('scb'+i).classList.add('on'));showToast('All strategies checked');}
+function loadClient(){
+  const v=document.getElementById('csel').value,d=CD[v];
+  document.getElementById('ltag').style.display=d?'':'none';
+  document.getElementById('cname').value=d?d.name:'';
+  document.getElementById('pyear').value=d?d.year:'';
+  document.getElementById('isp').value=d?d.isp:'';
+  if(d)showToast('Client loaded');
+}
+function upWD(){document.getElementById('wdisp').textContent=document.getElementById('wsel').value;}
+function getDL(i){
+  const wk=document.getElementById('wsel').value,s=WS[wk];
+  if(!s)return'';const d=new Date(s);d.setDate(d.getDate()+(i-1)%7);
+  return`${DAYS[d.getDay()]}, ${MONS[d.getMonth()]} ${d.getDate()}`;
+}
+function getDV(i){
+  const wk=document.getElementById('wsel').value,s=WS[wk];
+  if(!s)return'';const d=new Date(s);d.setDate(d.getDate()+(i-1)%7);
+  return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function addEntry(){
+  ec++;const i=ec;
+  const c=document.getElementById('entries'),div=document.createElement('div');
+  div.className='ec';div.id='e'+i;
+  div.innerHTML=`
+    <div class="eh">
+      <span class="en">Entry #${i}</span>
+      <span class="edl" id="edl${i}">${getDL(i)}</span>
+      <button class="rb" onclick="document.getElementById('e${i}').remove()">✕ Remove</button>
+    </div>
+    <div class="eb">
+      <div class="er">
+        <div style="flex:0 0 200px;"><div class="fl" style="margin-bottom:7px;">Date <span class="req">*</span></div>
+          <input type="date" class="fi" value="${getDV(i)}" oninput="updDL(${i},this.value)" style="width:100%;"/></div>
+        <div style="flex:0 0 155px;"><div class="fl" style="margin-bottom:7px;">Start time <span class="req">*</span></div><input type="time" class="fi" style="width:100%;"/></div>
+        <div style="flex:0 0 155px;"><div class="fl" style="margin-bottom:7px;">End time <span class="req">*</span></div><input type="time" class="fi" style="width:100%;"/></div>
+      </div>
+      <div class="mb"><div class="fl" style="margin-bottom:7px;">Service strategy <span class="req">*</span></div>
+        <div class="sw"><select class="fi" style="padding-right:40px;appearance:none;-webkit-appearance:none;">
+          <option value="">— Select Strategy —</option>${SS.map(s=>`<option>${s.t}</option>`).join('')}
+        </select></div>
+      </div>
+      <div><div class="fl" style="margin-bottom:7px;">Activity description <span class="ast">⊘ auto-saved as you type</span></div>
+        <textarea class="ta2" placeholder="Describe the activity and how it supports the individual's outcome..."></textarea>
+      </div>
+    </div>`;
+  c.appendChild(div);
+  setTimeout(()=>div.scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+}
+function updDL(i,v){
+  if(!v)return;const d=new Date(v+'T00:00:00'),el=document.getElementById('edl'+i);
+  if(el)el.textContent=`${DAYS[d.getDay()]}, ${MONS[d.getMonth()]} ${d.getDate()}`;
+}
+function doSubmit(){
+  if(!document.getElementById('csel').value){showToast('Please select a client first');return;}
+  if(ec===0){showToast('Please add at least one entry');return;}
+  showToast('Submitted & saved PDF to Google Drive ✓');
+}
+function clearForm(){
+  document.getElementById('csel').value='';loadClient();
+  document.getElementById('entries').innerHTML='';ec=0;
+  sc=new Array(SS.length).fill(false);SS.forEach((_,i)=>document.getElementById('scb'+i).classList.remove('on'));
+  showToast('Form cleared');
+}
+function showToast(msg){
+  const t=document.getElementById('toast');document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2800);
+}
+buildStrats();addEntry();
+</script>
+</body>
+</html>

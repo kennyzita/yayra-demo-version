@@ -1,0 +1,453 @@
+
+<style>
+:root{--navy:#002830;--teal:#008080;--green:#30B060;--bg:var(--color-background-tertiary);--sf:var(--color-background-primary);--bd:var(--color-border-tertiary);--bdm:var(--color-border-secondary);--tx:var(--color-text-primary);--mt:var(--color-text-secondary);--rl:var(--border-radius-lg);--rm:var(--border-radius-md);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--bg);}
+.shell{display:flex;height:100vh;min-height:700px;overflow:hidden;border-radius:var(--rl);border:0.5px solid var(--bdm);}
+.nav{width:220px;min-width:220px;background:var(--navy);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.nl{padding:20px 18px 16px;border-bottom:0.5px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px;}
+.ni-ic{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#008080,#30B060);display:flex;align-items:center;justify-content:center;}
+.ni-ic svg{width:20px;height:20px;fill:white;}
+.nb{font-size:16px;font-weight:500;color:#fff;}.nb span{color:#30B060;}
+.nu{padding:12px 18px;border-bottom:0.5px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px;}
+.na{width:32px;height:32px;border-radius:50%;background:#008080;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:white;flex-shrink:0;}
+.nn{font-size:13px;color:white;font-weight:500;}.nr{font-size:11px;color:#a8c8cc;}
+.nd{width:7px;height:7px;border-radius:50%;background:#30B060;margin-left:auto;}
+.ns{padding:14px 18px 6px;font-size:10px;font-weight:500;color:rgba(168,200,204,.5);letter-spacing:.08em;text-transform:uppercase;}
+.ni{display:flex;align-items:center;gap:10px;padding:8px 18px;cursor:pointer;font-size:13px;color:#a8c8cc;transition:all .15s;position:relative;}
+.ni:hover{color:white;background:rgba(255,255,255,.05);}
+.ni.active{color:white;background:rgba(48,176,96,.18);}
+.ni.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#30B060;border-radius:0 2px 2px 0;}
+.ni i{font-size:16px;width:18px;flex-shrink:0;}
+.nbw{margin-left:auto;background:#BA7517;color:white;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:500;}
+.nsp{flex:1;}.nbt{padding:12px 18px;border-top:0.5px solid rgba(255,255,255,.07);}
+.nsb{display:flex;align-items:center;gap:10px;padding:6px 18px 6px 46px;cursor:pointer;font-size:12px;color:rgba(168,200,204,.7);}
+.nsb.dl{color:#00A090;}
+
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{background:var(--sf);border-bottom:0.5px solid var(--bd);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.tb-t{font-size:15px;font-weight:500;color:var(--tx);}
+.tb-sp{flex:1;}
+.tb-btn{font-size:12px;padding:6px 14px;border-radius:var(--rm);border:0.5px solid var(--bdm);background:transparent;color:var(--tx);cursor:pointer;display:flex;align-items:center;gap:5px;}
+.tb-btn:hover{background:var(--color-background-secondary);}
+
+.content{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:16px;}
+
+/* Summary row */
+.sum-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+.sc{background:var(--sf);border:0.5px solid var(--bd);border-radius:var(--rl);padding:16px;}
+.sv{font-size:24px;font-weight:500;color:var(--tx);letter-spacing:-.5px;}
+.sl{font-size:12px;color:var(--mt);margin-top:2px;}
+.sp{display:inline-block;margin-top:8px;font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500;}
+.sp-g{background:rgba(48,176,96,.1);color:#30B060;}
+.sp-a{background:rgba(186,117,23,.1);color:#BA7517;}
+.sp-t{background:rgba(0,128,128,.1);color:#008080;}
+.sp-r{background:rgba(226,75,74,.1);color:#E24B4A;}
+
+/* Tab bar */
+.tab-bar{display:flex;gap:2px;background:var(--color-background-secondary);border-radius:var(--rm);padding:3px;align-self:flex-start;}
+.tab{font-size:12px;padding:5px 16px;border-radius:6px;cursor:pointer;color:var(--mt);border:none;background:transparent;font-weight:500;transition:all .15s;font-family:inherit;}
+.tab.active{background:var(--sf);color:var(--tx);box-shadow:0 0 0 0.5px var(--bd);}
+
+/* Panels */
+.panel{display:none;flex-direction:column;gap:14px;}
+.panel.show{display:flex;}
+
+/* Training list */
+.tr-card{background:var(--sf);border:0.5px solid var(--bd);border-radius:var(--rl);overflow:hidden;}
+.tr-card-head{background:#002830;padding:12px 18px;display:flex;align-items:center;justify-content:space-between;}
+.tr-card-title{font-size:13px;font-weight:700;color:white;}
+.tr-card-sub{font-size:11px;color:rgba(255,255,255,.6);}
+
+.training-item{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:0.5px solid var(--bd);cursor:pointer;transition:background .1s;}
+.training-item:last-child{border-bottom:none;}
+.training-item:hover{background:var(--color-background-secondary);}
+.training-item.active-item{background:rgba(0,128,128,.04);border-left:3px solid var(--teal);}
+.tr-icon{width:40px;height:40px;border-radius:var(--rm);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.tr-ic-g{background:rgba(48,176,96,.12);color:#30B060;}
+.tr-ic-t{background:rgba(0,128,128,.1);color:#008080;}
+.tr-ic-a{background:rgba(186,117,23,.1);color:#BA7517;}
+.tr-ic-b{background:rgba(55,138,221,.1);color:#378ADD;}
+.tr-ic-r{background:rgba(226,75,74,.1);color:#E24B4A;}
+.tr-info{flex:1;}
+.tr-name{font-size:13px;font-weight:500;color:var(--tx);}
+.tr-meta{font-size:11px;color:var(--mt);margin-top:2px;}
+.tr-right{display:flex;align-items:center;gap:10px;}
+.tr-prog-wrap{width:80px;}
+.tr-prog-bg{height:5px;background:var(--color-background-secondary);border-radius:3px;overflow:hidden;}
+.tr-prog-bar{height:100%;border-radius:3px;}
+.tr-pct{font-size:11px;color:var(--mt);margin-top:2px;text-align:right;}
+.st-pill{font-size:10px;padding:3px 9px;border-radius:10px;font-weight:500;white-space:nowrap;}
+.st-complete{background:rgba(48,176,96,.1);color:#30B060;}
+.st-progress{background:rgba(0,128,128,.1);color:#008080;}
+.st-due{background:rgba(186,117,23,.1);color:#BA7517;}
+.st-overdue{background:rgba(226,75,74,.1);color:#E24B4A;}
+.st-upcoming{background:var(--color-background-secondary);color:var(--mt);}
+.launch-btn{font-size:11px;padding:5px 12px;border-radius:var(--rm);border:0.5px solid var(--teal);background:rgba(0,128,128,.06);color:var(--teal);cursor:pointer;font-family:inherit;white-space:nowrap;}
+.launch-btn:hover{background:rgba(0,128,128,.12);}
+.launch-btn.done{border-color:var(--color-border-tertiary);background:transparent;color:var(--mt);}
+
+/* Assessment embed panel */
+.assess-panel{background:var(--sf);border:0.5px solid var(--bd);border-radius:var(--rl);overflow:hidden;}
+.assess-header{background:#002830;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;}
+.assess-title{font-size:14px;font-weight:600;color:white;}
+.assess-meta{font-size:11px;color:rgba(255,255,255,.6);}
+.assess-actions{display:flex;gap:8px;}
+.assess-btn{font-size:11px;padding:5px 12px;border-radius:var(--rm);border:0.5px solid rgba(255,255,255,.2);background:transparent;color:white;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;}
+.assess-btn:hover{background:rgba(255,255,255,.08);}
+.assess-btn.primary{background:var(--green);border-color:var(--green);}
+.assess-btn.primary:hover{background:#259950;}
+.assess-info-bar{padding:12px 20px;background:var(--color-background-secondary);border-bottom:0.5px solid var(--bd);display:flex;align-items:center;gap:20px;}
+.assess-info-item{font-size:12px;color:var(--mt);display:flex;align-items:center;gap:5px;}
+.assess-info-item strong{color:var(--tx);}
+.assess-body{padding:0;}
+
+/* The iframe container */
+.iframe-wrap{width:100%;background:#f8f9fa;border:none;position:relative;}
+.iframe-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 40px;text-align:center;gap:16px;background:white;}
+.iframe-logo{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,#002830,#008080);display:flex;align-items:center;justify-content:center;margin:0 auto;}
+.iframe-logo svg{width:36px;height:36px;fill:white;}
+.iframe-title{font-size:20px;font-weight:700;color:#002830;}
+.iframe-sub{font-size:14px;color:#666;max-width:480px;line-height:1.6;}
+.iframe-divider{width:100%;height:0.5px;background:#e0e0e0;margin:8px 0;}
+.iframe-fields{display:grid;grid-template-columns:1fr 1fr;gap:0;width:100%;max-width:560px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;text-align:left;}
+.iframe-field{padding:12px 16px;border-bottom:0.5px solid #e0e0e0;border-right:0.5px solid #e0e0e0;}
+.iframe-field:nth-child(even){border-right:none;}
+.iframe-field:nth-last-child(-n+2){border-bottom:none;}
+.iframe-field-label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888;margin-bottom:3px;}
+.iframe-field-val{font-size:13px;color:#002830;font-weight:500;}
+.iframe-q-preview{width:100%;max-width:560px;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;text-align:left;}
+.iframe-q-head{background:#002830;padding:10px 16px;font-size:12px;font-weight:700;color:white;display:flex;align-items:center;gap:6px;}
+.iframe-q-body{padding:14px 16px;}
+.iframe-q-text{font-size:13px;color:#1a1a1a;margin-bottom:12px;font-weight:500;}
+.iframe-q-opts{display:flex;flex-direction:column;gap:8px;}
+.iframe-q-opt{display:flex;align-items:center;gap:9px;font-size:13px;color:#444;padding:8px 12px;border:1px solid #e0e0e0;border-radius:6px;cursor:pointer;}
+.iframe-q-opt:hover{background:#f0f7ff;border-color:#1a56db;}
+.iframe-q-opt input{accent-color:#008080;}
+.iframe-start-btn{font-size:14px;font-weight:700;padding:14px 32px;border-radius:8px;border:none;background:#008080;color:white;cursor:pointer;margin-top:8px;}
+.iframe-start-btn:hover{background:#006060;}
+
+/* Cert card */
+.cert-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.cert-card{background:var(--sf);border:0.5px solid var(--bd);border-radius:var(--rl);padding:16px;display:flex;gap:12px;align-items:flex-start;}
+.cert-icon{width:40px;height:40px;border-radius:var(--rm);background:rgba(48,176,96,.1);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--green);flex-shrink:0;}
+.cert-info{flex:1;}
+.cert-name{font-size:13px;font-weight:500;color:var(--tx);}
+.cert-exp{font-size:11px;color:var(--mt);margin-top:2px;}
+.cert-status{margin-top:6px;}
+
+.toast{position:fixed;bottom:20px;right:20px;background:#004050;color:white;font-size:13px;padding:10px 18px;border-radius:var(--rm);display:none;align-items:center;gap:8px;z-index:200;border:0.5px solid rgba(48,176,96,.4);}
+.toast.show{display:flex;}
+</style>
+
+<h2 class="sr-only">YayraCare My Training module — training tracker, DSP final assessment embed, and certificates</h2>
+<div class="toast" id="toast"><i class="ti ti-check" style="color:#30B060;font-size:15px;" aria-hidden="true"></i><span id="toastMsg"></span></div>
+
+<div class="shell">
+  <nav class="nav">
+    <div class="nl"><div class="ni-ic"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg></div><span class="nb">Yayra<span>Care</span></span></div>
+    <div class="nu"><div class="na">MS</div><div><div class="nn">Maria Santos</div><div class="nr">DSP Staff</div></div><div class="nd"></div></div>
+    <div class="ns">Main</div>
+    <div class="ni"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> My overview</div>
+    <div class="ni"><i class="ti ti-id" aria-hidden="true"></i> Profile details</div>
+    <div class="ns">Applications</div>
+    <div class="ni"><i class="ti ti-file-text" aria-hidden="true"></i> DSP application</div>
+    <div class="ni"><i class="ti ti-clipboard-list" aria-hidden="true"></i> Onboarding forms <span class="nbw">2</span></div>
+    <div class="ns">Work</div>
+    <div class="ni"><i class="ti ti-clock" aria-hidden="true"></i> My timesheet</div>
+    <div class="ni"><i class="ti ti-notes" aria-hidden="true"></i> My case notes</div>
+    <div class="ns">Resources</div>
+    <div class="ni active"><i class="ti ti-certificate" aria-hidden="true"></i> My training <span class="nbw">1</span></div>
+    <div class="ni"><i class="ti ti-folder" aria-hidden="true"></i> My documents</div>
+    <div class="nsb dl"><i class="ti ti-download" aria-hidden="true"></i> Employee handbook</div>
+    <div class="nsp"></div>
+    <div class="nbt">
+      <div class="ni" style="padding:8px 0;"><i class="ti ti-settings" aria-hidden="true"></i> Settings</div>
+      <div class="ni" style="padding:8px 0;"><i class="ti ti-logout" aria-hidden="true"></i> Logout</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="tb-t">My training</span>
+      <div class="tb-sp"></div>
+      <button class="tb-btn" onclick="showToast('Downloading training report...')"><i class="ti ti-download" aria-hidden="true"></i> Download report</button>
+    </div>
+
+    <div class="content">
+
+      <!-- Summary -->
+      <div class="sum-row">
+        <div class="sc"><div class="sv">4</div><div class="sl">Completed</div><div class="sp sp-g">Done</div></div>
+        <div class="sc"><div class="sv">1</div><div class="sl">In progress</div><div class="sp sp-t">Active</div></div>
+        <div class="sc"><div class="sv">1</div><div class="sl">Due soon</div><div class="sp sp-a">Action needed</div></div>
+        <div class="sc"><div class="sv">2</div><div class="sl">Upcoming</div><div class="sp sp-t">Scheduled</div></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tab-bar">
+        <button class="tab active" id="tab-all" onclick="switchTab('all',this)">All training</button>
+        <button class="tab" id="tab-assess" onclick="switchTab('assess',this)">DSP final assessment</button>
+        <button class="tab" id="tab-certs" onclick="switchTab('certs',this)">My certificates</button>
+      </div>
+
+      <!-- ALL TRAINING panel -->
+      <div class="panel show" id="panel-all">
+        <div class="tr-card">
+          <div class="tr-card-head">
+            <span class="tr-card-title">Training modules</span>
+            <span class="tr-card-sub">Reliance Care Services LLC</span>
+          </div>
+
+          <div class="training-item" onclick="switchTab('assess',document.getElementById('tab-assess'))">
+            <div class="tr-icon tr-ic-t"><i class="ti ti-clipboard-text" aria-hidden="true"></i></div>
+            <div class="tr-info">
+              <div class="tr-name">DSP Final Assessment</div>
+              <div class="tr-meta">Reliance Care Services LLC · Required · Embedded in portal</div>
+            </div>
+            <div class="tr-right">
+              <div class="tr-prog-wrap">
+                <div class="tr-prog-bg"><div class="tr-prog-bar" style="width:30%;background:#008080;"></div></div>
+                <div class="tr-pct">30%</div>
+              </div>
+              <span class="st-pill st-progress">In progress</span>
+              <button class="launch-btn" onclick="event.stopPropagation();switchTab('assess',document.getElementById('tab-assess'))">Continue <i class="ti ti-arrow-right" style="font-size:11px;" aria-hidden="true"></i></button>
+            </div>
+          </div>
+
+          <div class="training-item">
+            <div class="tr-icon tr-ic-g"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+            <div class="tr-info">
+              <div class="tr-name">CPR / First Aid / BLS</div>
+              <div class="tr-meta">Completed May 2025 · Expires Apr 30, 2027</div>
+            </div>
+            <div class="tr-right">
+              <div class="tr-prog-wrap">
+                <div class="tr-prog-bg"><div class="tr-prog-bar" style="width:100%;background:#30B060;"></div></div>
+                <div class="tr-pct">100%</div>
+              </div>
+              <span class="st-pill st-complete">Complete</span>
+              <button class="launch-btn done">View cert</button>
+            </div>
+          </div>
+
+          <div class="training-item">
+            <div class="tr-icon tr-ic-g"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+            <div class="tr-info">
+              <div class="tr-name">CDS training</div>
+              <div class="tr-meta">Completed Apr 2026 · No expiry</div>
+            </div>
+            <div class="tr-right">
+              <div class="tr-prog-wrap">
+                <div class="tr-prog-bg"><div class="tr-prog-bar" style="width:100%;background:#30B060;"></div></div>
+                <div class="tr-pct">100%</div>
+              </div>
+              <span class="st-pill st-complete">Complete</span>
+              <button class="launch-btn done">View cert</button>
+            </div>
+          </div>
+
+          <div class="training-item">
+            <div class="tr-icon tr-ic-a"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div>
+            <div class="tr-info">
+              <div class="tr-name">Danielle's Law compliance</div>
+              <div class="tr-meta">Required · Due May 20, 2026 · Mandatory annual</div>
+            </div>
+            <div class="tr-right">
+              <div class="tr-prog-wrap">
+                <div class="tr-prog-bg"><div class="tr-prog-bar" style="width:30%;background:#BA7517;"></div></div>
+                <div class="tr-pct">30%</div>
+              </div>
+              <span class="st-pill st-due">Due soon</span>
+              <button class="launch-btn" onclick="showToast('Opening Danielle\'s Law training...')">Start <i class="ti ti-arrow-right" style="font-size:11px;" aria-hidden="true"></i></button>
+            </div>
+          </div>
+
+          <div class="training-item">
+            <div class="tr-icon tr-ic-g"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+            <div class="tr-info">
+              <div class="tr-name">60-day orientation</div>
+              <div class="tr-meta">Completed May 1, 2026 · Milestone achieved</div>
+            </div>
+            <div class="tr-right">
+              <div class="tr-prog-wrap">
+                <div class="tr-prog-bg"><div class="tr-prog-bar" style="width:100%;background:#30B060;"></div></div>
+                <div class="tr-pct">100%</div>
+              </div>
+              <span class="st-pill st-complete">Complete</span>
+              <button class="launch-btn done">View</button>
+            </div>
+          </div>
+
+          <div class="training-item">
+            <div class="tr-icon tr-ic-b"><i class="ti ti-calendar" aria-hidden="true"></i></div>
+            <div class="tr-info">
+              <div class="tr-name">90-day review</div>
+              <div class="tr-meta">Due Jun 1, 2026 · Scheduled with supervisor</div>
+            </div>
+            <div class="tr-right">
+              <div class="tr-prog-wrap">
+                <div class="tr-prog-bg"><div class="tr-prog-bar" style="width:0%;background:#378ADD;"></div></div>
+                <div class="tr-pct">0%</div>
+              </div>
+              <span class="st-pill st-upcoming">Upcoming</span>
+              <button class="launch-btn done">Scheduled</button>
+            </div>
+          </div>
+
+          <div class="training-item">
+            <div class="tr-icon tr-ic-b"><i class="ti ti-calendar" aria-hidden="true"></i></div>
+            <div class="tr-info">
+              <div class="tr-name">120-day milestone</div>
+              <div class="tr-meta">Due Jul 1, 2026</div>
+            </div>
+            <div class="tr-right">
+              <div class="tr-prog-wrap">
+                <div class="tr-prog-bg"><div class="tr-prog-bar" style="width:0%;background:#378ADD;"></div></div>
+                <div class="tr-pct">0%</div>
+              </div>
+              <span class="st-pill st-upcoming">Upcoming</span>
+              <button class="launch-btn done">Not yet</button>
+            </div>
+          </div>
+
+          <div class="training-item">
+            <div class="tr-icon tr-ic-g"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+            <div class="tr-info">
+              <div class="tr-name">Internal training</div>
+              <div class="tr-meta">Completed Apr 15, 2026 · Agency orientation</div>
+            </div>
+            <div class="tr-right">
+              <div class="tr-prog-wrap">
+                <div class="tr-prog-bg"><div class="tr-prog-bar" style="width:100%;background:#30B060;"></div></div>
+                <div class="tr-pct">100%</div>
+              </div>
+              <span class="st-pill st-complete">Complete</span>
+              <button class="launch-btn done">View</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- DSP FINAL ASSESSMENT panel -->
+      <div class="panel" id="panel-assess">
+        <div class="assess-panel">
+          <div class="assess-header">
+            <div>
+              <div class="assess-title">DSP Final Assessment</div>
+              <div class="assess-meta">Reliance Care Services LLC · Required for all DSP staff</div>
+            </div>
+            <div class="assess-actions">
+              <button class="assess-btn" onclick="showToast('Saving progress...')"><i class="ti ti-device-floppy" aria-hidden="true"></i> Save progress</button>
+              <button class="assess-btn primary" onclick="showToast('Assessment submitted for review')"><i class="ti ti-send" aria-hidden="true"></i> Submit assessment</button>
+            </div>
+          </div>
+          <div class="assess-info-bar">
+            <span class="assess-info-item"><i class="ti ti-user" style="font-size:13px;" aria-hidden="true"></i> <strong>Maria Santos</strong></span>
+            <span class="assess-info-item"><i class="ti ti-calendar" style="font-size:13px;" aria-hidden="true"></i> Started: May 13, 2026</span>
+            <span class="assess-info-item"><i class="ti ti-chart-bar" style="font-size:13px;" aria-hidden="true"></i> Progress: <strong>30%</strong></span>
+            <span class="assess-info-item"><i class="ti ti-clock" style="font-size:13px;" aria-hidden="true"></i> Est. time: 45–60 minutes</span>
+          </div>
+
+          <!-- Simulated assessment content matching the iframe format -->
+          <div class="iframe-wrap">
+            <div class="iframe-placeholder">
+              <div class="iframe-logo"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg></div>
+              <div class="iframe-title">Reliance Care Services LLC</div>
+              <div class="iframe-sub">DSP Final Assessment — this assessment tests your knowledge of Direct Support Professional responsibilities, client care standards, NJ DDD compliance, and Reliance Care Services policies.</div>
+              <div class="iframe-divider"></div>
+
+              <!-- Staff info auto-filled -->
+              <div class="iframe-fields">
+                <div class="iframe-field"><div class="iframe-field-label">Staff name</div><div class="iframe-field-val">Maria Santos</div></div>
+                <div class="iframe-field"><div class="iframe-field-label">Staff ID</div><div class="iframe-field-val">RCS-1042</div></div>
+                <div class="iframe-field"><div class="iframe-field-label">Position</div><div class="iframe-field-val">DSP Staff</div></div>
+                <div class="iframe-field"><div class="iframe-field-label">Date</div><div class="iframe-field-val">May 13, 2026</div></div>
+              </div>
+
+              <div class="iframe-divider"></div>
+
+              <!-- Sample question preview -->
+              <div class="iframe-q-preview">
+                <div class="iframe-q-head"><i class="ti ti-help-circle" style="font-size:14px;" aria-hidden="true"></i> Question 1 of 20 — Section A: Client Rights</div>
+                <div class="iframe-q-body">
+                  <div class="iframe-q-text">Which of the following best describes a DSP's primary responsibility when supporting an individual with a disability?</div>
+                  <div class="iframe-q-opts">
+                    <label class="iframe-q-opt"><input type="radio" name="q1"/> Making decisions on behalf of the individual to ensure their safety</label>
+                    <label class="iframe-q-opt"><input type="radio" name="q1"/> Supporting the individual to make their own choices and live as independently as possible</label>
+                    <label class="iframe-q-opt"><input type="radio" name="q1"/> Following only the instructions given by the agency administrator</label>
+                    <label class="iframe-q-opt"><input type="radio" name="q1"/> Completing required documentation as the primary job function</label>
+                  </div>
+                </div>
+              </div>
+
+              <div style="font-size:12px;color:#888;max-width:480px;text-align:center;line-height:1.6;">
+                In production, this loads your actual assessment file:<br/>
+                <code style="font-size:11px;background:#f0f0f0;padding:3px 8px;border-radius:4px;color:#444;">/wp-content/uploads/training/Reliance Care Services LLC - DSP Final Assessment.html</code>
+              </div>
+              <button class="iframe-start-btn" onclick="showToast('Opening full assessment...')">Continue assessment <i class="ti ti-arrow-right" style="font-size:14px;" aria-hidden="true"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CERTIFICATES panel -->
+      <div class="panel" id="panel-certs">
+        <div class="cert-grid">
+          <div class="cert-card">
+            <div class="cert-icon"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+            <div class="cert-info">
+              <div class="cert-name">CPR / First Aid / BLS</div>
+              <div class="cert-exp">Issued: May 2025 · Expires: Apr 30, 2027</div>
+              <div class="cert-status"><span class="st-pill st-complete">Valid</span></div>
+            </div>
+            <button class="tb-btn" onclick="showToast('Downloading certificate...')"><i class="ti ti-download" aria-hidden="true"></i></button>
+          </div>
+          <div class="cert-card">
+            <div class="cert-icon"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+            <div class="cert-info">
+              <div class="cert-name">CDS training certificate</div>
+              <div class="cert-exp">Issued: Apr 2026 · No expiry</div>
+              <div class="cert-status"><span class="st-pill st-complete">Valid</span></div>
+            </div>
+            <button class="tb-btn" onclick="showToast('Downloading certificate...')"><i class="ti ti-download" aria-hidden="true"></i></button>
+          </div>
+          <div class="cert-card">
+            <div class="cert-icon" style="background:rgba(0,128,128,.1);color:#008080;"><i class="ti ti-award" aria-hidden="true"></i></div>
+            <div class="cert-info">
+              <div class="cert-name">60-day orientation completion</div>
+              <div class="cert-exp">Issued: May 1, 2026 · Reliance Care Services LLC</div>
+              <div class="cert-status"><span class="st-pill st-complete">Complete</span></div>
+            </div>
+            <button class="tb-btn" onclick="showToast('Downloading certificate...')"><i class="ti ti-download" aria-hidden="true"></i></button>
+          </div>
+          <div class="cert-card">
+            <div class="cert-icon" style="background:rgba(186,117,23,.1);color:#BA7517;"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+            <div class="cert-info">
+              <div class="cert-name">DSP final assessment</div>
+              <div class="cert-exp">In progress · Certificate issued on completion</div>
+              <div class="cert-status"><span class="st-pill st-progress">Pending</span></div>
+            </div>
+            <button class="tb-btn" style="opacity:.4;cursor:not-allowed;"><i class="ti ti-download" aria-hidden="true"></i></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
+  document.getElementById('panel-'+name).classList.add('show');
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);
+}
+</script>

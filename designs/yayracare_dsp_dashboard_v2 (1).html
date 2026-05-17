@@ -1,0 +1,496 @@
+
+<style>
+:root {
+  --yc-primary: #004050;
+  --yc-teal: #008080;
+  --yc-accent: #30B060;
+  --yc-bg: var(--color-background-tertiary);
+  --yc-surface: var(--color-background-primary);
+  --yc-border: var(--color-border-tertiary);
+  --yc-text: var(--color-text-primary);
+  --yc-muted: var(--color-text-secondary);
+  --yc-nav-bg: #002830;
+  --yc-nav-text: #a8c8cc;
+  --yc-nav-active: #ffffff;
+  --yc-nav-active-bg: rgba(48,176,96,0.18);
+  --yc-radius: var(--border-radius-lg);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--yc-bg); }
+.shell { display: flex; height: 100vh; min-height: 640px; overflow: hidden; border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-secondary); }
+.nav { width: 220px; min-width: 220px; background: var(--yc-nav-bg); display: flex; flex-direction: column; overflow-y: auto; }
+.nav-logo { padding: 20px 18px 16px; border-bottom: 0.5px solid rgba(255,255,255,0.07); }
+.nav-logo-text { display: flex; align-items: center; gap: 10px; }
+.nav-logo-icon { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, #008080, #30B060); display: flex; align-items: center; justify-content: center; }
+.nav-logo-icon svg { width: 20px; height: 20px; fill: white; }
+.nav-brand { font-size: 16px; font-weight: 500; color: #fff; letter-spacing: -0.3px; }
+.nav-brand span { color: #30B060; }
+.nav-user { padding: 12px 18px; border-bottom: 0.5px solid rgba(255,255,255,0.07); display: flex; align-items: center; gap: 10px; }
+.nav-avatar { width: 32px; height: 32px; border-radius: 50%; background: #008080; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: white; flex-shrink: 0; }
+.nav-user-info { overflow: hidden; }
+.nav-user-name { font-size: 13px; color: white; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-user-role { font-size: 11px; color: var(--yc-nav-text); }
+.nav-dot { width: 7px; height: 7px; border-radius: 50%; background: #30B060; margin-left: auto; flex-shrink: 0; }
+.nav-section { padding: 14px 18px 6px; font-size: 10px; font-weight: 500; color: rgba(168,200,204,0.5); letter-spacing: 0.08em; text-transform: uppercase; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; cursor: pointer; font-size: 13px; color: var(--yc-nav-text); transition: all 0.15s; position: relative; }
+.nav-item:hover { color: white; background: rgba(255,255,255,0.05); }
+.nav-item.active { color: var(--yc-nav-active); background: var(--yc-nav-active-bg); }
+.nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #30B060; border-radius: 0 2px 2px 0; }
+.nav-item i { font-size: 16px; width: 18px; flex-shrink: 0; }
+.nav-sub { display: flex; align-items: center; gap: 10px; padding: 6px 18px 6px 46px; cursor: pointer; font-size: 12px; color: rgba(168,200,204,0.7); transition: all 0.15s; position: relative; }
+.nav-sub:hover { color: white; background: rgba(255,255,255,0.04); }
+.nav-sub i { font-size: 14px; width: 16px; flex-shrink: 0; }
+.nav-sub.download { color: #00A090; }
+.nav-sub.download:hover { color: #30B060; }
+.nav-badge { margin-left: auto; background: #30B060; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 500; }
+.nav-badge-warn { margin-left: auto; background: #BA7517; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 500; }
+.nav-spacer { flex: 1; }
+.nav-bottom { padding: 12px 18px; border-top: 0.5px solid rgba(255,255,255,0.07); }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--yc-bg); }
+.topbar { background: var(--yc-surface); border-bottom: 0.5px solid var(--yc-border); padding: 0 24px; height: 56px; display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.topbar-title { font-size: 16px; font-weight: 500; color: var(--yc-text); }
+.topbar-subtitle { font-size: 12px; color: var(--yc-muted); margin-top: 1px; }
+.topbar-spacer { flex: 1; }
+.topbar-icon { width: 32px; height: 32px; border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--yc-muted); font-size: 18px; }
+.topbar-icon:hover { background: var(--color-background-secondary); color: var(--yc-text); }
+.notif-wrap { position: relative; }
+.notif-dot { position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: #E24B4A; border: 1.5px solid var(--yc-surface); }
+.content { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.welcome-banner { background: var(--yc-nav-bg); border-radius: var(--yc-radius); padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; }
+.welcome-left {}
+.welcome-greeting { font-size: 15px; font-weight: 500; color: white; }
+.welcome-sub { font-size: 12px; color: var(--yc-nav-text); margin-top: 3px; }
+.welcome-right { display: flex; gap: 20px; }
+.welcome-stat { text-align: center; }
+.welcome-stat-val { font-size: 20px; font-weight: 500; color: white; }
+.welcome-stat-label { font-size: 11px; color: var(--yc-nav-text); margin-top: 2px; }
+.welcome-divider { width: 0.5px; background: rgba(255,255,255,0.1); }
+.metrics-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+.metric-card { background: var(--yc-surface); border: 0.5px solid var(--yc-border); border-radius: var(--yc-radius); padding: 16px; }
+.metric-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.metric-icon { width: 36px; height: 36px; border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.metric-icon.teal { background: rgba(0,128,128,0.1); color: #008080; }
+.metric-icon.green { background: rgba(48,176,96,0.12); color: #30B060; }
+.metric-icon.blue { background: rgba(55,138,221,0.1); color: #378ADD; }
+.metric-icon.amber { background: rgba(186,117,23,0.1); color: #BA7517; }
+.metric-icon.purple { background: rgba(127,119,221,0.1); color: #7F77DD; }
+.metric-badge { font-size: 11px; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
+.metric-badge.up { background: rgba(48,176,96,0.12); color: #30B060; }
+.metric-badge.warn { background: rgba(186,117,23,0.12); color: #BA7517; }
+.metric-badge.info { background: rgba(55,138,221,0.1); color: #378ADD; }
+.metric-badge.purple { background: rgba(127,119,221,0.1); color: #7F77DD; }
+.metric-value { font-size: 26px; font-weight: 500; color: var(--yc-text); letter-spacing: -0.5px; }
+.metric-label { font-size: 12px; color: var(--yc-muted); margin-top: 2px; }
+.two-col { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+.panel { background: var(--yc-surface); border: 0.5px solid var(--yc-border); border-radius: var(--yc-radius); overflow: hidden; }
+.panel-header { padding: 14px 16px; border-bottom: 0.5px solid var(--yc-border); display: flex; align-items: center; gap: 8px; }
+.panel-title { font-size: 14px; font-weight: 500; color: var(--yc-text); flex: 1; }
+.panel-action { font-size: 12px; color: var(--yc-teal); cursor: pointer; font-weight: 500; }
+.client-list { display: flex; flex-direction: column; }
+.client-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 0.5px solid var(--yc-border); }
+.client-row:last-child { border-bottom: none; }
+.client-row:hover { background: var(--color-background-secondary); }
+.c-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+.c-av-teal { background: rgba(0,128,128,0.12); color: #008080; }
+.c-av-blue { background: rgba(55,138,221,0.1); color: #378ADD; }
+.c-av-amber { background: rgba(186,117,23,0.1); color: #BA7517; }
+.client-info { flex: 1; }
+.client-name { font-size: 13px; font-weight: 500; color: var(--yc-text); }
+.client-meta { font-size: 11px; color: var(--yc-muted); margin-top: 2px; }
+.client-actions { display: flex; gap: 6px; }
+.c-btn { font-size: 11px; padding: 4px 10px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--yc-text); cursor: pointer; }
+.c-btn:hover { background: var(--color-background-secondary); }
+.c-btn.primary { background: rgba(0,128,128,0.08); border-color: #008080; color: #008080; }
+.checklist { display: flex; flex-direction: column; }
+.check-item { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-bottom: 0.5px solid var(--yc-border); }
+.check-item:last-child { border-bottom: none; }
+.check-circle { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--color-border-secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; }
+.check-circle.done { background: #30B060; border-color: #30B060; color: white; }
+.check-circle.pending { border-color: #BA7517; }
+.check-circle.locked { background: var(--color-background-secondary); }
+.check-label { flex: 1; font-size: 13px; color: var(--yc-text); }
+.check-label.done-text { color: var(--yc-muted); text-decoration: line-through; }
+.check-tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; }
+.check-tag.done { background: rgba(48,176,96,0.1); color: #30B060; }
+.check-tag.pending { background: rgba(186,117,23,0.1); color: #BA7517; }
+.check-tag.todo { background: var(--color-background-secondary); color: var(--yc-muted); }
+.quick-actions { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.qa-btn { background: var(--yc-surface); border: 0.5px solid var(--yc-border); border-radius: var(--yc-radius); padding: 14px 12px; display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; transition: all 0.15s; text-align: center; }
+.qa-btn:hover { border-color: #008080; background: rgba(0,128,128,0.04); }
+.qa-icon { width: 38px; height: 38px; border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.qa-icon.teal { background: rgba(0,128,128,0.1); color: #008080; }
+.qa-icon.green { background: rgba(48,176,96,0.12); color: #30B060; }
+.qa-icon.blue { background: rgba(55,138,221,0.1); color: #378ADD; }
+.qa-label { font-size: 12px; color: var(--yc-text); font-weight: 500; }
+.section-label { font-size: 13px; font-weight: 500; color: var(--yc-text); }
+.timesheet-row { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 0.5px solid var(--yc-border); }
+.timesheet-row:last-child { border-bottom: none; }
+.ts-day { font-size: 12px; font-weight: 500; color: var(--yc-muted); width: 36px; flex-shrink: 0; }
+.ts-bar-wrap { flex: 1; height: 6px; background: var(--color-background-secondary); border-radius: 3px; overflow: hidden; }
+.ts-bar { height: 100%; border-radius: 3px; background: #008080; }
+.ts-hours { font-size: 12px; color: var(--yc-text); width: 40px; text-align: right; flex-shrink: 0; }
+.ts-status { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 500; flex-shrink: 0; }
+.ts-approved { background: rgba(48,176,96,0.1); color: #30B060; }
+.ts-pending { background: rgba(186,117,23,0.1); color: #BA7517; }
+.ts-empty { color: var(--yc-muted); }
+
+.training-item { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 0.5px solid var(--yc-border); }
+.training-item:last-child { border-bottom: none; }
+.training-icon { width: 32px; height: 32px; border-radius: var(--border-radius-md); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.training-info { flex: 1; }
+.training-name { font-size: 13px; color: var(--yc-text); font-weight: 500; }
+.training-due { font-size: 11px; color: var(--yc-muted); margin-top: 2px; }
+.training-prog { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+.prog-bar-wrap { flex: 1; height: 4px; background: var(--color-background-secondary); border-radius: 2px; overflow: hidden; }
+.prog-bar { height: 100%; border-radius: 2px; }
+.prog-bar.green { background: #30B060; }
+.prog-bar.teal { background: #008080; }
+.prog-bar.amber { background: #BA7517; }
+.prog-pct { font-size: 11px; color: var(--yc-muted); width: 28px; text-align: right; flex-shrink: 0; }
+</style>
+
+<h2 class="sr-only">YayraCare DSP staff dashboard with training, documents, and onboarding checklist</h2>
+
+<div class="shell">
+  <nav class="nav">
+    <div class="nav-logo">
+      <div class="nav-logo-text">
+        <div class="nav-logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
+        </div>
+        <span class="nav-brand">Yayra<span>Care</span></span>
+      </div>
+    </div>
+
+    <div class="nav-user">
+      <div class="nav-avatar">MS</div>
+      <div class="nav-user-info">
+        <div class="nav-user-name">Maria Santos</div>
+        <div class="nav-user-role">DSP Staff</div>
+      </div>
+      <div class="nav-dot"></div>
+    </div>
+
+    <div class="nav-section">Main</div>
+    <div class="nav-item active"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> My overview</div>
+    <div class="nav-item"><i class="ti ti-id" aria-hidden="true"></i> Profile details</div>
+
+    <div class="nav-section">Applications</div>
+    <div class="nav-item"><i class="ti ti-file-text" aria-hidden="true"></i> DSP application</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list" aria-hidden="true"></i> Onboarding forms <span class="nav-badge-warn">2</span></div>
+
+    <div class="nav-section">Work</div>
+    <div class="nav-item"><i class="ti ti-clock" aria-hidden="true"></i> My timesheet</div>
+    <div class="nav-item"><i class="ti ti-notes" aria-hidden="true"></i> My case notes</div>
+
+    <div class="nav-section">Resources</div>
+    <div class="nav-item"><i class="ti ti-certificate" aria-hidden="true"></i> My training <span class="nav-badge-warn">1</span></div>
+    <div class="nav-item"><i class="ti ti-folder" aria-hidden="true"></i> My documents</div>
+    <div class="nav-sub download"><i class="ti ti-download" aria-hidden="true"></i> Employee handbook</div>
+
+    <div class="nav-spacer"></div>
+    <div class="nav-bottom">
+      <div class="nav-item" style="padding:8px 0;"><i class="ti ti-settings" aria-hidden="true"></i> Settings</div>
+      <div class="nav-item" style="padding:8px 0;"><i class="ti ti-logout" aria-hidden="true"></i> Logout</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">My overview</div>
+        <div class="topbar-subtitle">Wednesday, May 13, 2026</div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="notif-wrap">
+        <div class="topbar-icon"><i class="ti ti-bell" aria-hidden="true"></i></div>
+        <div class="notif-dot"></div>
+      </div>
+      <div class="topbar-icon"><i class="ti ti-settings" aria-hidden="true"></i></div>
+    </div>
+
+    <div class="content">
+
+      <div class="welcome-banner">
+        <div class="welcome-left">
+          <div class="welcome-greeting">Good morning, Maria 👋</div>
+          <div class="welcome-sub">You have 2 clients assigned today and 1 pending case note.</div>
+        </div>
+        <div class="welcome-right">
+          <div class="welcome-stat">
+            <div class="welcome-stat-val">32.5</div>
+            <div class="welcome-stat-label">Hours this week</div>
+          </div>
+          <div class="welcome-divider"></div>
+          <div class="welcome-stat">
+            <div class="welcome-stat-val">3</div>
+            <div class="welcome-stat-label">Clients assigned</div>
+          </div>
+          <div class="welcome-divider"></div>
+          <div class="welcome-stat">
+            <div class="welcome-stat-val">1</div>
+            <div class="welcome-stat-label">Note pending</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-top">
+            <div class="metric-icon teal"><i class="ti ti-users" aria-hidden="true"></i></div>
+            <span class="metric-badge info">this week</span>
+          </div>
+          <div class="metric-value">3</div>
+          <div class="metric-label">My assigned clients</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-top">
+            <div class="metric-icon green"><i class="ti ti-clock" aria-hidden="true"></i></div>
+            <span class="metric-badge up">on track</span>
+          </div>
+          <div class="metric-value">32.5</div>
+          <div class="metric-label">Hours logged this week</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-top">
+            <div class="metric-icon blue"><i class="ti ti-notes" aria-hidden="true"></i></div>
+            <span class="metric-badge info">this month</span>
+          </div>
+          <div class="metric-value">14</div>
+          <div class="metric-label">Case notes submitted</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-top">
+            <div class="metric-icon purple"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+            <span class="metric-badge warn">1 due soon</span>
+          </div>
+          <div class="metric-value">4/5</div>
+          <div class="metric-label">Trainings completed</div>
+        </div>
+      </div>
+
+      <div>
+        <div style="margin-bottom:10px;">
+          <span class="section-label">Quick actions</span>
+        </div>
+        <div class="quick-actions">
+          <div class="qa-btn">
+            <div class="qa-icon teal"><i class="ti ti-clock" aria-hidden="true"></i></div>
+            <span class="qa-label">Log hours</span>
+          </div>
+          <div class="qa-btn">
+            <div class="qa-icon green"><i class="ti ti-notes" aria-hidden="true"></i></div>
+            <span class="qa-label">Add case note</span>
+          </div>
+          <div class="qa-btn">
+            <div class="qa-icon blue"><i class="ti ti-upload" aria-hidden="true"></i></div>
+            <span class="qa-label">Upload document</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div style="display:flex; flex-direction:column; gap:16px;">
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">My assigned clients</span>
+              <span class="panel-action">View all</span>
+            </div>
+            <div class="client-list">
+              <div class="client-row">
+                <div class="c-avatar c-av-teal">RJ</div>
+                <div class="client-info">
+                  <div class="client-name">Robert Johnson</div>
+                  <div class="client-meta">ISP: Community participation · Expires Dec 2026</div>
+                </div>
+                <div class="client-actions">
+                  <button class="c-btn primary">Case note</button>
+                  <button class="c-btn">View</button>
+                </div>
+              </div>
+              <div class="client-row">
+                <div class="c-avatar c-av-blue">AM</div>
+                <div class="client-info">
+                  <div class="client-name">Angela Moore</div>
+                  <div class="client-meta">ISP: ADL support · Expires Mar 2027</div>
+                </div>
+                <div class="client-actions">
+                  <button class="c-btn primary">Case note</button>
+                  <button class="c-btn">View</button>
+                </div>
+              </div>
+              <div class="client-row">
+                <div class="c-avatar c-av-amber">TW</div>
+                <div class="client-info">
+                  <div class="client-name">Thomas Williams</div>
+                  <div class="client-meta">ISP: Independence training · Expires Aug 2026</div>
+                </div>
+                <div class="client-actions">
+                  <button class="c-btn primary">Case note</button>
+                  <button class="c-btn">View</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">My training</span>
+              <span class="panel-action">View all</span>
+            </div>
+            <div>
+              <div class="training-item">
+                <div class="training-icon" style="background:rgba(48,176,96,0.12); color:#30B060;"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+                <div class="training-info">
+                  <div class="training-name">CDS training</div>
+                  <div class="training-due">Completed · May 2026</div>
+                  <div class="training-prog">
+                    <div class="prog-bar-wrap"><div class="prog-bar green" style="width:100%"></div></div>
+                    <span class="prog-pct">100%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="training-item">
+                <div class="training-icon" style="background:rgba(48,176,96,0.12); color:#30B060;"><i class="ti ti-certificate" aria-hidden="true"></i></div>
+                <div class="training-info">
+                  <div class="training-name">CPR / First Aid / BLS</div>
+                  <div class="training-due">Completed · Expires Apr 2027</div>
+                  <div class="training-prog">
+                    <div class="prog-bar-wrap"><div class="prog-bar green" style="width:100%"></div></div>
+                    <span class="prog-pct">100%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="training-item">
+                <div class="training-icon" style="background:rgba(0,128,128,0.1); color:#008080;"><i class="ti ti-book" aria-hidden="true"></i></div>
+                <div class="training-info">
+                  <div class="training-name">60-day orientation</div>
+                  <div class="training-due">In progress · Due Jun 12, 2026</div>
+                  <div class="training-prog">
+                    <div class="prog-bar-wrap"><div class="prog-bar teal" style="width:72%"></div></div>
+                    <span class="prog-pct">72%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="training-item">
+                <div class="training-icon" style="background:rgba(186,117,23,0.1); color:#BA7517;"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div>
+                <div class="training-info">
+                  <div class="training-name">Danielle's Law compliance</div>
+                  <div class="training-due">Due soon · Due May 20, 2026</div>
+                  <div class="training-prog">
+                    <div class="prog-bar-wrap"><div class="prog-bar amber" style="width:30%"></div></div>
+                    <span class="prog-pct">30%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">This week's timesheet</span>
+              <span class="panel-action">Submit</span>
+            </div>
+            <div>
+              <div class="timesheet-row">
+                <span class="ts-day">Sun</span>
+                <div class="ts-bar-wrap"><div class="ts-bar" style="width:0%"></div></div>
+                <span class="ts-hours ts-empty">—</span>
+                <span class="ts-status ts-approved" style="visibility:hidden">—</span>
+              </div>
+              <div class="timesheet-row">
+                <span class="ts-day">Mon</span>
+                <div class="ts-bar-wrap"><div class="ts-bar" style="width:100%"></div></div>
+                <span class="ts-hours">8h</span>
+                <span class="ts-status ts-approved">Logged</span>
+              </div>
+              <div class="timesheet-row">
+                <span class="ts-day">Tue</span>
+                <div class="ts-bar-wrap"><div class="ts-bar" style="width:100%"></div></div>
+                <span class="ts-hours">8h</span>
+                <span class="ts-status ts-approved">Logged</span>
+              </div>
+              <div class="timesheet-row">
+                <span class="ts-day">Wed</span>
+                <div class="ts-bar-wrap"><div class="ts-bar" style="width:81%"></div></div>
+                <span class="ts-hours">6.5h</span>
+                <span class="ts-status ts-approved">Logged</span>
+              </div>
+              <div class="timesheet-row">
+                <span class="ts-day">Thu</span>
+                <div class="ts-bar-wrap"><div class="ts-bar" style="width:100%"></div></div>
+                <span class="ts-hours">8h</span>
+                <span class="ts-status ts-approved">Logged</span>
+              </div>
+              <div class="timesheet-row">
+                <span class="ts-day">Fri</span>
+                <div class="ts-bar-wrap"><div class="ts-bar" style="width:25%"></div></div>
+                <span class="ts-hours">2h</span>
+                <span class="ts-status ts-pending">Pending</span>
+              </div>
+              <div class="timesheet-row">
+                <span class="ts-day">Sat</span>
+                <div class="ts-bar-wrap"><div class="ts-bar" style="width:0%"></div></div>
+                <span class="ts-hours ts-empty">—</span>
+                <span class="ts-status ts-approved" style="visibility:hidden">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">My documents</span>
+              <span class="panel-action">Upload new</span>
+            </div>
+            <div class="checklist">
+              <div class="check-item">
+                <div class="check-circle done"><i class="ti ti-check" aria-hidden="true"></i></div>
+                <span class="check-label done-text">Resume</span>
+                <span class="check-tag done">Uploaded</span>
+              </div>
+              <div class="check-item">
+                <div class="check-circle done"><i class="ti ti-check" aria-hidden="true"></i></div>
+                <span class="check-label done-text">Driver's license</span>
+                <span class="check-tag done">Uploaded</span>
+              </div>
+              <div class="check-item">
+                <div class="check-circle done"><i class="ti ti-check" aria-hidden="true"></i></div>
+                <span class="check-label done-text">CPR certificate</span>
+                <span class="check-tag done">Uploaded</span>
+              </div>
+              <div class="check-item">
+                <div class="check-circle done"><i class="ti ti-check" aria-hidden="true"></i></div>
+                <span class="check-label done-text">Form I-9</span>
+                <span class="check-tag done">Uploaded</span>
+              </div>
+              <div class="check-item">
+                <div class="check-circle pending"></div>
+                <span class="check-label">Direct deposit form</span>
+                <span class="check-tag pending">Pending</span>
+              </div>
+              <div class="check-item">
+                <div class="check-circle pending"></div>
+                <span class="check-label">NJ W4</span>
+                <span class="check-tag pending">Pending</span>
+              </div>
+              <div class="check-item" style="background:rgba(0,160,144,0.04); cursor:pointer;">
+                <div style="width:20px; height:20px; border-radius:50%; background:rgba(0,160,144,0.15); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px; color:#00A090;">
+                  <i class="ti ti-download" aria-hidden="true"></i>
+                </div>
+                <span class="check-label" style="color:#00A090; font-weight:500;">Employee handbook</span>
+                <span class="check-tag" style="background:rgba(0,160,144,0.12); color:#00A090;">Download</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

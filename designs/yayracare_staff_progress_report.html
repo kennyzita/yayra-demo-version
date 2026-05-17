@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Staff Progress Report — YayraCare</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/1.119.0/iconfont/tabler-icons.min.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f5f7;display:flex;height:100vh;overflow:hidden;}
+:root{--navy:#0d2d5e;--teal:#008080;--green:#30B060;}
+.nav{width:220px;min-width:220px;background:#002830;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.nl{padding:18px 16px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px;}
+.ni-ic{width:32px;height:32px;border-radius:7px;background:linear-gradient(135deg,#008080,#30B060);display:flex;align-items:center;justify-content:center;}
+.ni-ic svg{width:18px;height:18px;fill:white;}
+.nb{font-size:15px;font-weight:500;color:#fff;}.nb span{color:#30B060;}
+.nu{padding:11px 16px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:9px;}
+.na{width:30px;height:30px;border-radius:50%;background:#008080;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;color:white;flex-shrink:0;}
+.nn{font-size:13px;color:white;font-weight:500;}.nr{font-size:11px;color:#a8c8cc;}
+.nd{width:7px;height:7px;border-radius:50%;background:#30B060;margin-left:auto;}
+.ns{padding:12px 16px 5px;font-size:10px;font-weight:500;color:rgba(168,200,204,.5);letter-spacing:.08em;text-transform:uppercase;}
+.ni{display:flex;align-items:center;gap:10px;padding:8px 16px;cursor:pointer;font-size:13px;color:#a8c8cc;position:relative;}
+.ni:hover{color:white;background:rgba(255,255,255,.05);}
+.ni.active{color:white;background:rgba(48,176,96,.18);}
+.ni.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#30B060;border-radius:0 2px 2px 0;}
+.ni i{font-size:15px;width:17px;}
+.nbw{margin-left:auto;background:#BA7517;color:white;font-size:10px;padding:2px 6px;border-radius:9px;font-weight:500;}
+.nsp{flex:1;}.nbt{padding:12px 16px;border-top:1px solid rgba(255,255,255,.07);}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{background:white;border-bottom:1px solid #e5e7eb;padding:0 22px;height:54px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.tb-t{font-size:15px;font-weight:600;color:#111;}
+.tb-sp{flex:1;}
+.tb-btn{font-size:12px;padding:6px 14px;border-radius:8px;border:1px solid #d1d5db;background:transparent;color:#374151;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:inherit;}
+.tb-btn:hover{background:#f9fafb;}
+.tb-btn.p{background:var(--teal);border-color:var(--teal);color:white;}
+.tb-btn.p:hover{background:#006060;}
+.ct{flex:1;overflow-y:auto;padding:18px 22px;}
+.dsp-row{background:white;border:1px solid #e5e7eb;border-radius:10px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.dsp-lbl{font-size:13px;font-weight:500;color:#374151;white-space:nowrap;}
+.sw{position:relative;flex:1;}
+.sw select{width:100%;font-size:13px;padding:9px 36px 9px 12px;border:1px solid #d1d5db;border-radius:8px;background:white;color:#111;outline:none;cursor:pointer;appearance:none;font-family:inherit;}
+.sw select:focus{border-color:var(--teal);}
+.sw::after{content:'❯';position:absolute;right:12px;top:50%;transform:translateY(-50%) rotate(90deg);font-size:12px;color:var(--teal);pointer-events:none;}
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;}
+.sc{background:white;border:1px solid #e5e7eb;border-radius:10px;padding:15px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.sv{font-size:24px;font-weight:600;color:#111;}
+.sl{font-size:12px;color:#6b7280;margin-top:2px;}
+.sp{display:inline-block;margin-top:8px;font-size:11px;padding:2px 9px;border-radius:10px;font-weight:500;}
+.spg{background:rgba(48,176,96,.1);color:#30B060;}
+.spa{background:rgba(186,117,23,.1);color:#BA7517;}
+.spt{background:rgba(0,128,128,.1);color:var(--teal);}
+.sb{background:white;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.sh{background:var(--navy);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;}
+.sh-t{font-size:13px;font-weight:700;color:white;}
+.sh-r{font-size:12px;color:rgba(255,255,255,.75);}
+.ct2{padding:16px 18px;}
+.fl{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#374151;margin-bottom:6px;}
+.ob-bar-bg{height:9px;background:#f3f4f6;border-radius:5px;overflow:hidden;margin-bottom:14px;}
+.ob-bar{height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:5px;transition:width .4s;}
+.ob-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.ob-item{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid #e5e7eb;border-radius:8px;}
+.ob-ic{width:21px;height:21px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;}
+.ic-done{background:rgba(48,176,96,.1);color:var(--green);}
+.ic-pend{background:rgba(186,117,23,.1);color:#BA7517;}
+.ic-miss{background:rgba(226,75,74,.1);color:#E24B4A;}
+.ob-lbl{font-size:12px;font-weight:500;color:#111;}
+.ck-table{width:100%;border-collapse:collapse;}
+.ck-table th{padding:9px 16px;font-size:10px;font-weight:600;color:#6b7280;text-align:left;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #f3f4f6;background:#f9fafb;}
+.ck-table td{padding:10px 16px;font-size:13px;border-bottom:1px solid #f3f4f6;vertical-align:middle;color:#111;}
+.ck-table tr:last-child td{border-bottom:none;}
+.ck-table tr:hover td{background:#fafbfc;}
+.ck-lbl{font-weight:500;}
+.pill{font-size:11px;padding:3px 9px;border-radius:10px;font-weight:500;display:inline-flex;align-items:center;gap:4px;cursor:pointer;border:none;font-family:inherit;}
+.py{background:rgba(48,176,96,.1);color:#30B060;}
+.pn{background:rgba(226,75,74,.1);color:#E24B4A;}
+.pp{background:rgba(186,117,23,.1);color:#BA7517;}
+.rn{background:rgba(48,176,96,.1);color:#30B060;font-size:11px;padding:2px 8px;border-radius:8px;font-weight:500;}
+.rp{background:rgba(226,75,74,.1);color:#E24B4A;font-size:11px;padding:2px 8px;border-radius:8px;font-weight:500;}
+.mile-wrap{padding:16px 18px;}
+.mile-row{display:flex;align-items:center;}
+.ms{display:flex;flex-direction:column;align-items:center;flex:1;}
+.md{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #d1d5db;}
+.md-done{background:var(--teal);border-color:var(--teal);color:white;}
+.md-curr{background:var(--green);border-color:var(--green);color:white;}
+.md-todo{background:#f9fafb;border-color:#d1d5db;color:#9ca3af;}
+.ml{flex:1;height:2px;background:#e5e7eb;}
+.ml-done{background:var(--teal);}
+.ml-lbl{flex:1;text-align:center;font-size:10px;color:#6b7280;margin-top:5px;}
+.ml-curr{color:var(--green);font-weight:600;}
+.sig-row{padding:16px 18px;border-top:1px solid #f3f4f6;display:flex;align-items:flex-end;gap:14px;}
+.sig-field{flex:1;}
+.sig-lbl{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.sig-in{width:100%;font-size:13px;padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;color:#555;outline:none;}
+.sig-box{border:1px solid #d1d5db;border-radius:8px;height:52px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#f9fafb;}
+.sig-box:hover{border-color:var(--teal);background:#f0fdf4;}
+.sig-box.signed{background:rgba(48,176,96,.05);border-color:rgba(48,176,96,.4);}
+.sig-ph{font-size:12px;color:#9ca3af;display:flex;align-items:center;gap:6px;}
+.sig-nm{font-size:18px;color:var(--green);font-style:italic;}
+.save-btn{font-size:13px;padding:11px 22px;border-radius:8px;border:none;background:var(--teal);color:white;cursor:pointer;font-weight:600;font-family:inherit;white-space:nowrap;}
+.save-btn:hover{background:#006060;}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nl"><div class="ni-ic"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg></div><span class="nb">Yayra<span>Care</span></span></div>
+  <div class="nu"><div class="na">JD</div><div><div class="nn">Jane Doe</div><div class="nr">Admin</div></div><div class="nd"></div></div>
+  <div class="ns">Main</div>
+  <div class="ni"><i class="ti ti-layout-dashboard"></i> Admin overview</div>
+  <div class="ni"><i class="ti ti-id"></i> Profile details</div>
+  <div class="ns">Applications</div>
+  <div class="ni"><i class="ti ti-file-text"></i> DSP application</div>
+  <div class="ni"><i class="ti ti-upload"></i> Upload documents</div>
+  <div class="ns">Work</div>
+  <div class="ni"><i class="ti ti-clock"></i> Time sheet <span class="nbw">5</span></div>
+  <div class="ni"><i class="ti ti-notes"></i> Case notes <span class="nbw">3</span></div>
+  <div class="ns">Clients</div>
+  <div class="ni"><i class="ti ti-user-plus"></i> Create new client</div>
+  <div class="ni"><i class="ti ti-arrows-exchange"></i> DSP assignment</div>
+  <div class="ns">Reports & Admin</div>
+  <div class="ni active"><i class="ti ti-clipboard-check"></i> Staff progress report</div>
+  <div class="ni"><i class="ti ti-shield-check"></i> Assign / update roles</div>
+  <div class="nsp"></div>
+  <div class="nbt">
+    <div class="ni" style="padding:8px 0;"><i class="ti ti-settings"></i> Settings</div>
+    <div class="ni" style="padding:8px 0;"><i class="ti ti-logout"></i> Logout</div>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <span class="tb-t">Staff progress report</span>
+    <div class="tb-sp"></div>
+    <button class="tb-btn" onclick="window.print()"><i class="ti ti-download"></i> Export PDF</button>
+    <button class="tb-btn p" onclick="alert('Report saved')"><i class="ti ti-device-floppy"></i> Save report</button>
+  </div>
+  <div class="ct">
+
+    <div class="dsp-row">
+      <span class="dsp-lbl">Select DSP staff</span>
+      <div class="sw"><select id="dspSel" onchange="loadDSP()">
+        <option value="">— Select staff member —</option>
+        <option value="ms" selected>Maria Santos</option>
+        <option value="ko">Kevin O'Brien</option>
+        <option value="ao">Amara Okafor</option>
+        <option value="dm">David Mills</option>
+      </select></div>
+    </div>
+
+    <div class="sum">
+      <div class="sc"><div class="sv" id="smDone">7</div><div class="sl">Checks complete</div><div class="sp spg">On track</div></div>
+      <div class="sc"><div class="sv" id="smPend">3</div><div class="sl">Pending items</div><div class="sp spa">Action needed</div></div>
+      <div class="sc"><div class="sv" id="smOb">75%</div><div class="sl">Onboarding complete</div><div class="sp spt">In progress</div></div>
+      <div class="sc"><div class="sv" id="smTr">3/5</div><div class="sl">Training milestones</div><div class="sp spg">60 days done</div></div>
+    </div>
+
+    <!-- ONBOARDING SUCCESS -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">Onboarding success</span><span class="sh-r" id="obLbl">75% complete</span></div>
+      <div class="ct2">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;"><span class="fl">Overall progress</span><span style="font-size:13px;font-weight:600;color:var(--teal);" id="obPct">75%</span></div>
+        <div class="ob-bar-bg"><div class="ob-bar" id="obBar" style="width:75%;"></div></div>
+        <div class="ob-grid">
+          <div class="ob-item"><div class="ob-ic ic-done"><i class="ti ti-check"></i></div><span class="ob-lbl">DSP application submitted</span></div>
+          <div class="ob-item"><div class="ob-ic ic-done"><i class="ti ti-check"></i></div><span class="ob-lbl">W4 completed</span></div>
+          <div class="ob-item"><div class="ob-ic ic-done"><i class="ti ti-check"></i></div><span class="ob-lbl">Form I-9 submitted</span></div>
+          <div class="ob-item"><div class="ob-ic ic-done"><i class="ti ti-check"></i></div><span class="ob-lbl">Driver's license uploaded</span></div>
+          <div class="ob-item"><div class="ob-ic ic-done"><i class="ti ti-check"></i></div><span class="ob-lbl">CPR certificate uploaded</span></div>
+          <div class="ob-item"><div class="ob-ic ic-done"><i class="ti ti-check"></i></div><span class="ob-lbl">CRO consent signed</span></div>
+          <div class="ob-item"><div class="ob-ic ic-pend"><i class="ti ti-clock"></i></div><span class="ob-lbl">Direct deposit form</span></div>
+          <div class="ob-item"><div class="ob-ic ic-pend"><i class="ti ti-clock"></i></div><span class="ob-lbl">NJ W4 pending</span></div>
+          <div class="ob-item"><div class="ob-ic ic-miss"><i class="ti ti-x"></i></div><span class="ob-lbl">CARI clearance</span></div>
+          <div class="ob-item"><div class="ob-ic ic-miss"><i class="ti ti-x"></i></div><span class="ob-lbl">Danielle's Law sign-off</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPLIANCE CHECKS -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">Compliance checks</span></div>
+      <table class="ck-table">
+        <thead><tr><th>Check</th><th>Scheduled</th><th>Completed</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td><div class="ck-lbl">CRO check</div></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td><span class="rn">Negative</span></td></tr>
+          <tr><td><div class="ck-lbl">Drug testing</div></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td><span class="rn">Negative</span></td></tr>
+          <tr><td><div class="ck-lbl">CARI clearance</div></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td><button class="pill pp" onclick="cyc(this)"><i class="ti ti-clock"></i> Pending</button></td><td><span style="color:#9ca3af;font-size:12px;">—</span></td></tr>
+          <tr><td><div class="ck-lbl">Fingerprinting</div></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td><button class="pill pp" onclick="cyc(this)"><i class="ti ti-clock"></i> Pending</button></td><td><span style="color:#9ca3af;font-size:12px;">—</span></td></tr>
+          <tr><td><div class="ck-lbl">FARA check</div></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td><span class="rn">Negative</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SYSTEM ACCESS -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">System access</span></div>
+      <table class="ck-table">
+        <thead><tr><th>Item</th><th>Status</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><div class="ck-lbl">CDS account created</div></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td style="font-size:12px;color:#6b7280;">Active since Apr 2026</td></tr>
+          <tr><td><div class="ck-lbl">Manager's Zone access</div></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td style="font-size:12px;color:#6b7280;">Role: DSP Staff</td></tr>
+          <tr><td><div class="ck-lbl">YayraCare portal access</div></td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td><td style="font-size:12px;color:#6b7280;">Last login: May 13, 2026</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TRAINING MILESTONES -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">Training milestones</span><span class="sh-r">3 of 5 completed</span></div>
+      <div class="mile-wrap">
+        <div class="mile-row">
+          <div class="ms"><div class="md md-done"><i class="ti ti-check" style="font-size:11px;"></i></div></div>
+          <div class="ml ml-done"></div>
+          <div class="ms"><div class="md md-done"><i class="ti ti-check" style="font-size:11px;"></i></div></div>
+          <div class="ml ml-done"></div>
+          <div class="ms"><div class="md md-done"><i class="ti ti-check" style="font-size:11px;"></i></div></div>
+          <div class="ml"></div>
+          <div class="ms"><div class="md md-curr">4</div></div>
+          <div class="ml"></div>
+          <div class="ms"><div class="md md-todo">5</div></div>
+        </div>
+        <div style="display:flex;margin-top:5px;">
+          <div class="ml-lbl" style="flex:1;">Prior training</div>
+          <div class="ml-lbl" style="flex:1;">60 days</div>
+          <div class="ml-lbl" style="flex:1;">90 days</div>
+          <div class="ml-lbl ml-curr" style="flex:1;">120 days</div>
+          <div class="ml-lbl" style="flex:1;">180 days</div>
+        </div>
+        <table class="ck-table" style="margin-top:14px;">
+          <thead><tr><th>Training item</th><th>Due date</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><div class="ck-lbl">Prior training</div></td><td style="font-size:12px;color:#6b7280;">Apr 1, 2026</td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td></tr>
+            <tr><td><div class="ck-lbl">60-day orientation</div></td><td style="font-size:12px;color:#6b7280;">May 1, 2026</td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td></tr>
+            <tr><td><div class="ck-lbl">90-day review</div></td><td style="font-size:12px;color:#6b7280;">Jun 1, 2026</td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td></tr>
+            <tr><td><div class="ck-lbl">120-day milestone</div></td><td style="font-size:12px;color:#6b7280;">Jul 1, 2026</td><td><button class="pill pp" onclick="cyc(this)"><i class="ti ti-clock"></i> Pending</button></td></tr>
+            <tr><td><div class="ck-lbl">180-day milestone</div></td><td style="font-size:12px;color:#6b7280;">Sep 1, 2026</td><td><button class="pill pp" onclick="cyc(this)"><i class="ti ti-clock"></i> Pending</button></td></tr>
+            <tr><td><div class="ck-lbl">Internal training</div></td><td style="font-size:12px;color:#6b7280;">Ongoing</td><td><button class="pill py" onclick="cyc(this)"><i class="ti ti-check"></i> Yes</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ADMIN SIGN-OFF -->
+    <div class="sb">
+      <div class="sh"><span class="sh-t">Admin sign-off</span></div>
+      <div class="sig-row">
+        <div class="sig-field"><div class="sig-lbl">Admin name</div><input class="sig-in" value="Jane Doe" readonly/></div>
+        <div class="sig-field"><div class="sig-lbl">Signature</div>
+          <div class="sig-box" id="sigBox" onclick="doSign()" role="button">
+            <div class="sig-ph"><i class="ti ti-writing"></i> Click to sign</div>
+          </div>
+        </div>
+        <button class="save-btn" onclick="alert('Report saved successfully')">Save report</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const DD={
+  ms:{done:7,pend:3,ob:75,tr:'3/5'},
+  ko:{done:9,pend:1,ob:90,tr:'4/5'},
+  ao:{done:4,pend:6,ob:40,tr:'1/5'},
+  dm:{done:8,pend:2,ob:85,tr:'4/5'},
+};
+function loadDSP(){
+  const v=document.getElementById('dspSel').value,d=DD[v];
+  if(!d)return;
+  document.getElementById('smDone').textContent=d.done;
+  document.getElementById('smPend').textContent=d.pend;
+  document.getElementById('smOb').textContent=d.ob+'%';
+  document.getElementById('smTr').textContent=d.tr;
+  document.getElementById('obPct').textContent=d.ob+'%';
+  document.getElementById('obLbl').textContent=d.ob+'% complete';
+  document.getElementById('obBar').style.width=d.ob+'%';
+}
+const S=[
+  {c:'py',i:'ti-check',l:'Yes'},
+  {c:'pn',i:'ti-x',l:'No'},
+  {c:'pp',i:'ti-clock',l:'Pending'},
+];
+function cyc(b){
+  const cur=S.find(s=>b.classList.contains(s.c));
+  const next=S[(S.indexOf(cur)+1)%S.length];
+  S.forEach(s=>b.classList.remove(s.c));
+  b.classList.add(next.c);
+  b.innerHTML=`<i class="ti ${next.i}"></i> ${next.l}`;
+}
+function doSign(){
+  const b=document.getElementById('sigBox');
+  b.className='sig-box signed';
+  b.innerHTML='<span class="sig-nm">Jane Doe</span>';
+}
+loadDSP();
+</script>
+</body>
+</html>

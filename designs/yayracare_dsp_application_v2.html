@@ -1,0 +1,526 @@
+
+<style>
+:root {
+  --yc-nav-bg:#002830;--yc-teal:#008080;--yc-accent:#30B060;--yc-aqua:#00A090;
+  --yc-bg:var(--color-background-tertiary);--yc-surface:var(--color-background-primary);
+  --yc-border:var(--color-border-tertiary);--yc-border-md:var(--color-border-secondary);
+  --yc-text:var(--color-text-primary);--yc-muted:var(--color-text-secondary);
+  --yc-radius:var(--border-radius-lg);--yc-radius-md:var(--border-radius-md);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--yc-bg);}
+.shell{display:flex;height:100vh;min-height:700px;overflow:hidden;border-radius:var(--border-radius-lg);border:0.5px solid var(--color-border-secondary);}
+.nav{width:220px;min-width:220px;background:var(--yc-nav-bg);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.nav-logo{padding:20px 18px 16px;border-bottom:0.5px solid rgba(255,255,255,0.07);display:flex;align-items:center;gap:10px;}
+.nav-logo-icon{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#008080,#30B060);display:flex;align-items:center;justify-content:center;}
+.nav-logo-icon svg{width:20px;height:20px;fill:white;}
+.nav-brand{font-size:16px;font-weight:500;color:#fff;}.nav-brand span{color:#30B060;}
+.nav-user{padding:12px 18px;border-bottom:0.5px solid rgba(255,255,255,0.07);display:flex;align-items:center;gap:10px;}
+.nav-avatar{width:32px;height:32px;border-radius:50%;background:#008080;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:white;flex-shrink:0;}
+.nav-user-name{font-size:13px;color:white;font-weight:500;}.nav-user-role{font-size:11px;color:#a8c8cc;}
+.nav-dot{width:7px;height:7px;border-radius:50%;background:#30B060;margin-left:auto;}
+.nav-section{padding:14px 18px 6px;font-size:10px;font-weight:500;color:rgba(168,200,204,0.5);letter-spacing:0.08em;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 18px;cursor:pointer;font-size:13px;color:#a8c8cc;transition:all 0.15s;position:relative;}
+.nav-item:hover{color:white;background:rgba(255,255,255,0.05);}
+.nav-item.active{color:white;background:rgba(48,176,96,0.18);}
+.nav-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#30B060;border-radius:0 2px 2px 0;}
+.nav-item i{font-size:16px;width:18px;flex-shrink:0;}
+.nav-badge-warn{margin-left:auto;background:#BA7517;color:white;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:500;}
+.nav-spacer{flex:1;}
+.nav-bottom{padding:12px 18px;border-top:0.5px solid rgba(255,255,255,0.07);}
+.nav-sub{display:flex;align-items:center;gap:10px;padding:6px 18px 6px 46px;cursor:pointer;font-size:12px;color:rgba(168,200,204,0.7);}
+.nav-sub i{font-size:14px;}.nav-sub.dl{color:#00A090;}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{background:var(--yc-surface);border-bottom:0.5px solid var(--yc-border);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.topbar-back{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--yc-muted);cursor:pointer;padding:6px 10px;border-radius:var(--yc-radius-md);}
+.topbar-back:hover{background:var(--color-background-secondary);color:var(--yc-text);}
+.topbar-divider{width:0.5px;height:16px;background:var(--yc-border);}
+.topbar-title{font-size:15px;font-weight:500;color:var(--yc-text);}
+.topbar-spacer{flex:1;}
+.save-btn{font-size:12px;padding:6px 14px;border-radius:var(--yc-radius-md);border:0.5px solid var(--yc-border-md);background:transparent;color:var(--yc-text);cursor:pointer;}
+.save-btn:hover{background:var(--color-background-secondary);}
+.dl-btn{font-size:12px;padding:6px 14px;border-radius:var(--yc-radius-md);border:0.5px solid #008080;background:transparent;color:#008080;cursor:pointer;display:flex;align-items:center;gap:5px;}
+.dl-btn:hover{background:rgba(0,128,128,0.06);}
+.submit-btn{font-size:12px;padding:6px 16px;border-radius:var(--yc-radius-md);border:none;background:#008080;color:white;cursor:pointer;font-weight:500;}
+.submit-btn:hover{background:#006060;}
+.body{flex:1;display:flex;overflow:hidden;}
+.steps-sidebar{width:200px;min-width:200px;background:var(--yc-surface);border-right:0.5px solid var(--yc-border);padding:20px 0;overflow-y:auto;flex-shrink:0;}
+.step-item{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;cursor:pointer;transition:background 0.15s;}
+.step-item:hover{background:var(--color-background-secondary);}
+.step-item.active{background:rgba(0,128,128,0.06);}
+.step-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0;margin-top:1px;}
+.step-num.done{background:#30B060;color:white;}
+.step-num.current{background:#008080;color:white;}
+.step-num.todo{background:var(--color-background-secondary);color:var(--yc-muted);border:0.5px solid var(--yc-border-md);}
+.step-label{font-size:12px;font-weight:500;color:var(--yc-text);}
+.step-label.muted{color:var(--yc-muted);}
+.step-sub{font-size:11px;color:var(--yc-muted);margin-top:1px;}
+.step-connector{width:1px;height:10px;background:var(--yc-border);margin:0 0 0 27px;}
+.form-area{flex:1;overflow-y:auto;padding:24px 28px;}
+.progress-bar-wrap{height:3px;background:var(--color-background-secondary);border-radius:2px;margin-bottom:24px;}
+.progress-bar{height:100%;background:#008080;border-radius:2px;width:14%;transition:width 0.4s;}
+.form-section{margin-bottom:24px;}
+.section-heading{font-size:15px;font-weight:500;color:var(--yc-text);margin-bottom:4px;}
+.section-desc{font-size:12px;color:var(--yc-muted);margin-bottom:16px;}
+.section-divider{height:0.5px;background:var(--yc-border);margin-bottom:18px;}
+.field-grid{display:grid;gap:14px;}
+.col-2{grid-template-columns:1fr 1fr;}.col-3{grid-template-columns:1fr 1fr 1fr;}.col-1{grid-template-columns:1fr;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:12px;font-weight:500;color:var(--yc-text);}
+.field label .req{color:#E24B4A;margin-left:2px;}
+.field input,.field select,.field textarea{font-size:13px;color:var(--yc-text);background:var(--yc-surface);border:0.5px solid var(--yc-border-md);border-radius:var(--yc-radius-md);padding:8px 10px;outline:none;width:100%;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#008080;}
+.field textarea{resize:vertical;min-height:72px;line-height:1.5;}
+.field-hint{font-size:11px;color:var(--yc-muted);}
+.check-group,.radio-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;}
+.check-opt,.radio-opt{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--yc-text);cursor:pointer;padding:5px 10px;border:0.5px solid var(--yc-border-md);border-radius:var(--yc-radius-md);background:var(--yc-surface);}
+.check-opt:hover,.radio-opt:hover{border-color:#008080;background:rgba(0,128,128,0.04);}
+.check-opt input,.radio-opt input{accent-color:#008080;margin:0;}
+.upload-box{border:0.5px dashed var(--yc-border-md);border-radius:var(--yc-radius-md);padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--color-background-secondary);transition:border-color 0.15s;}
+.upload-box:hover{border-color:#008080;background:rgba(0,128,128,0.04);}
+.upload-icon{width:32px;height:32px;border-radius:var(--yc-radius-md);background:rgba(0,128,128,0.1);display:flex;align-items:center;justify-content:center;font-size:16px;color:#008080;flex-shrink:0;}
+.upload-text{flex:1;}.upload-label{font-size:12px;font-weight:500;color:var(--yc-text);}
+.upload-hint{font-size:11px;color:var(--yc-muted);margin-top:1px;}
+.upload-badge{font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(186,117,23,0.1);color:#BA7517;font-weight:500;flex-shrink:0;}
+.upload-badge.opt{background:var(--color-background-secondary);color:var(--yc-muted);}
+.sig-box{border:0.5px solid var(--yc-border-md);border-radius:var(--yc-radius-md);height:90px;display:flex;align-items:center;justify-content:center;background:var(--color-background-secondary);cursor:pointer;}
+.sig-box:hover{border-color:#008080;}
+.sig-placeholder{font-size:12px;color:var(--yc-muted);display:flex;align-items:center;gap:6px;}
+.notice-box{background:rgba(0,128,128,0.06);border:0.5px solid rgba(0,128,128,0.2);border-radius:var(--yc-radius-md);padding:12px 14px;font-size:12px;color:var(--yc-text);line-height:1.6;margin-bottom:20px;}
+
+.repeatable-block{border:0.5px solid var(--yc-border);border-radius:var(--yc-radius-md);padding:16px;margin-bottom:12px;position:relative;background:var(--yc-surface);}
+.repeatable-block .remove-btn{position:absolute;top:10px;right:10px;background:transparent;border:none;color:var(--yc-muted);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:var(--yc-radius-md);}
+.repeatable-block .remove-btn:hover{background:rgba(226,75,74,0.08);color:#E24B4A;}
+.add-entry-btn{display:flex;align-items:center;gap:6px;font-size:12px;color:#008080;cursor:pointer;padding:8px 12px;border:0.5px dashed rgba(0,128,128,0.4);border-radius:var(--yc-radius-md);background:rgba(0,128,128,0.04);width:100%;justify-content:center;font-weight:500;}
+.add-entry-btn:hover{background:rgba(0,128,128,0.08);border-color:#008080;}
+
+.nav-footer{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-top:0.5px solid var(--yc-border);background:var(--yc-surface);flex-shrink:0;}
+.nav-footer-left{font-size:12px;color:var(--yc-muted);}
+.nav-footer-btns{display:flex;gap:8px;}
+.btn-prev{font-size:13px;padding:7px 16px;border-radius:var(--yc-radius-md);border:0.5px solid var(--yc-border-md);background:transparent;color:var(--yc-text);cursor:pointer;display:flex;align-items:center;gap:5px;}
+.btn-prev:hover{background:var(--color-background-secondary);}
+.btn-next{font-size:13px;padding:7px 18px;border-radius:var(--yc-radius-md);border:none;background:#008080;color:white;cursor:pointer;font-weight:500;display:flex;align-items:center;gap:5px;}
+.btn-next:hover{background:#006060;}
+
+@media print {
+  .nav,.steps-sidebar,.topbar,.nav-footer{display:none!important;}
+  .shell{border:none;height:auto;overflow:visible;}
+  .main{overflow:visible;}
+  .body{overflow:visible;}
+  .form-area{overflow:visible;padding:20px;}
+  .progress-bar-wrap{display:none;}
+  #allSteps{display:block!important;}
+  #stepContent{display:none;}
+  .repeatable-block{break-inside:avoid;}
+  .form-section{break-inside:avoid;}
+}
+</style>
+
+<h2 class="sr-only">YayraCare DSP job application — multi-step form with dynamic entries and styled PDF download</h2>
+
+<div class="shell">
+  <nav class="nav">
+    <div class="nav-logo">
+      <div class="nav-logo-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg></div>
+      <span class="nav-brand">Yayra<span>Care</span></span>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar">MS</div>
+      <div><div class="nav-user-name">Maria Santos</div><div class="nav-user-role">DSP Staff</div></div>
+      <div class="nav-dot"></div>
+    </div>
+    <div class="nav-section">Main</div>
+    <div class="nav-item"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> My overview</div>
+    <div class="nav-item"><i class="ti ti-id" aria-hidden="true"></i> Profile details</div>
+    <div class="nav-section">Applications</div>
+    <div class="nav-item active"><i class="ti ti-file-text" aria-hidden="true"></i> DSP application</div>
+    <div class="nav-item"><i class="ti ti-clipboard-list" aria-hidden="true"></i> Onboarding forms <span class="nav-badge-warn">2</span></div>
+    <div class="nav-section">Work</div>
+    <div class="nav-item"><i class="ti ti-clock" aria-hidden="true"></i> My timesheet</div>
+    <div class="nav-item"><i class="ti ti-notes" aria-hidden="true"></i> My case notes</div>
+    <div class="nav-section">Resources</div>
+    <div class="nav-item"><i class="ti ti-certificate" aria-hidden="true"></i> My training <span class="nav-badge-warn">1</span></div>
+    <div class="nav-item"><i class="ti ti-folder" aria-hidden="true"></i> My documents</div>
+    <div class="nav-sub dl"><i class="ti ti-download" aria-hidden="true"></i> Employee handbook</div>
+    <div class="nav-spacer"></div>
+    <div class="nav-bottom">
+      <div class="nav-item" style="padding:8px 0;"><i class="ti ti-settings" aria-hidden="true"></i> Settings</div>
+      <div class="nav-item" style="padding:8px 0;"><i class="ti ti-logout" aria-hidden="true"></i> Logout</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-back"><i class="ti ti-arrow-left" aria-hidden="true"></i> Back</div>
+      <div class="topbar-divider"></div>
+      <span class="topbar-title">DSP job application</span>
+      <div class="topbar-spacer"></div>
+      <button class="save-btn">Save draft</button>
+      <button class="dl-btn" onclick="downloadPDF()"><i class="ti ti-download" aria-hidden="true"></i> Download PDF</button>
+      <button class="submit-btn" id="submitBtn" style="display:none;">Submit application</button>
+    </div>
+
+    <div class="body">
+      <div class="steps-sidebar">
+        <div class="step-item active" onclick="goTo(0)">
+          <div class="step-num current" id="sn0">1</div>
+          <div><div class="step-label" id="sl0">Personal info</div><div class="step-sub">Name, address, contact</div></div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" onclick="goTo(1)">
+          <div class="step-num todo" id="sn1">2</div>
+          <div><div class="step-label muted" id="sl1">Availability</div><div class="step-sub">Schedule & position</div></div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" onclick="goTo(2)">
+          <div class="step-num todo" id="sn2">3</div>
+          <div><div class="step-label muted" id="sl2">Eligibility</div><div class="step-sub">Work authorization</div></div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" onclick="goTo(3)">
+          <div class="step-num todo" id="sn3">4</div>
+          <div><div class="step-label muted" id="sl3">Education</div><div class="step-sub">School & work history</div></div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" onclick="goTo(4)">
+          <div class="step-num todo" id="sn4">5</div>
+          <div><div class="step-label muted" id="sl4">Emergency contact</div><div class="step-sub">Emergency details</div></div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" onclick="goTo(5)">
+          <div class="step-num todo" id="sn5">6</div>
+          <div><div class="step-label muted" id="sl5">Documents</div><div class="step-sub">Uploads & certs</div></div>
+        </div>
+        <div class="step-connector"></div>
+        <div class="step-item" onclick="goTo(6)">
+          <div class="step-num todo" id="sn6">7</div>
+          <div><div class="step-label muted" id="sl6">Signature</div><div class="step-sub">Review & sign</div></div>
+        </div>
+      </div>
+
+      <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <div class="form-area" id="formArea">
+          <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+          <div id="stepContent"></div>
+          <div id="allSteps" style="display:none;"></div>
+        </div>
+        <div class="nav-footer">
+          <span class="nav-footer-left" id="stepCounter">Step 1 of 7</span>
+          <div class="nav-footer-btns">
+            <button class="btn-prev" id="prevBtn" onclick="prevStep()" style="display:none;"><i class="ti ti-arrow-left" aria-hidden="true"></i> Previous</button>
+            <button class="btn-next" id="nextBtn" onclick="nextStep()">Next <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let current = 0;
+const total = 7;
+
+function schoolBlock(idx) {
+  return `<div class="repeatable-block" id="school_${idx}">
+    ${idx>0?`<button class="remove-btn" onclick="removeBlock('school_${idx}')" aria-label="Remove entry"><i class="ti ti-x"></i></button>`:''}
+    <div class="field-grid col-3" style="margin-bottom:12px;">
+      <div class="field"><label>School name <span class="req">*</span></label><input type="text" placeholder="School name"/></div>
+      <div class="field"><label>From <span class="req">*</span></label><input type="date"/></div>
+      <div class="field"><label>To <span class="req">*</span></label><input type="date"/></div>
+    </div>
+    <div class="field-grid col-3">
+      <div class="field"><label>Did you graduate?</label>
+        <div class="radio-group"><label class="radio-opt"><input type="radio" name="grad_${idx}"/> Yes</label><label class="radio-opt"><input type="radio" name="grad_${idx}"/> No</label></div>
+      </div>
+      <div class="field"><label>Diploma / GED</label>
+        <div class="radio-group"><label class="radio-opt"><input type="radio" name="ged_${idx}"/> Yes</label><label class="radio-opt"><input type="radio" name="ged_${idx}"/> No</label></div>
+      </div>
+      <div class="field"><label>Degree</label>
+        <div class="radio-group"><label class="radio-opt"><input type="radio" name="deg_${idx}"/> Yes</label><label class="radio-opt"><input type="radio" name="deg_${idx}"/> No</label></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function workBlock(idx) {
+  return `<div class="repeatable-block" id="work_${idx}">
+    ${idx>0?`<button class="remove-btn" onclick="removeBlock('work_${idx}')" aria-label="Remove entry"><i class="ti ti-x"></i></button>`:''}
+    <div class="field-grid col-3" style="margin-bottom:12px;">
+      <div class="field"><label>Company name <span class="req">*</span></label><input type="text" placeholder="Company"/></div>
+      <div class="field"><label>Job title</label><input type="text" placeholder="Title"/></div>
+      <div class="field"><label>Supervisor</label><input type="text" placeholder="Supervisor name"/></div>
+    </div>
+    <div class="field-grid col-2" style="margin-bottom:12px;">
+      <div class="field"><label>Responsibilities <span class="req">*</span></label><textarea placeholder="Key responsibilities..."></textarea></div>
+      <div class="field"><label>Reason for leaving</label><textarea placeholder="Reason for leaving..."></textarea></div>
+    </div>
+    <div class="field"><label>May we contact your previous supervisor?</label>
+      <div class="radio-group"><label class="radio-opt"><input type="radio" name="contact_${idx}"/> Yes</label><label class="radio-opt"><input type="radio" name="contact_${idx}"/> No</label></div>
+    </div>
+  </div>`;
+}
+
+function refBlock(idx) {
+  return `<div class="repeatable-block" id="ref_${idx}">
+    ${idx>0?`<button class="remove-btn" onclick="removeBlock('ref_${idx}')" aria-label="Remove entry"><i class="ti ti-x"></i></button>`:''}
+    <div class="field-grid col-2">
+      <div class="field"><label>Reference name <span class="req">*</span></label><input type="text" placeholder="Full name"/></div>
+      <div class="field"><label>Years acquainted <span class="req">*</span></label><input type="text" placeholder="e.g. 3 years"/></div>
+    </div>
+  </div>`;
+}
+
+let schoolCount=1, workCount=1, refCount=1;
+
+function addSchool(){
+  const c=document.getElementById('schoolContainer');
+  c.insertAdjacentHTML('beforeend',schoolBlock(schoolCount++));
+}
+function addWork(){
+  const c=document.getElementById('workContainer');
+  c.insertAdjacentHTML('beforeend',workBlock(workCount++));
+}
+function addRef(){
+  const c=document.getElementById('refContainer');
+  c.insertAdjacentHTML('beforeend',refBlock(refCount++));
+}
+function removeBlock(id){
+  const el=document.getElementById(id);
+  if(el) el.remove();
+}
+
+const stepHTMLs = [
+  // Step 1 — Personal
+  `<div class="notice-box">Reliance Care Services LLC is an equal opportunity employer. Applicants are considered without regard to race, age, sex, gender identity, marital status, family status, political or religious conviction, impairment, or pregnancy.</div>
+  <div class="form-section">
+    <div class="field-grid col-3">
+      <div class="field"><label>First name <span class="req">*</span></label><input type="text" placeholder="First name"/></div>
+      <div class="field"><label>Middle name</label><input type="text" placeholder="Middle name"/></div>
+      <div class="field"><label>Last name <span class="req">*</span></label><input type="text" placeholder="Last name"/></div>
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-heading">Address</div><div class="section-divider"></div>
+    <div class="field-grid col-1" style="margin-bottom:14px;"><div class="field"><label>Address line 1</label><input type="text" placeholder="Street address"/></div></div>
+    <div class="field-grid col-1" style="margin-bottom:14px;"><div class="field"><label>Address line 2</label><input type="text" placeholder="Apt, suite, unit (optional)"/></div></div>
+    <div class="field-grid col-3">
+      <div class="field"><label>City</label><input type="text" placeholder="City"/></div>
+      <div class="field"><label>State</label><input type="text" placeholder="State"/></div>
+      <div class="field"><label>Zip code</label><input type="text" placeholder="Zip"/></div>
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-heading">Contact</div><div class="section-divider"></div>
+    <div class="field-grid col-3">
+      <div class="field"><label>Phone <span class="req">*</span></label><input type="tel" placeholder="(000) 000-0000"/></div>
+      <div class="field"><label>Email address <span class="req">*</span></label><input type="email" placeholder="email@example.com"/></div>
+      <div class="field"><label>Date of birth <span class="req">*</span></label><input type="date"/><span class="field-hint">Stored encrypted · HIPAA protected</span></div>
+    </div>
+    <div class="field-grid col-2" style="margin-top:14px;">
+      <div class="field"><label>Social security number <span class="req">*</span></label><input type="password" placeholder="XXX-XX-XXXX"/><span class="field-hint">AES-256 encrypted · never stored in plain text</span></div>
+    </div>
+  </div>`,
+
+  // Step 2 — Availability
+  `<div class="form-section">
+    <div class="section-heading">Allergies & availability</div><div class="section-divider"></div>
+    <div class="field" style="margin-bottom:16px;"><label>Are you allergic to any of the following? <span class="req">*</span></label>
+      <div class="check-group"><label class="check-opt"><input type="checkbox"/> Pets</label><label class="check-opt"><input type="checkbox"/> Smoke</label><label class="check-opt"><input type="checkbox"/> None</label></div>
+    </div>
+    <div class="field" style="margin-bottom:16px;"><label>Are you able to work holidays?</label>
+      <div class="radio-group"><label class="radio-opt"><input type="radio" name="hol"/> Yes</label><label class="radio-opt"><input type="radio" name="hol"/> No</label></div>
+    </div>
+    <div class="field" style="margin-bottom:16px;"><label>Days available <span class="req">*</span></label>
+      <div class="check-group"><label class="check-opt"><input type="checkbox"/> Sun</label><label class="check-opt"><input type="checkbox"/> Mon</label><label class="check-opt"><input type="checkbox"/> Tue</label><label class="check-opt"><input type="checkbox"/> Wed</label><label class="check-opt"><input type="checkbox"/> Thu</label><label class="check-opt"><input type="checkbox"/> Fri</label><label class="check-opt"><input type="checkbox"/> Sat</label></div>
+    </div>
+    <div class="field"><label>Preferred shift <span class="req">*</span></label>
+      <div class="check-group"><label class="check-opt"><input type="checkbox"/> 7AM – 3PM</label><label class="check-opt"><input type="checkbox"/> 3PM – 11PM</label><label class="check-opt"><input type="checkbox"/> 11PM – 7AM</label></div>
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-heading">Position details</div><div class="section-divider"></div>
+    <div class="field-grid col-2" style="margin-bottom:14px;">
+      <div class="field"><label>Date available to start</label><input type="date"/></div>
+      <div class="field"><label>How did you hear about us?</label><select><option value="">Select...</option><option>Referral</option><option>Internet</option></select></div>
+    </div>
+    <div class="field-grid col-2">
+      <div class="field"><label>Position applying for</label><select><option>DSP</option></select></div>
+      <div class="field"><label>Type of assignment</label>
+        <div class="check-group" style="margin-top:4px;"><label class="check-opt"><input type="checkbox"/> Part time</label><label class="check-opt"><input type="checkbox"/> Full time</label><label class="check-opt"><input type="checkbox"/> Live-in</label></div>
+      </div>
+    </div>
+  </div>`,
+
+  // Step 3 — Eligibility
+  `<div class="form-section"><div class="field-grid col-1">
+    <div class="field" style="margin-bottom:12px;"><label>Are you a citizen of the United States? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="cit"/> Yes</label><label class="radio-opt"><input type="radio" name="cit"/> No</label></div></div>
+    <div class="field" style="margin-bottom:12px;"><label>Are you authorized to work in the U.S.? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="auth"/> Yes</label><label class="radio-opt"><input type="radio" name="auth"/> No</label></div></div>
+    <div class="field" style="margin-bottom:12px;"><label>Have you ever worked for this company? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="prev"/> Yes</label><label class="radio-opt"><input type="radio" name="prev"/> No</label></div></div>
+    <div class="field" style="margin-bottom:12px;"><label>If yes, when?</label><input type="date" style="max-width:200px;"/></div>
+    <div class="field" style="margin-bottom:12px;"><label>Do you authorize RCS to conduct a criminal background check? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="bg"/> Yes</label><label class="radio-opt"><input type="radio" name="bg"/> No</label></div></div>
+    <div class="field" style="margin-bottom:12px;"><label>Please explain (if applicable)</label><textarea placeholder="Provide any relevant details..."></textarea></div>
+    <div class="field" style="margin-bottom:12px;"><label>Do you have malpractice insurance? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="mal"/> Yes</label><label class="radio-opt"><input type="radio" name="mal"/> No</label></div></div>
+    <div class="field"><label>If yes, name and address of carrier <span class="req">*</span></label><textarea placeholder="Insurance carrier name and address..."></textarea></div>
+  </div></div>`,
+
+  // Step 4 — Education (dynamic)
+  `<div class="form-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div class="section-heading">Education history</div>
+    </div>
+    <div class="section-divider"></div>
+    <div id="schoolContainer"></div>
+    <button class="add-entry-btn" onclick="addSchool()"><i class="ti ti-plus" aria-hidden="true"></i> Add another school</button>
+  </div>
+  <div class="form-section" style="margin-top:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div class="section-heading">Employment history</div>
+    </div>
+    <div class="section-divider"></div>
+    <div id="workContainer"></div>
+    <button class="add-entry-btn" onclick="addWork()"><i class="ti ti-plus" aria-hidden="true"></i> Add another employer</button>
+  </div>
+  <div class="form-section" style="margin-top:24px;">
+    <div class="section-heading">References</div>
+    <div class="section-divider"></div>
+    <div id="refContainer"></div>
+    <button class="add-entry-btn" onclick="addRef()"><i class="ti ti-plus" aria-hidden="true"></i> Add another reference</button>
+  </div>`,
+
+  // Step 5 — Emergency contact
+  `<div class="form-section">
+    <div class="field-grid col-3">
+      <div class="field"><label>Emergency contact name <span class="req">*</span></label><input type="text" placeholder="Full name"/></div>
+      <div class="field"><label>Relationship <span class="req">*</span></label><select><option value="">Select...</option><option>Spouse</option><option>Friend</option><option>Relative</option><option>Other</option></select></div>
+      <div class="field"><label>Phone <span class="req">*</span></label><input type="tel" placeholder="(000) 000-0000"/></div>
+    </div>
+  </div>`,
+
+  // Step 6 — Documents (EAD expiry added)
+  `<div class="form-section">
+    <div class="section-heading">Identification</div><div class="section-divider"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+      <div class="upload-box"><div class="upload-icon"><i class="ti ti-upload" aria-hidden="true"></i></div><div class="upload-text"><div class="upload-label">Resume <span style="color:#E24B4A;">*</span></div><div class="upload-hint">PDF or Word · max 5MB</div></div><span class="upload-badge">Required</span></div>
+      <div class="upload-box"><div class="upload-icon"><i class="ti ti-id" aria-hidden="true"></i></div><div class="upload-text"><div class="upload-label">Driver's license — front <span style="color:#E24B4A;">*</span></div><div class="upload-hint">JPG, PNG or PDF</div></div><span class="upload-badge">Required</span></div>
+      <div class="upload-box"><div class="upload-icon"><i class="ti ti-id" aria-hidden="true"></i></div><div class="upload-text"><div class="upload-label">Driver's license — back <span style="color:#E24B4A;">*</span></div><div class="upload-hint">JPG, PNG or PDF</div></div><span class="upload-badge">Required</span></div>
+    </div>
+    <div class="field-grid col-2" style="margin-bottom:18px;">
+      <div class="field"><label>Driver's license expiration date <span class="req">*</span></label><input type="date"/></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+      <div class="upload-box"><div class="upload-icon"><i class="ti ti-file" aria-hidden="true"></i></div><div class="upload-text"><div class="upload-label">SSN card <span style="color:#E24B4A;">*</span></div><div class="upload-hint">Stored encrypted · HIPAA protected</div></div><span class="upload-badge">Required</span></div>
+      <div class="upload-box"><div class="upload-icon"><i class="ti ti-file" aria-hidden="true"></i></div><div class="upload-text"><div class="upload-label">EAD / Green card — front</div><div class="upload-hint">If applicable</div></div><span class="upload-badge opt">Optional</span></div>
+      <div class="upload-box"><div class="upload-icon"><i class="ti ti-file" aria-hidden="true"></i></div><div class="upload-text"><div class="upload-label">EAD / Green card — back</div><div class="upload-hint">If applicable</div></div><span class="upload-badge opt">Optional</span></div>
+    </div>
+    <div class="field-grid col-2" style="margin-bottom:24px;">
+      <div class="field"><label>EAD / Green card expiration date</label><input type="date"/><span class="field-hint">Leave blank if not applicable</span></div>
+    </div>
+  </div>
+  <div class="form-section">
+    <div class="section-heading">Certifications</div><div class="section-divider"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px;">
+      <div class="upload-box"><div class="upload-icon"><i class="ti ti-certificate" aria-hidden="true"></i></div><div class="upload-text"><div class="upload-label">CPR / First Aid / BLS certificate <span style="color:#E24B4A;">*</span></div><div class="upload-hint">PDF or image</div></div><span class="upload-badge">Required</span></div>
+    </div>
+    <div class="field-grid col-2">
+      <div class="field"><label>CPR / BLS expiration date <span class="req">*</span></label><input type="date"/></div>
+    </div>
+  </div>`,
+
+  // Step 7 — Signature (no admin section)
+  `<div class="notice-box">By signing below you certify that all information provided in this application is true and complete. Any false information or omission may disqualify you from further consideration and may result in dismissal if discovered after employment.</div>
+  <div class="form-section">
+    <div class="section-heading">Applicant signature</div><div class="section-divider"></div>
+    <div class="field-grid col-2">
+      <div class="field"><label>Full legal name <span class="req">*</span></label><input type="text" placeholder="Type your full name"/></div>
+      <div class="field"><label>Date <span class="req">*</span></label><input type="date"/></div>
+    </div>
+    <div class="field" style="margin-top:14px;">
+      <label>Signature <span class="req">*</span></label>
+      <div class="sig-box"><div class="sig-placeholder"><i class="ti ti-writing" aria-hidden="true"></i> Click to sign</div></div>
+      <span class="field-hint">Use your mouse or touchscreen to draw your signature</span>
+    </div>
+  </div>`
+];
+
+const stepMeta = [
+  {label:'Personal info',sub:'Name, address, contact'},
+  {label:'Availability',sub:'Schedule & position'},
+  {label:'Eligibility',sub:'Work authorization'},
+  {label:'Education',sub:'School & work history'},
+  {label:'Emergency contact',sub:'Emergency details'},
+  {label:'Documents',sub:'Uploads & certs'},
+  {label:'Signature',sub:'Review & sign'}
+];
+
+const progWidths=['14%','28%','42%','57%','71%','85%','100%'];
+
+function render(){
+  const sc=document.getElementById('stepContent');
+  sc.innerHTML=`<div class="form-section"><div class="section-heading">${stepMeta[current].label}</div><div class="section-desc" style="font-size:12px;color:var(--yc-muted);margin-bottom:16px;">${stepMeta[current].sub}</div></div>${stepHTMLs[current]}`;
+
+  if(current===3){
+    const scon=document.getElementById('schoolContainer');
+    const wcon=document.getElementById('workContainer');
+    const rcon=document.getElementById('refContainer');
+    if(scon&&!scon.children.length){scon.innerHTML=schoolBlock(0);schoolCount=1;}
+    if(wcon&&!wcon.children.length){wcon.innerHTML=workBlock(0);workCount=1;}
+    if(rcon&&!rcon.children.length){rcon.innerHTML=refBlock(0);refCount=1;}
+  }
+
+  document.getElementById('progressBar').style.width=progWidths[current];
+  document.getElementById('stepCounter').textContent=`Step ${current+1} of ${total}`;
+  document.getElementById('prevBtn').style.display=current===0?'none':'flex';
+  document.getElementById('nextBtn').style.display=current===total-1?'none':'flex';
+  document.getElementById('submitBtn').style.display=current===total-1?'block':'none';
+  document.getElementById('formArea').scrollTop=0;
+
+  for(let i=0;i<total;i++){
+    const sn=document.getElementById('sn'+i);
+    const sl=document.getElementById('sl'+i);
+    if(i<current){sn.className='step-num done';sn.innerHTML='<i class="ti ti-check" style="font-size:11px;"></i>';if(sl)sl.className='step-label';}
+    else if(i===current){sn.className='step-num current';sn.textContent=i+1;if(sl)sl.className='step-label';}
+    else{sn.className='step-num todo';sn.textContent=i+1;if(sl)sl.className='step-label muted';}
+    document.querySelectorAll('.step-item')[i].classList.toggle('active',i===current);
+  }
+}
+
+function nextStep(){if(current<total-1){current++;render();}}
+function prevStep(){if(current>0){current--;render();}}
+function goTo(i){current=i;render();}
+
+function downloadPDF(){
+  const allDiv=document.getElementById('allSteps');
+  allDiv.innerHTML='';
+  const header=`<div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;padding-bottom:16px;border-bottom:2px solid #008080;">
+    <div style="width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#008080,#30B060);display:flex;align-items:center;justify-content:center;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
+    </div>
+    <div><div style="font-size:20px;font-weight:500;color:#004050;">YayraCare <span style="color:#30B060;">— DSP Job Application</span></div>
+    <div style="font-size:12px;color:#4A6670;">Reliance Care Services LLC · Printed ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div></div>
+  </div>`;
+  allDiv.innerHTML=header;
+  stepMeta.forEach((m,i)=>{
+    const sec=document.createElement('div');
+    sec.style.cssText='margin-bottom:28px;page-break-inside:avoid;';
+    sec.innerHTML=`<div style="font-size:14px;font-weight:500;color:#004050;margin-bottom:8px;padding-bottom:6px;border-bottom:0.5px solid #E0EAEC;">${i+1}. ${m.label}</div>${stepHTMLs[i]}`;
+    allDiv.appendChild(sec);
+    if(i===3){
+      const scon=sec.querySelector('#schoolContainer');
+      const wcon=sec.querySelector('#workContainer');
+      const rcon=sec.querySelector('#refContainer');
+      if(scon)scon.innerHTML=schoolBlock(0);
+      if(wcon)wcon.innerHTML=workBlock(0);
+      if(rcon)rcon.innerHTML=refBlock(0);
+    }
+  });
+  allDiv.style.display='block';
+  document.getElementById('stepContent').style.display='none';
+  window.print();
+  setTimeout(()=>{
+    allDiv.style.display='none';
+    document.getElementById('stepContent').style.display='block';
+  },1000);
+}
+
+render();
+</script>

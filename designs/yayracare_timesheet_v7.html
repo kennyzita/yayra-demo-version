@@ -1,0 +1,428 @@
+
+<style>
+:root{
+  --nb:#002830;--ts:#008080;--ac:#30B060;
+  --bg:var(--color-background-tertiary);--sf:var(--color-background-primary);
+  --bd:var(--color-border-tertiary);--bdm:var(--color-border-secondary);
+  --tx:var(--color-text-primary);--mt:var(--color-text-secondary);
+  --rl:var(--border-radius-lg);--rm:var(--border-radius-md);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font-sans);background:var(--bg);}
+.shell{display:flex;height:100vh;min-height:700px;overflow:hidden;border-radius:var(--rl);border:0.5px solid var(--bdm);}
+
+/* ── Nav ── */
+.nav{width:220px;min-width:220px;background:var(--nb);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.nl{padding:20px 18px 16px;border-bottom:0.5px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px;}
+.ni-icon{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#008080,#30B060);display:flex;align-items:center;justify-content:center;}
+.ni-icon svg{width:20px;height:20px;fill:white;}
+.nb{font-size:16px;font-weight:500;color:#fff;}.nb span{color:#30B060;}
+.nu{padding:12px 18px;border-bottom:0.5px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:10px;}
+.na{width:32px;height:32px;border-radius:50%;background:#008080;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;color:white;flex-shrink:0;}
+.nn{font-size:13px;color:white;font-weight:500;}.nr{font-size:11px;color:#a8c8cc;}
+.nd{width:7px;height:7px;border-radius:50%;background:#30B060;margin-left:auto;}
+.ns{padding:14px 18px 6px;font-size:10px;font-weight:500;color:rgba(168,200,204,.5);letter-spacing:.08em;text-transform:uppercase;}
+.ni{display:flex;align-items:center;gap:10px;padding:8px 18px;cursor:pointer;font-size:13px;color:#a8c8cc;transition:all .15s;position:relative;}
+.ni:hover{color:white;background:rgba(255,255,255,.05);}
+.ni.active{color:white;background:rgba(48,176,96,.18);}
+.ni.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:#30B060;border-radius:0 2px 2px 0;}
+.ni i{font-size:16px;width:18px;flex-shrink:0;}
+.nbw{margin-left:auto;background:#BA7517;color:white;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:500;}
+.nsp{flex:1;}
+.nbt{padding:12px 18px;border-top:0.5px solid rgba(255,255,255,.07);}
+.nsb{display:flex;align-items:center;gap:10px;padding:6px 18px 6px 46px;cursor:pointer;font-size:12px;color:rgba(168,200,204,.7);}
+.nsb.dl{color:#00A090;}
+
+/* ── Main ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{background:var(--sf);border-bottom:0.5px solid var(--bd);padding:0 24px;height:56px;display:flex;align-items:center;gap:12px;flex-shrink:0;}
+.tb-title{font-size:15px;font-weight:500;color:var(--tx);}
+.tb-sp{flex:1;}
+.tb-btn{font-size:12px;padding:6px 14px;border-radius:var(--rm);border:0.5px solid var(--bdm);background:transparent;color:var(--tx);cursor:pointer;display:flex;align-items:center;gap:5px;}
+.tb-btn:hover{background:var(--color-background-secondary);}
+
+/* ── Scrollable content ── */
+.content{flex:1;overflow-y:auto;padding:20px 24px;}
+
+/* ── Metrics ── */
+.mrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px;}
+.mc{background:var(--sf);border:0.5px solid var(--bd);border-radius:var(--rl);padding:18px 16px 14px;}
+.mv{font-size:28px;font-weight:500;color:var(--tx);letter-spacing:-.5px;line-height:1.1;}
+.ml{font-size:13px;color:var(--mt);margin-top:4px;line-height:1.4;}
+.mp{display:inline-block;margin-top:10px;font-size:12px;padding:3px 10px;border-radius:20px;font-weight:400;}
+.pt{background:rgba(0,160,160,.1);color:#008080;}
+.pb{background:rgba(100,140,255,.12);color:#4060c0;}
+.pa{background:rgba(200,110,40,.12);color:#b05a10;}
+.pg{background:rgba(30,160,80,.1);color:#187a40;}
+
+/* ── The form — white doc style exactly like the video ── */
+.form-doc{background:var(--sf);border:0.5px solid var(--bd);border-radius:var(--rl);padding:24px 28px 32px;margin-bottom:20px;}
+
+/* Employee strip */
+.emp{display:flex;align-items:flex-start;gap:36px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid #e8e8e8;}
+.ef-label{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#666;margin-bottom:3px;display:flex;align-items:center;gap:6px;}
+.ef-auto{font-size:9px;background:#1a56db;color:#fff;padding:1px 6px;border-radius:3px;font-weight:700;}
+.ef-val{font-size:15px;font-weight:600;color:#1a1a1a;}
+
+/* Section headings — bold caps exactly like video */
+.sh{font-size:11px;font-weight:800;color:#1a1a1a;letter-spacing:.08em;text-transform:uppercase;margin:20px 0 10px;}
+.sh:first-of-type{margin-top:0;}
+
+/* Client selector — underline style exactly like video */
+.cl-label{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:6px;}
+.cl-wrap{position:relative;border-bottom:1.5px solid #1a56db;margin-bottom:4px;}
+.cl-wrap select{width:100%;font-size:14px;color:#444;background:transparent;border:none;padding:8px 32px 8px 0;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;}
+.cl-wrap::after{content:'❯';position:absolute;right:4px;top:50%;transform:translateY(-50%) rotate(90deg);font-size:12px;color:#1a56db;pointer-events:none;}
+
+/* SELECT WEEK — full-width bottom border with chevron on far right exactly like video */
+.sw-outer{position:relative;border:0.5px solid #d0d0d0;border-radius:6px;margin-bottom:4px;}
+.sw-chevron{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:11px;color:#888;pointer-events:none;}
+.sw-inner{padding:12px 36px 12px 14px;}
+.sw-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.sw-row label{font-size:13px;font-weight:500;color:#333;white-space:nowrap;}
+.sw-sel{position:relative;}
+.sw-sel select{font-size:13px;padding:6px 28px 6px 10px;border:1px solid #ccc;border-radius:5px;background:#fff;color:#1a1a1a;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;}
+.sw-sel select:focus{border-color:#1a56db;}
+.sw-sel::after{content:'❯';position:absolute;right:8px;top:50%;transform:translateY(-50%) rotate(90deg);font-size:10px;color:#666;pointer-events:none;}
+.sw-sel.wide select{min-width:168px;}
+.yr-in{width:76px;font-size:13px;padding:6px 10px;border:1px solid #ccc;border-radius:5px;background:#fff;color:#1a1a1a;outline:none;}
+.yr-in:focus{border-color:#1a56db;}
+.lw-btn{font-size:12px;padding:7px 16px;border-radius:6px;border:none;background:#1a56db;color:#fff;cursor:pointer;font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.lw-btn:hover{background:#1447b5;}
+.wk-range{font-size:12px;color:#666;margin-top:8px;}
+
+/* Daily hours table — exactly matching video */
+.ts-table{width:100%;border-collapse:collapse;margin-top:10px;}
+.ts-table thead tr{background:#1a56db;}
+.ts-table th{padding:11px 14px;font-size:12px;font-weight:600;color:#fff;text-align:left;}
+.ts-table th:last-child{text-align:right;padding-right:16px;}
+.ts-table td{padding:11px 14px;font-size:13px;color:#1a1a1a;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+.ts-table tr:hover td{background:#fafafa;}
+.ts-table tr.tr-today td{background:#f0f7ff;}
+.ts-table tr.tr-today td:first-child{border-left:3px solid #1a56db;}
+.ts-table tr:last-child td{border-bottom:none;}
+.dn{font-weight:600;color:#1a1a1a;}
+.td-tag{font-size:10px;background:#e8f0fe;color:#1a56db;padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:600;}
+.dt{font-size:12px;color:#888;}
+/* Time input with clock icon — exactly like video */
+.ti-wrap{display:flex;align-items:center;gap:6px;}
+.ti-in{font-size:13px;border:none;border-bottom:1px solid #ccc;background:transparent;color:#1a1a1a;padding:4px 2px;width:100px;outline:none;}
+.ti-in:focus{border-color:#1a56db;}
+.ti-clock{font-size:14px;color:#aaa;}
+.h-val{font-size:13px;font-weight:600;color:#1a56db;text-align:right;}
+.h-mt{font-size:13px;color:#aaa;text-align:right;}
+
+/* Total row */
+.tot-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#f5f8ff;border-top:2px solid #1a56db;margin-top:0;}
+.tot-lbl{font-size:13px;font-weight:600;color:#444;}
+.tot-val{font-size:16px;font-weight:700;color:#1a56db;}
+
+/* Signatures */
+.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px;}
+.sig-lbl{font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+.sig-box{border:1px solid #d0d0d0;border-radius:6px;height:72px;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fafafa;}
+.sig-box:hover{border-color:#1a56db;background:#f0f7ff;}
+.sig-box.signed{background:#f0fff6;border-color:#1a9b55;}
+.sig-ph{font-size:12px;color:#aaa;display:flex;align-items:center;gap:6px;}
+.sig-nm{font-size:20px;color:#1a9b55;font-style:italic;}
+
+/* Submit row */
+.sub-row{display:flex;align-items:center;justify-content:space-between;margin-top:24px;padding-top:20px;border-top:1px solid #e8e8e8;}
+.st-lbl{font-size:12px;padding:4px 12px;border-radius:10px;font-weight:600;}
+.st-draft{background:#f0f0f0;color:#888;}
+.st-sub{background:#e8f0fe;color:#1a56db;}
+.sub-btn{font-size:13px;padding:9px 24px;border-radius:6px;border:none;background:#1a56db;color:#fff;cursor:pointer;font-weight:600;}
+.sub-btn:hover{background:#1447b5;}
+.sub-btn:disabled{background:#d0d0d0;color:#999;cursor:not-allowed;}
+
+.toast{position:fixed;bottom:20px;right:20px;background:#1a3a5c;color:#fff;font-size:13px;padding:10px 18px;border-radius:8px;display:none;align-items:center;gap:8px;z-index:200;}
+.toast.show{display:flex;}
+</style>
+
+<h2 class="sr-only">YayraCare DSP timesheet — complete scrollable form inside nav layout</h2>
+<div class="toast" id="toast"><span>✓</span><span id="toastMsg"></span></div>
+
+<div class="shell">
+  <nav class="nav">
+    <div class="nl">
+      <div class="ni-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg></div>
+      <span class="nb">Yayra<span>Care</span></span>
+    </div>
+    <div class="nu">
+      <div class="na">MS</div>
+      <div><div class="nn">Maria Santos</div><div class="nr">DSP Staff</div></div>
+      <div class="nd"></div>
+    </div>
+    <div class="ns">Main</div>
+    <div class="ni"><i class="ti ti-layout-dashboard" aria-hidden="true"></i> My overview</div>
+    <div class="ni"><i class="ti ti-id" aria-hidden="true"></i> Profile details</div>
+    <div class="ns">Applications</div>
+    <div class="ni"><i class="ti ti-file-text" aria-hidden="true"></i> DSP application</div>
+    <div class="ni"><i class="ti ti-clipboard-list" aria-hidden="true"></i> Onboarding forms <span class="nbw">2</span></div>
+    <div class="ns">Work</div>
+    <div class="ni active"><i class="ti ti-clock" aria-hidden="true"></i> My timesheet</div>
+    <div class="ni"><i class="ti ti-notes" aria-hidden="true"></i> My case notes</div>
+    <div class="ns">Resources</div>
+    <div class="ni"><i class="ti ti-certificate" aria-hidden="true"></i> My training <span class="nbw">1</span></div>
+    <div class="ni"><i class="ti ti-folder" aria-hidden="true"></i> My documents</div>
+    <div class="nsb dl"><i class="ti ti-download" aria-hidden="true"></i> Employee handbook</div>
+    <div class="nsp"></div>
+    <div class="nbt">
+      <div class="ni" style="padding:8px 0;"><i class="ti ti-settings" aria-hidden="true"></i> Settings</div>
+      <div class="ni" style="padding:8px 0;"><i class="ti ti-logout" aria-hidden="true"></i> Logout</div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="tb-title">My timesheet</span>
+      <div class="tb-sp"></div>
+      <button class="tb-btn" onclick="window.print()"><i class="ti ti-download" aria-hidden="true"></i> Download PDF</button>
+    </div>
+
+    <div class="content">
+
+      <!-- Metrics row -->
+      <div class="mrow">
+        <div class="mc"><div class="mv" id="mT">0.0</div><div class="ml">Total hours this week</div><div class="mp pb" id="mS">Not started</div></div>
+        <div class="mc"><div class="mv">40</div><div class="ml">Expected hours</div><div class="mp pb">Full time</div></div>
+        <div class="mc"><div class="mv" id="mR">40.0</div><div class="ml">Hours remaining</div><div class="mp pa" id="mRP">40.0 hrs left</div></div>
+        <div class="mc"><div class="mv" id="mC">0</div><div class="ml">Clients served</div><div class="mp pg">This week</div></div>
+      </div>
+
+      <!-- Full form document -->
+      <div class="form-doc">
+
+        <!-- Employee strip -->
+        <div class="emp">
+          <div><div class="ef-label">Employee name <span class="ef-auto">AUTO</span></div><div class="ef-val">Jane Doe</div></div>
+          <div><div class="ef-label">Position / Role <span class="ef-auto">AUTO</span></div><div class="ef-val">DSP</div></div>
+          <div><div class="ef-label">Staff ID <span class="ef-auto">AUTO</span></div><div class="ef-val">RCS-1042</div></div>
+        </div>
+
+        <!-- CLIENT INFORMATION -->
+        <div class="sh">Client information</div>
+        <div class="cl-label">Select client</div>
+        <div class="cl-wrap">
+          <select id="clientSelect" onchange="upC()" aria-label="Select your assigned client">
+            <option value="">— Select your assigned client —</option>
+            <option value="rj">Robert Johnson</option>
+            <option value="am">Angela Moore</option>
+            <option value="tw">Thomas Williams</option>
+          </select>
+        </div>
+
+        <!-- SELECT WEEK -->
+        <div class="sh">Select week</div>
+        <div class="sw-outer">
+          <div class="sw-chevron">❯</div>
+          <div class="sw-inner">
+            <div class="sw-row">
+              <label>Month</label>
+              <div class="sw-sel">
+                <select id="monthSel" onchange="upW()" aria-label="Month">
+                  <option value="0">January</option><option value="1">February</option>
+                  <option value="2">March</option><option value="3">April</option>
+                  <option value="4" selected>May</option><option value="5">June</option>
+                  <option value="6">July</option><option value="7">August</option>
+                  <option value="8">September</option><option value="9">October</option>
+                  <option value="10">November</option><option value="11">December</option>
+                </select>
+              </div>
+              <label>Week</label>
+              <div class="sw-sel wide">
+                <select id="weekSel" onchange="upWD()" aria-label="Week"></select>
+              </div>
+              <label>Year</label>
+              <input type="number" class="yr-in" id="yearIn" value="2026" min="2020" max="2030" onchange="upW()" aria-label="Year"/>
+              <button class="lw-btn" onclick="loadWeek()">↻ Load week</button>
+            </div>
+            <div class="wk-range" id="wkRange">May 10 – May 16, 2026</div>
+          </div>
+        </div>
+
+        <!-- DAILY HOURS -->
+        <div class="sh">Daily hours</div>
+        <table class="ts-table">
+          <thead>
+            <tr>
+              <th style="width:105px;">Day</th>
+              <th style="width:110px;">Date</th>
+              <th>Start time</th>
+              <th>End time</th>
+              <th style="width:80px;">Hours</th>
+            </tr>
+          </thead>
+          <tbody id="tsBody"></tbody>
+        </table>
+        <div class="tot-row">
+          <span class="tot-lbl">Weekly total</span>
+          <span class="tot-val" id="wkTotal">0.0 hrs</span>
+        </div>
+
+        <!-- Signatures -->
+        <div class="sig-grid">
+          <div>
+            <div class="sig-lbl">DSP signature</div>
+            <div class="sig-box" id="dspSig" onclick="doSign('dsp')" role="button" aria-label="Click to sign as DSP">
+              <div class="sig-ph"><i class="ti ti-writing" aria-hidden="true"></i> Click to sign</div>
+            </div>
+          </div>
+          <div>
+            <div class="sig-lbl">Client signature</div>
+            <div class="sig-box" id="cliSig" onclick="doSign('cli')" role="button" aria-label="Click to add client signature">
+              <div class="sig-ph"><i class="ti ti-writing" aria-hidden="true"></i> Click to sign</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="sub-row">
+          <span class="st-lbl st-draft" id="stPill">Draft</span>
+          <button class="sub-btn" id="subBtn" onclick="doSubmit()">Submit timesheet</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const TODAY=new Date(2026,4,13);
+let dspOK=false,submitted=false,wkStart=null;
+
+function getWeeks(y,m){
+  const wks=[],last=new Date(y,m+1,0);
+  let c=new Date(y,m,1);c.setDate(c.getDate()-c.getDay());
+  let n=1;
+  while(c<=last){
+    const s=new Date(c),e=new Date(c);e.setDate(e.getDate()+6);
+    const f=d=>`${d.getMonth()+1}/${d.getDate()}`;
+    wks.push({label:`Week ${n}: ${f(s)} – ${f(e)}`,start:new Date(s)});
+    c.setDate(c.getDate()+7);n++;
+  }
+  return wks;
+}
+
+function upW(){
+  const m=+document.getElementById('monthSel').value;
+  const y=+document.getElementById('yearIn').value;
+  const wks=getWeeks(y,m);
+  const sel=document.getElementById('weekSel');
+  sel.innerHTML='';
+  wks.forEach((w,i)=>{const o=document.createElement('option');o.value=i;o.textContent=w.label;sel.appendChild(o);});
+  const ti=wks.findIndex(w=>{const e=new Date(w.start);e.setDate(e.getDate()+6);return TODAY>=w.start&&TODAY<=e;});
+  sel.selectedIndex=ti>=0?ti:0;
+  upWD();
+}
+
+function upWD(){
+  const m=+document.getElementById('monthSel').value;
+  const y=+document.getElementById('yearIn').value;
+  const wks=getWeeks(y,m);
+  const idx=+document.getElementById('weekSel').value||0;
+  if(!wks[idx])return;
+  const s=wks[idx].start,e=new Date(s);e.setDate(e.getDate()+6);
+  const f=d=>d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  document.getElementById('wkRange').textContent=`${f(s)} – ${f(e)}`;
+}
+document.getElementById('weekSel').addEventListener('change',upWD);
+
+function loadWeek(){
+  const m=+document.getElementById('monthSel').value;
+  const y=+document.getElementById('yearIn').value;
+  const wks=getWeeks(y,m);
+  const idx=+document.getElementById('weekSel').value||0;
+  if(!wks[idx])return;
+  wkStart=new Date(wks[idx].start);
+  const tb=document.getElementById('tsBody');
+  tb.innerHTML='';
+  for(let i=0;i<7;i++){
+    const d=new Date(wkStart);d.setDate(d.getDate()+i);
+    const isT=d.toDateString()===TODAY.toDateString();
+    const ds=`${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+    const tr=document.createElement('tr');
+    if(isT)tr.className='tr-today';
+    tr.innerHTML=`
+      <td><span class="dn">${DAYS[d.getDay()]}</span>${isT?'<span class="td-tag">Today</span>':''}</td>
+      <td class="dt">${ds}</td>
+      <td><div class="ti-wrap"><input type="time" class="ti-in" id="s${i}" onchange="cr(${i})" aria-label="Start ${DAYS[d.getDay()]}"/><span class="ti-clock">🕐</span></div></td>
+      <td><div class="ti-wrap"><input type="time" class="ti-in" id="e${i}" onchange="cr(${i})" aria-label="End ${DAYS[d.getDay()]}"/><span class="ti-clock">🕐</span></div></td>
+      <td class="h-mt" id="h${i}">—</td>`;
+    tb.appendChild(tr);
+  }
+  document.getElementById('wkTotal').textContent='0.0 hrs';
+  upM(0);
+  toast('Week loaded — all 7 days ready');
+}
+
+function cr(i){
+  const s=document.getElementById('s'+i)?.value;
+  const e=document.getElementById('e'+i)?.value;
+  const c=document.getElementById('h'+i);
+  if(s&&e){
+    const [sh,sm]=s.split(':').map(Number),[eh,em]=e.split(':').map(Number);
+    const mn=(eh*60+em)-(sh*60+sm);
+    if(mn>0){c.textContent=Math.round(mn/60*10)/10+' hrs';c.className='h-val';}
+    else{c.textContent='—';c.className='h-mt';}
+  }else{c.textContent='—';c.className='h-mt';}
+  upT();
+}
+
+function upT(){
+  let tot=0;
+  for(let i=0;i<7;i++){
+    const s=document.getElementById('s'+i),e=document.getElementById('e'+i);
+    if(!s||!e||!s.value||!e.value)continue;
+    const [sh,sm]=s.value.split(':').map(Number),[eh,em]=e.value.split(':').map(Number);
+    const mn=(eh*60+em)-(sh*60+sm);if(mn>0)tot+=mn;
+  }
+  const h=Math.round(tot/60*10)/10;
+  document.getElementById('wkTotal').textContent=h+' hrs';
+  upM(h);
+}
+
+function upM(h){
+  const r=Math.max(0,Math.round((40-h)*10)/10);
+  document.getElementById('mT').textContent=h;
+  document.getElementById('mR').textContent=r;
+  document.getElementById('mRP').textContent=r>0?r+' hrs left':'Complete!';
+  const s=document.getElementById('mS');
+  if(h===0){s.textContent='Not started';s.className='mp pb';}
+  else if(h<40){s.textContent='In progress';s.className='mp pt';}
+  else{s.textContent='Complete';s.className='mp pg';}
+}
+
+function upC(){
+  document.getElementById('mC').textContent=document.getElementById('clientSelect').value?'1':'0';
+}
+
+function doSign(w){
+  if(submitted)return;
+  const b=document.getElementById(w==='dsp'?'dspSig':'cliSig');
+  const n=w==='dsp'?'Jane Doe':'R. Johnson';
+  b.className='sig-box signed';
+  b.innerHTML=`<span class="sig-nm">${n}</span>`;
+  if(w==='dsp')dspOK=true;
+  toast((w==='dsp'?'DSP':'Client')+' signature added');
+}
+
+function doSubmit(){
+  if(!wkStart){toast('Please load a week first');return;}
+  if(!document.getElementById('clientSelect').value){toast('Please select a client');return;}
+  if(!dspOK){toast('Please add your signature first');return;}
+  submitted=true;
+  const p=document.getElementById('stPill');p.className='st-lbl st-sub';p.textContent='Submitted';
+  const b=document.getElementById('subBtn');b.textContent='Submitted ✓';b.disabled=true;
+  toast('Timesheet submitted for approval');
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+upW();loadWeek();
+</script>
