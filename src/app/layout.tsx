@@ -1,0 +1,24 @@
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'YayraCare — HIPAA-Compliant Home Health Management',
+  description: 'Manage your DDD and home health agency with YayraCare.',
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/1.119.0/iconfont/tabler-icons.min.css"
+        />
+      </head>
+      <body className={inter.className}>{children}</body>
+    </html>
+  )
+}
