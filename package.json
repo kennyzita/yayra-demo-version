@@ -15,8 +15,10 @@
     "date-fns": "^3.6.0",
     "lucide-react": "^0.394.0",
     "next": "14.2.5",
+    "pdfjs-dist": "^5.7.284",
     "react": "^18",
     "react-dom": "^18",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {

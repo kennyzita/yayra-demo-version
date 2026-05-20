@@ -59,6 +59,12 @@ const adminSections: NavSection[] = [
       { href: '/admin/staff-progress', label: 'Staff progress report', icon: 'ti-clipboard-check' },
     ],
   },
+  {
+    label: 'Billing',
+    items: [
+      { href: '/admin/billing', label: 'RCS Billing Management', icon: 'ti-receipt-2' },
+    ],
+  },
 ]
 
 const staffSections: NavSection[] = [
