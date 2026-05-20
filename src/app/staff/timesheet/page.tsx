@@ -139,7 +139,7 @@ export default function TimesheetPage() {
 
           {/* Employee strip */}
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 36, marginBottom: 20, paddingBottom: 18, borderBottom: '1px solid #e8e8e8' }}>
-            {[{ lbl: 'Employee name', val: 'Jane Doe' }, { lbl: 'Position / Role', val: 'DSP' }, { lbl: 'Staff ID', val: 'RCS-1042' }].map(f => (
+            {[{ lbl: 'Employee name', val: 'Maria Santos' }, { lbl: 'Position / Role', val: 'DSP' }, { lbl: 'Staff ID', val: 'RCS-1042' }].map(f => (
               <div key={f.lbl}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#666', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {f.lbl} <span style={{ fontSize: 9, background: '#1a56db', color: '#fff', padding: '1px 6px', borderRadius: 3, fontWeight: 700 }}>AUTO</span>
