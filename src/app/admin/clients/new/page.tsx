@@ -17,6 +17,7 @@ export default function NewClientPage() {
     county: '',
     medicaid_id: '',
     dx: '',
+    isp_outcome: '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -48,6 +49,7 @@ export default function NewClientPage() {
         county: form.county,
         mid: form.medicaid_id,
         dx: form.dx,
+        isp_outcome: form.isp_outcome,
         locked: false,
         pin: '1234',
         services: [],
@@ -135,6 +137,16 @@ export default function NewClientPage() {
               <div>
                 <label style={lbl}>Primary diagnosis (ICD-10)</label>
                 <input style={inp} value={form.dx} onChange={e => set('dx', e.target.value)} placeholder="e.g. F84.0" />
+              </div>
+
+              <div>
+                <label style={lbl}>ISP outcome</label>
+                <textarea
+                  style={{ ...inp, resize: 'vertical', minHeight: 90, fontFamily: 'inherit', lineHeight: 1.5 }}
+                  value={form.isp_outcome}
+                  onChange={e => set('isp_outcome', e.target.value)}
+                  placeholder="Enter the client's Individualized Support Plan outcome goals…"
+                />
               </div>
 
             </div>
