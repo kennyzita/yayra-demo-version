@@ -86,7 +86,7 @@ export default function CaseNotesPage() {
   const cd = client ? CLIENT_DATA[client] : null
 
   const sectionStyle: React.CSSProperties = { border: '1px solid #d8dde6', borderRadius: 10, overflow: 'hidden', marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
-  const sectionHead: React.CSSProperties = { background: '#0d2d5e', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
+  const sectionHead: React.CSSProperties = { background: '#004050', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
   const sectionBody: React.CSSProperties = { background: 'white', padding: 20 }
   const fieldLabel: React.CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#374151', marginBottom: 7 }
   const inputStyle: React.CSSProperties = { width: '100%', fontSize: 14, color: '#1a1a1a', background: 'white', border: '1px solid #d1d5db', borderRadius: 8, padding: '11px 14px', outline: 'none', fontFamily: 'inherit' }
@@ -153,7 +153,7 @@ export default function CaseNotesPage() {
               </select>
               <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%) rotate(90deg)', fontSize: 14, color: '#1a56db', pointerEvents: 'none', fontWeight: 700 }}>❯</span>
             </div>
-            <div style={{ background: '#e8f0fe', borderRadius: 8, padding: '13px 16px', textAlign: 'center', fontSize: 15, fontWeight: 700, color: '#0d2d5e', marginTop: 10 }}>{week}</div>
+            <div style={{ background: '#e8f0fe', borderRadius: 8, padding: '13px 16px', textAlign: 'center', fontSize: 15, fontWeight: 700, color: '#004050', marginTop: 10 }}>{week}</div>
           </div>
         </div>
 
@@ -166,11 +166,11 @@ export default function CaseNotesPage() {
           <div style={{ ...sectionBody, padding: '4px 20px' }}>
             {STRATEGIES.map((s, i) => (
               <div key={i} onClick={() => toggleStrategy(i)} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '16px 4px', borderBottom: i < STRATEGIES.length - 1 ? '1px solid #f3f4f6' : 'none', cursor: 'pointer' }}>
-                <div style={{ width: 22, height: 22, border: checked[i] ? 'none' : '2px solid #d1d5db', borderRadius: 5, flexShrink: 0, marginTop: 2, background: checked[i] ? '#0d2d5e' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 13, fontWeight: 700, transition: 'all 0.15s' }}>
+                <div style={{ width: 22, height: 22, border: checked[i] ? 'none' : '2px solid #d1d5db', borderRadius: 5, flexShrink: 0, marginTop: 2, background: checked[i] ? '#004050' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 13, fontWeight: 700, transition: 'all 0.15s' }}>
                   {checked[i] && '✓'}
                 </div>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: '#0d2d5e', marginBottom: 3 }}>{s.title}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#004050', marginBottom: 3 }}>{s.title}</div>
                   <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>{s.desc}</div>
                 </div>
               </div>
@@ -187,7 +187,7 @@ export default function CaseNotesPage() {
             {entries.map((entry, i) => (
               <div key={entry.id} style={{ border: '1px solid #d1d5db', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
                 <div style={{ background: '#dce8f5', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#0d2d5e' }}>Entry #{i + 1}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#004050' }}>Entry #{i + 1}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 13, color: '#555' }}>{entry.date ? new Date(entry.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : ''}</span>
                     {entries.length > 1 && (
@@ -229,7 +229,7 @@ export default function CaseNotesPage() {
                 </div>
               </div>
             ))}
-            <button onClick={addEntry} style={{ width: '100%', padding: 18, border: '2.5px dashed #1a56db', borderRadius: 10, background: '#f0f5ff', color: '#0d2d5e', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit' }}>
+            <button onClick={addEntry} style={{ width: '100%', padding: 18, border: '2.5px dashed #1a56db', borderRadius: 10, background: '#f0f5ff', color: '#004050', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit' }}>
               + Add Activity Entry
             </button>
           </div>
@@ -256,7 +256,7 @@ export default function CaseNotesPage() {
       </div>
 
       {toast && (
-        <div style={{ position: 'fixed', bottom: 20, right: 20, background: '#0d2d5e', color: 'white', fontSize: 13, padding: '10px 18px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, zIndex: 200, boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+        <div style={{ position: 'fixed', bottom: 20, right: 20, background: '#004050', color: 'white', fontSize: 13, padding: '10px 18px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, zIndex: 200, boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
           <span>✓</span><span>{toast}</span>
         </div>
       )}

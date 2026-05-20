@@ -67,7 +67,7 @@ export default function TrainingPage() {
         {/* All training */}
         {tab === 'all' && (
           <div style={panel}>
-            <div style={{ background: '#002830', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ background: '#004050', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Training modules</span>
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Reliance Care Services LLC</span>
             </div>
@@ -100,7 +100,7 @@ export default function TrainingPage() {
         {/* Assessment panel */}
         {tab === 'assess' && (
           <div style={panel}>
-            <div style={{ background: '#002830', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ background: '#004050', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>DSP Final Assessment</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Reliance Care Services LLC · Required for all DSP staff</div>
@@ -123,21 +123,21 @@ export default function TrainingPage() {
               ))}
             </div>
             <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, background: 'white', textAlign: 'center' }}>
-              <div style={{ width: 64, height: 64, borderRadius: 12, background: 'linear-gradient(135deg,#002830,#008080)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 64, height: 64, borderRadius: 12, background: 'linear-gradient(135deg,#004050,#008080)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#002830' }}>Reliance Care Services LLC</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#004050' }}>Reliance Care Services LLC</div>
               <div style={{ fontSize: 14, color: '#666', maxWidth: 480, lineHeight: 1.6 }}>DSP Final Assessment — tests your knowledge of Direct Support Professional responsibilities, client care standards, NJ DDD compliance, and Reliance Care Services policies.</div>
               <div style={{ width: '100%', maxWidth: 560, border: '1px solid #e0e0e0', borderRadius: 8, overflow: 'hidden', textAlign: 'left' }}>
                 {[{ lbl: 'Staff name', val: 'Maria Santos' }, { lbl: 'Staff ID', val: 'RCS-1042' }, { lbl: 'Position', val: 'DSP Staff' }, { lbl: 'Date', val: 'May 13, 2026' }].map((f, i) => (
                   <div key={i} style={{ padding: '12px 16px', borderBottom: i < 3 ? '0.5px solid #e0e0e0' : 'none', borderRight: i % 2 === 0 ? '0.5px solid #e0e0e0' : 'none', display: 'inline-block', width: '50%', verticalAlign: 'top', boxSizing: 'border-box' }}>
                     <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#888', marginBottom: 3 }}>{f.lbl}</div>
-                    <div style={{ fontSize: 13, color: '#002830', fontWeight: 500 }}>{f.val}</div>
+                    <div style={{ fontSize: 13, color: '#004050', fontWeight: 500 }}>{f.val}</div>
                   </div>
                 ))}
               </div>
               <div style={{ width: '100%', maxWidth: 560, border: '1px solid #e0e0e0', borderRadius: 8, overflow: 'hidden', textAlign: 'left' }}>
-                <div style={{ background: '#002830', padding: '10px 16px', fontSize: 12, fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ background: '#004050', padding: '10px 16px', fontSize: 12, fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <i className="ti ti-help-circle" style={{ fontSize: 14 }} /> Question 1 of 20 — Section A: Client Rights
                 </div>
                 <div style={{ padding: '14px 16px' }}>

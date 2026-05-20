@@ -13,8 +13,8 @@ export default async function StaffLayout({ children }: { children: React.ReactN
     .eq('id', authUser.id)
     .single()
 
-  const firstName = user?.first_name ?? 'S'
-  const lastName = user?.last_name ?? 'T'
+  const firstName = user?.first_name ?? 'Maria'
+  const lastName = user?.last_name ?? 'Santos'
   const roleName = (user?.role as { name: string } | null)?.name ?? 'DSP Staff'
   const userName = `${firstName} ${lastName}`
   const userInitials = `${firstName[0]}${lastName[0]}`.toUpperCase()

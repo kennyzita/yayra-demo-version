@@ -142,7 +142,7 @@ export default function TimesheetPage() {
             {[{ lbl: 'Employee name', val: 'Maria Santos' }, { lbl: 'Position / Role', val: 'DSP' }, { lbl: 'Staff ID', val: 'RCS-1042' }].map(f => (
               <div key={f.lbl}>
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#666', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {f.lbl} <span style={{ fontSize: 9, background: '#1a56db', color: '#fff', padding: '1px 6px', borderRadius: 3, fontWeight: 700 }}>AUTO</span>
+                  {f.lbl} <span style={{ fontSize: 9, background: '#004050', color: '#fff', padding: '1px 6px', borderRadius: 3, fontWeight: 700 }}>AUTO</span>
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a' }}>{f.val}</div>
               </div>
@@ -152,14 +152,14 @@ export default function TimesheetPage() {
           {/* Client */}
           <div style={{ fontSize: 11, fontWeight: 800, color: '#1a1a1a', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '20px 0 10px' }}>Client information</div>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 6 }}>Select client</div>
-          <div style={{ position: 'relative', borderBottom: '1.5px solid #1a56db', marginBottom: 20 }}>
+          <div style={{ position: 'relative', borderBottom: '1.5px solid #004050', marginBottom: 20 }}>
             <select value={client} onChange={e => setClient(e.target.value)} style={{ width: '100%', fontSize: 14, color: '#444', background: 'transparent', border: 'none', padding: '8px 32px 8px 0', outline: 'none', cursor: 'pointer', appearance: 'none' }}>
               <option value="">— Select your assigned client —</option>
               <option value="rj">Robert Johnson</option>
               <option value="am">Angela Moore</option>
               <option value="tw">Thomas Williams</option>
             </select>
-            <span style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%) rotate(90deg)', fontSize: 12, color: '#1a56db', pointerEvents: 'none' }}>❯</span>
+            <span style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%) rotate(90deg)', fontSize: 12, color: '#004050', pointerEvents: 'none' }}>❯</span>
           </div>
 
           {/* Week selector */}
@@ -182,7 +182,7 @@ export default function TimesheetPage() {
                 </div>
                 <label style={{ fontSize: 13, fontWeight: 500, color: '#333' }}>Year</label>
                 <input type="number" value={year} onChange={e => setYear(+e.target.value)} min={2020} max={2030} style={{ width: 76, fontSize: 13, padding: '6px 10px', border: '1px solid #ccc', borderRadius: 5, background: '#fff', color: '#1a1a1a', outline: 'none' }} />
-                <button onClick={loadWeek} style={{ fontSize: 12, padding: '7px 16px', borderRadius: 6, border: 'none', background: '#1a56db', color: '#fff', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={loadWeek} style={{ fontSize: 12, padding: '7px 16px', borderRadius: 6, border: 'none', background: '#004050', color: '#fff', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                   ↻ Load week
                 </button>
               </div>
@@ -194,7 +194,7 @@ export default function TimesheetPage() {
           <div style={{ fontSize: 11, fontWeight: 800, color: '#1a1a1a', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 10px' }}>Daily hours</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 10 }}>
             <thead>
-              <tr style={{ background: '#1a56db' }}>
+              <tr style={{ background: '#004050' }}>
                 {['Day','Date','Start time','End time','Hours'].map((h, i) => (
                   <th key={h} style={{ padding: '11px 14px', fontSize: 12, fontWeight: 600, color: '#fff', textAlign: i === 4 ? 'right' : 'left', paddingRight: i === 4 ? 16 : 14 }}>{h}</th>
                 ))}
@@ -206,10 +206,10 @@ export default function TimesheetPage() {
               ) : rows.map((r, i) => {
                 const h = calcHours(r)
                 return (
-                  <tr key={i} style={{ background: r.isToday ? '#f0f7ff' : 'white', borderBottom: '1px solid #f0f0f0', borderLeft: r.isToday ? '3px solid #1a56db' : '3px solid transparent' }}>
+                  <tr key={i} style={{ background: r.isToday ? '#f0f7ff' : 'white', borderBottom: '1px solid #f0f0f0', borderLeft: r.isToday ? '3px solid #004050' : '3px solid transparent' }}>
                     <td style={{ padding: '11px 14px', fontSize: 13, color: '#1a1a1a' }}>
                       <span style={{ fontWeight: 600 }}>{r.day}</span>
-                      {r.isToday && <span style={{ fontSize: 10, background: '#e8f0fe', color: '#1a56db', padding: '1px 6px', borderRadius: 4, marginLeft: 6, fontWeight: 600 }}>Today</span>}
+                      {r.isToday && <span style={{ fontSize: 10, background: 'rgba(0,128,128,0.08)', color: '#004050', padding: '1px 6px', borderRadius: 4, marginLeft: 6, fontWeight: 600 }}>Today</span>}
                     </td>
                     <td style={{ padding: '11px 14px', fontSize: 12, color: '#888' }}>{r.date}</td>
                     <td style={{ padding: '11px 14px' }}>
@@ -224,7 +224,7 @@ export default function TimesheetPage() {
                         <span style={{ fontSize: 14, color: '#aaa' }}>🕐</span>
                       </div>
                     </td>
-                    <td style={{ padding: '11px 14px', fontSize: 13, fontWeight: h ? 600 : 400, color: h ? '#1a56db' : '#aaa', textAlign: 'right' }}>
+                    <td style={{ padding: '11px 14px', fontSize: 13, fontWeight: h ? 600 : 400, color: h ? '#004050' : '#aaa', textAlign: 'right' }}>
                       {h ? `${h} hrs` : '—'}
                     </td>
                   </tr>
@@ -232,9 +232,9 @@ export default function TimesheetPage() {
               })}
             </tbody>
           </table>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#f5f8ff', borderTop: '2px solid #1a56db' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', background: '#f5f8ff', borderTop: '2px solid #004050' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#444' }}>Weekly total</span>
-            <span style={{ fontSize: 16, fontWeight: 700, color: '#1a56db' }}>{totalHours.toFixed(1)} hrs</span>
+            <span style={{ fontSize: 16, fontWeight: 700, color: '#004050' }}>{totalHours.toFixed(1)} hrs</span>
           </div>
 
           {/* Signatures */}
@@ -254,10 +254,10 @@ export default function TimesheetPage() {
 
           {/* Submit */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, paddingTop: 20, borderTop: '1px solid #e8e8e8' }}>
-            <span style={{ fontSize: 12, padding: '4px 12px', borderRadius: 10, fontWeight: 600, background: submitted ? '#e8f0fe' : '#f0f0f0', color: submitted ? '#1a56db' : '#888' }}>
+            <span style={{ fontSize: 12, padding: '4px 12px', borderRadius: 10, fontWeight: 600, background: submitted ? 'rgba(0,128,128,0.08)' : '#f0f0f0', color: submitted ? '#004050' : '#888' }}>
               {submitted ? 'Submitted' : 'Draft'}
             </span>
-            <button onClick={doSubmit} disabled={submitted} style={{ fontSize: 13, padding: '9px 24px', borderRadius: 6, border: 'none', background: submitted ? '#d0d0d0' : '#1a56db', color: submitted ? '#999' : '#fff', cursor: submitted ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
+            <button onClick={doSubmit} disabled={submitted} style={{ fontSize: 13, padding: '9px 24px', borderRadius: 6, border: 'none', background: submitted ? '#d0d0d0' : '#004050', color: submitted ? '#999' : '#fff', cursor: submitted ? 'not-allowed' : 'pointer', fontWeight: 600 }}>
               {submitted ? 'Submitted ✓' : 'Submit timesheet'}
             </button>
           </div>
@@ -266,7 +266,7 @@ export default function TimesheetPage() {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position: 'fixed', bottom: 20, right: 20, background: '#1a3a5c', color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, zIndex: 200 }}>
+        <div style={{ position: 'fixed', bottom: 20, right: 20, background: '#004050', color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, zIndex: 200 }}>
           <span>✓</span><span>{toast}</span>
         </div>
       )}
