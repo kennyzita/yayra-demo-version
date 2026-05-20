@@ -604,7 +604,7 @@ function PrintView({cl,onClose}){
           </div>;
         })}
         <div style={{marginTop:24,paddingTop:12,borderTop:`1px solid ${gray2}`,fontSize:10,color:gray5,textAlign:"center"}}>
-          RCS Billing Management · Confidential · Generated {new Date().toLocaleString()}
+          Billing Management · Confidential · Generated {new Date().toLocaleString()}
         </div>
       </div>
     </div>
@@ -1748,7 +1748,7 @@ export default function BillingManager(){
   function exportToDrive(){
     // Browsers can't push directly to Drive without OAuth, so we download a JSON
     // snapshot and open Drive so the user can drop it in. One click, no auth setup.
-    const payload={exportedAt:new Date().toISOString(),app:"RCS Billing Management",clients,staff};
+    const payload={exportedAt:new Date().toISOString(),app:"Billing Management",clients,staff};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
@@ -1824,7 +1824,7 @@ export default function BillingManager(){
       <button onClick={()=>setNavOpen(true)} aria-label="Open menu"
         style={{background:"rgba(255,255,255,.12)",border:"none",color:white,
           borderRadius:8,padding:"7px 10px",fontSize:16,cursor:"pointer",lineHeight:1}}>☰</button>
-      <div style={{fontWeight:800,fontSize:14}}>RCS Billing Management</div>
+      <div style={{fontWeight:800,fontSize:14}}>Billing Management</div>
       <div style={{marginLeft:"auto",fontSize:11,opacity:.6}}>{view==="dash"?"Dashboard":mode==="staff"?"Staff":"Client"}</div>
     </div>}
 
@@ -1835,7 +1835,7 @@ export default function BillingManager(){
     <div style={sidebarStyle}>
       <div style={{padding:"16px 12px 8px"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:1,gap:6}}>
-          <div style={{fontWeight:900,fontSize:16,color:white}}>RCS Billing Management</div>
+          <div style={{fontWeight:900,fontSize:16,color:white}}>Billing Management</div>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <button onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label="Toggle theme" title="Toggle theme"
               style={{background:"rgba(255,255,255,.12)",border:"none",color:white,borderRadius:99,width:28,height:28,cursor:"pointer",fontSize:13,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>

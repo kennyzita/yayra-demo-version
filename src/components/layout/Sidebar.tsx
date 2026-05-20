@@ -62,7 +62,7 @@ const adminSections: NavSection[] = [
   {
     label: 'Billing',
     items: [
-      { href: '/admin/billing', label: 'RCS Billing Management', icon: 'ti-receipt-2' },
+      { href: '/admin/billing', label: 'Billing Management', icon: 'ti-receipt-2' },
     ],
   },
 ]
