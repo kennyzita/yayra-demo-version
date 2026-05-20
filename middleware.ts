@@ -33,9 +33,9 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
@@ -59,13 +59,13 @@ export async function middleware(request: NextRequest) {
 
   // Role-based routing
   if (pathname.startsWith('/admin') || pathname.startsWith('/staff')) {
-    const { data: user } = await supabase
+    const { data: profile } = await supabase
       .from('users')
       .select('role:roles(name)')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
-    const roleName = (user?.role as { name: string } | null)?.name
+    const roleName = (profile?.role as { name: string } | null)?.name
     const isAdminRole = roleName === 'Admin' || roleName === 'HR'
 
     if (pathname.startsWith('/admin') && !isAdminRole) {

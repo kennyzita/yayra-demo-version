@@ -3,16 +3,16 @@ import { createClient } from '@/lib/supabase/server'
 
 export default async function Home() {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
+  const { data: { user: authUser } } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!authUser) {
     redirect('/login')
   }
 
   const { data: user } = await supabase
     .from('users')
     .select('role:roles(name)')
-    .eq('id', session.user.id)
+    .eq('id', authUser.id)
     .single()
 
   const roleName = (user?.role as { name: string } | null)?.name

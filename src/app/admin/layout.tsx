@@ -4,13 +4,13 @@ import { Sidebar } from '@/components/layout/Sidebar'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  const { data: { user: authUser } } = await supabase.auth.getUser()
+  if (!authUser) redirect('/login')
 
   const { data: user } = await supabase
     .from('users')
     .select('first_name, last_name, email, role:roles(name)')
-    .eq('id', session.user.id)
+    .eq('id', authUser.id)
     .single()
 
   const roleName = (user?.role as { name: string } | null)?.name ?? 'Admin'

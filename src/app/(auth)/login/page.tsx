@@ -11,8 +11,8 @@ export default async function LoginPage({
   searchParams: { timeout?: string; error?: string }
 }) {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (session) redirect('/')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) redirect('/')
 
   return (
     <div className="min-h-screen bg-[#F8FAFA] flex items-center justify-center p-4">
