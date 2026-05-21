@@ -30,31 +30,53 @@ function generateWeeks(): string[] {
   return weeks
 }
 
+function addOneHour(t: string): string {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  submitted: { bg: 'rgba(0,122,122,0.1)',   color: '#007a7a', label: 'Submitted' },
+  approved:  { bg: 'rgba(22,163,74,0.1)',   color: '#16a34a', label: 'Approved'  },
+  rejected:  { bg: 'rgba(220,38,38,0.1)',   color: '#dc2626', label: 'Rejected'  },
+  draft:     { bg: 'rgba(107,114,128,0.1)', color: '#6b7280', label: 'Draft'     },
+}
+
 type AssignedClient = { id: string; name: string; isp_outcome: string }
 type Entry = { id: number; date: string; start: string; end: string; strategy: string; desc: string }
-type HistoryNote = { id: string; client_name: string; week_label: string; submitted_at: string; entry_count: number }
+type HistoryNote = {
+  id: string; client_id: string; client_name: string
+  week_label: string; submitted_at: string | null
+  status: string; strategies: string[]; entries: Entry[]
+}
 
 export default function CaseNotesPage() {
   const supabase = createClient()
   const WEEKS = generateWeeks()
   const nextIdRef = useRef(2)
 
-  const [loading, setLoading] = useState(true)
-  const [staffName, setStaffName] = useState('')
-  const [userId, setUserId] = useState('')
+  const [loading, setLoading]               = useState(true)
+  const [staffName, setStaffName]           = useState('')
+  const [userId, setUserId]                 = useState('')
   const [assignedClients, setAssignedClients] = useState<AssignedClient[]>([])
   const [noClientsError, setNoClientsError] = useState(false)
 
-  const [clientId, setClientId] = useState('')
-  const [week, setWeek] = useState(WEEKS[0])
-  const [checked, setChecked] = useState<boolean[]>(new Array(STRATEGIES.length).fill(false))
-  const [entries, setEntries] = useState<Entry[]>([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
+  // Form state
+  const [clientId, setClientId]   = useState('')
+  const [week, setWeek]           = useState(WEEKS[0])
+  const [checked, setChecked]     = useState<boolean[]>(new Array(STRATEGIES.length).fill(false))
+  const [entries, setEntries]     = useState<Entry[]>([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
   const [submitting, setSubmitting] = useState(false)
-  const [toast, setToast] = useState('')
+  const [toast, setToast]         = useState('')
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
 
-  const [showHistory, setShowHistory] = useState(false)
-  const [history, setHistory] = useState<HistoryNote[]>([])
-  const [historyLoading, setHistoryLoading] = useState(false)
+  // History state
+  const [showHistory, setShowHistory]         = useState(false)
+  const [history, setHistory]                 = useState<HistoryNote[]>([])
+  const [historyLoading, setHistoryLoading]   = useState(false)
+  const [expandedId, setExpandedId]           = useState<string | null>(null)
+  const [deletingId, setDeletingId]           = useState<string | null>(null)
 
   useEffect(() => { loadProfile() }, [])
 
@@ -71,22 +93,16 @@ export default function CaseNotesPage() {
     if (profile) setStaffName(`${profile.first_name} ${profile.last_name}`)
 
     if (!assignments || assignments.length === 0) {
-      setNoClientsError(true)
-      setLoading(false)
-      return
+      setNoClientsError(true); setLoading(false); return
     }
 
     const clientIds = assignments.map((a: any) => a.client_id)
     const { data: billingData } = await supabase
-      .from('billing_client_data')
-      .select('client_id, data')
-      .in('client_id', clientIds)
+      .from('billing_client_data').select('client_id, data').in('client_id', clientIds)
 
     const ispMap = new Map<string, string>()
-    if (billingData) {
-      for (const b of billingData as any[]) {
-        if (!ispMap.has(b.client_id)) ispMap.set(b.client_id, b.data?.isp_outcome ?? '')
-      }
+    for (const b of (billingData ?? []) as any[]) {
+      if (!ispMap.has(b.client_id)) ispMap.set(b.client_id, b.data?.isp_outcome ?? '')
     }
 
     setAssignedClients(assignments.map((a: any) => ({
@@ -102,39 +118,55 @@ export default function CaseNotesPage() {
     setHistoryLoading(true)
     const { data } = await supabase
       .from('case_notes')
-      .select('id, client_id, week_label, submitted_at, entries')
+      .select('id, client_id, week_label, submitted_at, status, strategies, entries')
       .eq('dsp_id', userId)
       .order('submitted_at', { ascending: false })
-      .limit(30)
+      .limit(50)
 
     const clientMap = new Map(assignedClients.map(c => [c.id, c.name]))
     setHistory((data ?? []).map((n: any) => ({
-      id: n.id,
+      id: n.id, client_id: n.client_id,
       client_name: clientMap.get(n.client_id) ?? 'Unknown client',
-      week_label: n.week_label,
-      submitted_at: n.submitted_at,
-      entry_count: Array.isArray(n.entries) ? n.entries.length : 0,
+      week_label: n.week_label, submitted_at: n.submitted_at,
+      status: n.status ?? 'submitted',
+      strategies: n.strategies ?? [],
+      entries: (n.entries ?? []).map((e: any, i: number) => ({ ...e, id: i + 1 })),
     })))
     setHistoryLoading(false)
   }
 
-  function showToast(msg: string) {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2800)
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2800) }
+
+  function startEdit(note: HistoryNote) {
+    setEditingNoteId(note.id)
+    setClientId(note.client_id)
+    setWeek(note.week_label)
+    setChecked(STRATEGIES.map(s => note.strategies.includes(s.title)))
+    const restored = note.entries.map((e, i) => ({
+      id: i + 1, date: e.date ?? '', start: e.start ?? '',
+      end: e.end ?? '', strategy: e.strategy ?? '', desc: e.desc ?? '',
+    }))
+    setEntries(restored.length > 0 ? restored : [{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
+    nextIdRef.current = (restored.length || 1) + 1
+    setShowHistory(false)
+    showToast('Editing case note — modify and save')
+  }
+
+  async function handleDelete(noteId: string) {
+    if (!confirm('Delete this case note? This cannot be undone.')) return
+    setDeletingId(noteId)
+    const { error } = await supabase.from('case_notes').delete().eq('id', noteId)
+    if (error) showToast('Error: ' + error.message)
+    else { showToast('Case note deleted'); setHistory(prev => prev.filter(n => n.id !== noteId)) }
+    setDeletingId(null)
   }
 
   function toggleStrategy(i: number) {
     setChecked(prev => prev.map((v, idx) => idx === i ? !v : v))
   }
 
-  function checkAll() {
-    setChecked(new Array(STRATEGIES.length).fill(true))
-    showToast('All strategies selected')
-  }
-
   function addEntry() {
-    const id = nextIdRef.current++
-    setEntries(prev => [...prev, { id, date: '', start: '', end: '', strategy: '', desc: '' }])
+    setEntries(prev => [...prev, { id: nextIdRef.current++, date: '', start: '', end: '', strategy: '', desc: '' }])
   }
 
   function removeEntry(id: number) {
@@ -142,50 +174,56 @@ export default function CaseNotesPage() {
   }
 
   function updateEntry(id: number, field: keyof Entry, val: string) {
-    setEntries(prev => prev.map(e => e.id === id ? { ...e, [field]: val } : e))
+    setEntries(prev => prev.map(e => {
+      if (e.id !== id) return e
+      if (field === 'start') return { ...e, start: val, end: addOneHour(val) }
+      return { ...e, [field]: val }
+    }))
   }
 
   async function doSubmit() {
     if (!clientId) { showToast('Please select a client first'); return }
     if (entries.length === 0) { showToast('Add at least one activity entry'); return }
-
+    for (const e of entries) {
+      if (e.start && e.end) {
+        const [sh, sm] = e.start.split(':').map(Number)
+        const [eh, em] = e.end.split(':').map(Number)
+        if ((eh * 60 + em) - (sh * 60 + sm) !== 60) {
+          showToast(`Entry at ${e.start} must be exactly 1 hour (start → start + 1h)`)
+          return
+        }
+      }
+    }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { showToast('Not authenticated'); return }
-
     const selectedStrategies = STRATEGIES.filter((_, i) => checked[i]).map(s => s.title)
-
     setSubmitting(true)
-    const { error } = await supabase.from('case_notes').insert({
-      dsp_id: user.id,
-      client_id: clientId,
-      week_label: week,
-      strategies: selectedStrategies,
-      entries,
-      status: 'submitted',
-      submitted_at: new Date().toISOString(),
-    })
 
-    if (error) {
-      showToast('Error: ' + error.message)
+    if (editingNoteId) {
+      const { error } = await supabase.from('case_notes')
+        .update({ client_id: clientId, week_label: week, strategies: selectedStrategies, entries, updated_at: new Date().toISOString() })
+        .eq('id', editingNoteId)
+      if (error) showToast('Error: ' + error.message)
+      else { showToast('Case note updated ✓'); setEditingNoteId(null); resetForm() }
     } else {
-      showToast('Case note submitted ✓')
-      setClientId('')
-      setChecked(new Array(STRATEGIES.length).fill(false))
-      setEntries([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
-      nextIdRef.current = 2
-      setWeek(WEEKS[0])
+      const { error } = await supabase.from('case_notes').insert({
+        dsp_id: user.id, client_id: clientId, week_label: week,
+        strategies: selectedStrategies, entries, status: 'submitted',
+        submitted_at: new Date().toISOString(),
+      })
+      if (error) showToast('Error: ' + error.message)
+      else { showToast('Case note submitted ✓'); resetForm() }
     }
     setSubmitting(false)
   }
 
-  function clearForm() {
-    setClientId('')
-    setChecked(new Array(STRATEGIES.length).fill(false))
+  function resetForm() {
+    setClientId(''); setChecked(new Array(STRATEGIES.length).fill(false))
     setEntries([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
-    nextIdRef.current = 2
-    setWeek(WEEKS[0])
-    showToast('Form cleared')
+    nextIdRef.current = 2; setWeek(WEEKS[0])
   }
+
+  function clearForm() { resetForm(); setEditingNoteId(null); showToast('Form cleared') }
 
   const selectedClient = assignedClients.find(c => c.id === clientId) ?? null
 
@@ -196,44 +234,37 @@ export default function CaseNotesPage() {
   const inputStyle: React.CSSProperties = { width: '100%', fontSize: 14, color: '#1a1a1a', background: 'white', border: '1px solid #d1d5db', borderRadius: 8, padding: '11px 14px', outline: 'none', fontFamily: 'inherit' }
   const readOnly: React.CSSProperties = { width: '100%', fontSize: 14, color: '#6b7280', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px', fontFamily: 'inherit' }
 
-  if (loading) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12, color: '#6b7280', fontSize: 14 }}>
-        <i className="ti ti-loader-2" style={{ fontSize: 28 }} />
-        Loading…
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 12, color: '#6b7280', fontSize: 14 }}>
+      <i className="ti ti-loader-2" style={{ fontSize: 28 }} />Loading…
+    </div>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: '#f4f5f7' }}>
       {/* Topbar */}
       <div style={{ background: 'white', borderBottom: '1px solid #e5e7eb', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 10 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a' }}>Community-Based Supports Log</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a' }}>
+          Community-Based Supports Log
+          {editingNoteId && <span style={{ fontSize: 11, marginLeft: 10, background: 'rgba(234,179,8,0.12)', color: '#854d0e', padding: '2px 10px', borderRadius: 20, fontWeight: 600 }}>Editing</span>}
+        </span>
         <div style={{ flex: 1 }} />
-        <button
-          onClick={async () => {
-            const next = !showHistory
-            setShowHistory(next)
-            if (next) await loadHistory()
-          }}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}
-        >
+        <button onClick={async () => { const next = !showHistory; setShowHistory(next); if (next) { setEditingNoteId(null); await loadHistory() } }}
+          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
           <i className="ti ti-history" /> {showHistory ? 'New entry' : 'View history'}
         </button>
       </div>
 
       <div style={{ padding: '20px 24px' }}>
-
         {noClientsError && (
           <div style={{ padding: '14px 18px', borderRadius: 10, background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.4)', color: '#854d0e', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
             <i className="ti ti-alert-triangle" style={{ fontSize: 18, flexShrink: 0 }} />
-            You have no assigned clients. Contact your administrator to get clients assigned.
+            You have no assigned clients. Contact your administrator.
           </div>
         )}
 
         {showHistory ? (
-          /* ── History view ─────────────────────────────────────────────────── */
+          /* ── History ── */
           <div style={sectionStyle}>
             <div style={sectionHead}>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>My Submission History</span>
@@ -246,31 +277,99 @@ export default function CaseNotesPage() {
                 </div>
               ) : history.length === 0 ? (
                 <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                  <i className="ti ti-notes-off" style={{ fontSize: 28, display: 'block', marginBottom: 8, color: '#d1d5db' }} />
-                  No submissions yet.
+                  <i className="ti ti-notes-off" style={{ fontSize: 28, display: 'block', marginBottom: 8, color: '#d1d5db' }} />No submissions yet.
                 </div>
-              ) : history.map((note, i) => (
-                <div key={note.id} style={{ padding: '16px 20px', borderBottom: i < history.length - 1 ? '0.5px solid #f3f4f6' : 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 3 }}>{note.client_name}</div>
-                      <div style={{ fontSize: 12, color: '#6b7280' }}>{note.week_label}</div>
-                      <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>{note.entry_count} activit{note.entry_count !== 1 ? 'ies' : 'y'} logged</div>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'rgba(0,122,122,0.1)', color: '#007a7a', fontWeight: 600 }}>Submitted</span>
-                      <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 5 }}>
-                        {note.submitted_at ? new Date(note.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+              ) : history.map((note, i) => {
+                const ss = STATUS_STYLE[note.status] ?? STATUS_STYLE.draft
+                const isExpanded = expandedId === note.id
+                const canEdit = note.status !== 'approved'
+                const isDeleting = deletingId === note.id
+                return (
+                  <div key={note.id} style={{ borderBottom: i < history.length - 1 ? '0.5px solid #f3f4f6' : 'none' }}>
+                    <div onClick={() => setExpandedId(isExpanded ? null : note.id)}
+                      style={{ padding: '15px 20px', display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 3 }}>{note.client_name}</div>
+                        <div style={{ fontSize: 12, color: '#6b7280' }}>{note.week_label}</div>
+                        <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 3 }}>
+                          {note.entries.length} activit{note.entries.length !== 1 ? 'ies' : 'y'} · {note.strategies.length} strateg{note.strategies.length !== 1 ? 'ies' : 'y'}
+                        </div>
                       </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: ss.bg, color: ss.color, fontWeight: 600 }}>{ss.label}</span>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                          {note.submitted_at ? new Date(note.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
+                        </div>
+                      </div>
+                      <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 14, color: '#9ca3af', marginTop: 2, flexShrink: 0 }} />
                     </div>
+
+                    {isExpanded && (
+                      <div style={{ padding: '0 20px 18px', borderTop: '0.5px solid #f3f4f6' }}>
+                        {note.strategies.length > 0 && (
+                          <div style={{ marginTop: 14, marginBottom: 14 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Strategies</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {note.strategies.map(s => (
+                                <span key={s} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'rgba(0,64,80,0.08)', color: '#004050', fontWeight: 500 }}>{s}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {note.entries.length > 0 && (
+                          <div style={{ marginBottom: 14 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Activity Log</div>
+                            {note.entries.map((e, ei) => (
+                              <div key={ei} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #e5e7eb' }}>
+                                <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: e.desc ? 6 : 0, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                                    {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
+                                  </span>
+                                  <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
+                                  {e.strategy && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
+                                </div>
+                                {e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{e.desc}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                          {canEdit ? (
+                            <>
+                              <button onClick={() => startEdit(note)}
+                                style={{ fontSize: 13, padding: '7px 16px', borderRadius: 7, border: '1px solid #004050', background: 'white', color: '#004050', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+                                <i className="ti ti-edit" /> Edit
+                              </button>
+                              <button onClick={() => handleDelete(note.id)} disabled={isDeleting}
+                                style={{ fontSize: 13, padding: '7px 16px', borderRadius: 7, border: '1px solid #fca5a5', background: 'white', color: '#dc2626', cursor: isDeleting ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', opacity: isDeleting ? 0.5 : 1 }}>
+                                <i className={`ti ${isDeleting ? 'ti-loader-2' : 'ti-trash'}`} /> {isDeleting ? 'Deleting…' : 'Delete'}
+                              </button>
+                            </>
+                          ) : (
+                            <span style={{ fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              <i className="ti ti-lock" /> Approved — no further changes allowed
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         ) : (
-          /* ── New entry form ───────────────────────────────────────────────── */
+          /* ── New / Edit form ── */
           <>
+            {editingNoteId && (
+              <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.35)', color: '#854d0e', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><i className="ti ti-edit" /> Editing existing case note — changes will update the record.</span>
+                <button onClick={() => { setEditingNoteId(null); clearForm() }} style={{ fontSize: 12, color: '#854d0e', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                  Cancel edit
+                </button>
+              </div>
+            )}
+
             {/* Client Information */}
             <div style={sectionStyle}>
               <div style={sectionHead}>
@@ -281,12 +380,8 @@ export default function CaseNotesPage() {
                 <div style={{ marginBottom: 16 }}>
                   <div style={fieldLabel}>Select client <span style={{ color: '#e24b4a' }}>*</span></div>
                   <div style={{ position: 'relative' }}>
-                    <select
-                      value={clientId}
-                      onChange={e => setClientId(e.target.value)}
-                      disabled={noClientsError}
-                      style={{ ...inputStyle, paddingRight: 40, appearance: 'none', cursor: noClientsError ? 'not-allowed' : 'pointer' }}
-                    >
+                    <select value={clientId} onChange={e => setClientId(e.target.value)} disabled={noClientsError}
+                      style={{ ...inputStyle, paddingRight: 40, appearance: 'none', cursor: noClientsError ? 'not-allowed' : 'pointer' }}>
                       <option value="">— Select your assigned client —</option>
                       {assignedClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
@@ -326,7 +421,7 @@ export default function CaseNotesPage() {
             <div style={sectionStyle}>
               <div style={sectionHead}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>Service Strategies</span>
-                <button onClick={checkAll} style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Check all</button>
+                <button onClick={() => setChecked(new Array(STRATEGIES.length).fill(true))} style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Check all</button>
               </div>
               <div style={{ ...sectionBody, padding: '4px 20px' }}>
                 {STRATEGIES.map((s, i) => (
@@ -347,6 +442,7 @@ export default function CaseNotesPage() {
             <div style={sectionStyle}>
               <div style={sectionHead}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>Daily Activity Log</span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Each entry = exactly 1 hour</span>
               </div>
               <div style={{ ...sectionBody, padding: 16 }}>
                 {entries.map((entry, i) => (
@@ -373,8 +469,8 @@ export default function CaseNotesPage() {
                           <input type="time" value={entry.start} onChange={e => updateEntry(entry.id, 'start', e.target.value)} style={{ ...inputStyle, width: '100%' }} />
                         </div>
                         <div style={{ flex: '0 0 155px' }}>
-                          <div style={{ ...fieldLabel, marginBottom: 7 }}>End time <span style={{ color: '#e24b4a' }}>*</span></div>
-                          <input type="time" value={entry.end} onChange={e => updateEntry(entry.id, 'end', e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                          <div style={{ ...fieldLabel, marginBottom: 7 }}>End time <span style={{ fontSize: 9, fontWeight: 400, color: '#9ca3af', fontStyle: 'italic', textTransform: 'none', letterSpacing: 0 }}>auto-set</span></div>
+                          <input type="time" readOnly value={entry.end} style={{ ...inputStyle, width: '100%', background: '#f9fafb', color: '#6b7280' }} />
                         </div>
                       </div>
                       <div style={{ marginBottom: 16 }}>
@@ -411,17 +507,14 @@ export default function CaseNotesPage() {
 
             {/* Submit */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-              <button
-                onClick={doSubmit}
-                disabled={submitting || !clientId}
-                style={{ fontSize: 15, fontWeight: 700, padding: '16px 28px', borderRadius: 8, border: 'none', background: submitting ? '#6b7280' : '#2d7d4e', color: 'white', cursor: submitting ? 'wait' : (!clientId ? 'not-allowed' : 'pointer'), opacity: !clientId ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}
-              >
+              <button onClick={doSubmit} disabled={submitting || !clientId}
+                style={{ fontSize: 15, fontWeight: 700, padding: '16px 28px', borderRadius: 8, border: 'none', background: submitting ? '#6b7280' : '#2d7d4e', color: 'white', cursor: submitting ? 'wait' : (!clientId ? 'not-allowed' : 'pointer'), opacity: !clientId ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}>
                 {submitting
-                  ? <><i className="ti ti-loader-2" /> Submitting…</>
-                  : <>📄 Submit Case Note</>}
+                  ? <><i className="ti ti-loader-2" /> {editingNoteId ? 'Saving…' : 'Submitting…'}</>
+                  : editingNoteId ? <>💾 Save Changes</> : <>📄 Submit Case Note</>}
               </button>
               <button onClick={clearForm} style={{ fontSize: 14, fontWeight: 600, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer', padding: '16px 20px', fontFamily: 'inherit' }}>
-                Clear Form
+                {editingNoteId ? 'Cancel' : 'Clear Form'}
               </button>
             </div>
           </>
