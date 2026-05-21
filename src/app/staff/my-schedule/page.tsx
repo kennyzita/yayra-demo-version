@@ -3,15 +3,18 @@
 import { useState, useEffect } from 'react'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-function startOfWeek(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
-  d.setHours(0, 0, 0, 0)
-  return d
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1)
 }
-function addDays(date: Date, n: number): Date {
-  const d = new Date(date); d.setDate(d.getDate() + n); return d
+function addMonths(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + n, 1)
+}
+function endOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0)
+}
+function leadingBlanks(d: Date): number {
+  const day = d.getDay()
+  return day === 0 ? 6 : day - 1
 }
 function isoDate(d: Date) { return d.toISOString().split('T')[0] }
 function fmt12(t: string) {
@@ -42,17 +45,17 @@ const STATUS_STYLE = {
   auto_accepted:{ bg: 'rgba(99,102,241,0.12)',  color: '#6366f1', label: 'Auto-accepted' },
 } as const
 
-const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+const DAY_HEADERS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
 // ── component ─────────────────────────────────────────────────────────────────
 export default function StaffMySchedulePage() {
   const today = new Date()
 
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(today))
-  const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [clients,   setClients]   = useState<Client[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [toast,     setToast]     = useState<string | null>(null)
+  const [month,      setMonth]      = useState(() => startOfMonth(today))
+  const [schedules,  setSchedules]  = useState<Schedule[]>([])
+  const [clients,    setClients]    = useState<Client[]>([])
+  const [loading,    setLoading]    = useState(true)
+  const [toast,      setToast]      = useState<string | null>(null)
   const [responding, setResponding] = useState<string | null>(null)
 
   function showToast(msg: string) {
@@ -61,11 +64,8 @@ export default function StaffMySchedulePage() {
   }
 
   async function load() {
-    // Fire-and-forget auto-accept
     fetch('/api/schedules/auto-accept', { method: 'POST' }).catch(() => {})
 
-    // Use server-side route so the auth cookie is read properly server-side,
-    // bypassing any browser-client JWT/RLS mismatch
     const res = await fetch('/api/schedules/mine')
     if (!res.ok) {
       console.error('[my-schedule] API error:', res.status, await res.text())
@@ -98,13 +98,14 @@ export default function StaffMySchedulePage() {
   }
 
   const clientMap  = Object.fromEntries(clients.map(c => [c.id, c.full_name]))
-  const weekEnd    = addDays(weekStart, 6)
-  const weekLabel  = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  const monthEnd   = endOfMonth(month)
+  const monthLabel = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const blanks     = leadingBlanks(month)
+  const daysCount  = monthEnd.getDate()
 
-  // All schedules for the current week view
-  const weekSchedules = schedules.filter(s => s.date >= isoDate(weekStart) && s.date <= isoDate(weekEnd))
+  const monthSchedules = schedules.filter(s => s.date >= isoDate(month) && s.date <= isoDate(monthEnd))
+  const otherSchedules = schedules.filter(s => s.date < isoDate(month) || s.date > isoDate(monthEnd))
 
-  // Pending schedules across all weeks (for the banner)
   const pendingCount = schedules.filter(s => {
     if (s.status !== 'pending') return false
     const ms = new Date(s.created_at).getTime() + 24 * 60 * 60 * 1000 - Date.now()
@@ -131,7 +132,7 @@ export default function StaffMySchedulePage() {
       <div style={{ background: '#fff', borderBottom: '0.5px solid #e5e7eb', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 16, position: 'sticky', top: 0, zIndex: 10, flexShrink: 0 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 500, color: '#111' }}>My Schedule</div>
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>{weekLabel}</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>{monthLabel}</div>
         </div>
         <div style={{ flex: 1 }} />
         {pendingCount > 0 && (
@@ -153,40 +154,50 @@ export default function StaffMySchedulePage() {
           </span>
         </div>
 
-        {/* Week navigation */}
+        {/* Month navigation */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => setWeekStart(w => addDays(w, -7))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <button onClick={() => setMonth(m => addMonths(m, -1))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             <i className="ti ti-chevron-left" />
           </button>
-          <span style={{ fontSize: 14, fontWeight: 500, color: '#111', minWidth: 210, textAlign: 'center' }}>{weekLabel}</span>
-          <button onClick={() => setWeekStart(w => addDays(w, 7))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <span style={{ fontSize: 14, fontWeight: 500, color: '#111', minWidth: 160, textAlign: 'center' }}>{monthLabel}</span>
+          <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             <i className="ti ti-chevron-right" />
           </button>
-          <button onClick={() => setWeekStart(startOfWeek(today))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: '#6b7280', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <button onClick={() => setMonth(startOfMonth(today))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: '#6b7280', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             Today
           </button>
         </div>
 
-        {/* 7-day calendar grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 10 }}>
-          {DAYS.map((day, i) => {
-            const date    = addDays(weekStart, i)
+        {/* Monthly calendar grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+          {/* Day-of-week headers */}
+          {DAY_HEADERS.map(d => (
+            <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: '#9ca3af', padding: '4px 0 6px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{d}</div>
+          ))}
+
+          {/* Leading blanks */}
+          {Array.from({ length: blanks }).map((_, i) => (
+            <div key={`b${i}`} />
+          ))}
+
+          {/* Day cells */}
+          {Array.from({ length: daysCount }).map((_, i) => {
+            const date    = new Date(month.getFullYear(), month.getMonth(), i + 1)
             const dateStr = isoDate(date)
             const isToday = dateStr === isoDate(today)
-            const daySched = weekSchedules.filter(s => s.date === dateStr)
+            const daySched = monthSchedules.filter(s => s.date === dateStr)
 
             return (
-              <div key={day} style={{ background: '#fff', border: isToday ? '1.5px solid #008080' : '0.5px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', minHeight: 150, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                {/* Day header */}
-                <div style={{ padding: '10px 12px 8px', borderBottom: '0.5px solid #f3f4f6', display: 'flex', alignItems: 'center' }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{day}</span>
-                  <div style={{ marginLeft: 'auto', width: 22, height: 22, borderRadius: '50%', background: isToday ? 'rgba(0,128,128,0.1)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? '#008080' : '#374151' }}>{date.getDate()}</span>
+              <div key={dateStr} style={{ background: '#fff', border: isToday ? '1.5px solid #008080' : '0.5px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', minHeight: 80, boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                {/* Date number */}
+                <div style={{ padding: '5px 6px 3px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: isToday ? 'rgba(0,128,128,0.1)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: isToday ? 700 : 400, color: isToday ? '#008080' : '#374151' }}>{date.getDate()}</span>
                   </div>
                 </div>
 
                 {/* Shift cards */}
-                <div style={{ padding: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ padding: '0 3px 4px', display: 'flex', flexDirection: 'column', gap: 3 }}>
                   {daySched.map(s => {
                     const st = STATUS_STYLE[s.status as keyof typeof STATUS_STYLE] ?? STATUS_STYLE.pending
                     const isPending = s.status === 'pending'
@@ -194,63 +205,43 @@ export default function StaffMySchedulePage() {
                     const canRespond = isPending && !!dl?.label
 
                     return (
-                      <div key={s.id} style={{ background: st.bg, border: `1px solid ${st.color}30`, borderRadius: 9, padding: '8px 9px' }}>
-                        {/* Time */}
-                        <div style={{ fontSize: 11, fontWeight: 700, color: st.color }}>
-                          {fmt12(s.start_time)} – {fmt12(s.end_time)}
-                        </div>
-                        {/* Client */}
-                        <div style={{ fontSize: 12, color: '#374151', fontWeight: 600, marginTop: 2 }}>
+                      <div key={s.id} style={{ background: st.bg, border: `1px solid ${st.color}28`, borderRadius: 5, padding: '4px 5px' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: st.color }}>{fmt12(s.start_time)} – {fmt12(s.end_time)}</div>
+                        <div style={{ fontSize: 9, color: '#374151', fontWeight: 600, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {clientMap[s.client_id] ?? '—'}
                         </div>
-                        {/* Notes */}
-                        {s.notes && (
-                          <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2, fontStyle: 'italic' }}>"{s.notes}"</div>
-                        )}
-
-                        {/* Status / deadline */}
-                        <div style={{ marginTop: 5, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 6, background: 'rgba(255,255,255,0.6)', color: st.color, fontWeight: 700 }}>{st.label}</span>
+                        <div style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: 'rgba(255,255,255,0.65)', color: st.color, fontWeight: 700 }}>{st.label}</span>
                           {canRespond && dl && (
-                            <span style={{ fontSize: 9, color: dl.urgent ? '#dc2626' : '#d97706', fontWeight: 600 }}>
-                              · {dl.label}
-                            </span>
+                            <span style={{ fontSize: 8, color: dl.urgent ? '#dc2626' : '#d97706', fontWeight: 600 }}>· {dl.label}</span>
                           )}
                         </div>
-
-                        {/* Accept / Reject buttons */}
                         {canRespond && (
-                          <div style={{ display: 'flex', gap: 5, marginTop: 7 }}>
+                          <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
                             <button
                               onClick={() => respond(s.id, 'rejected')}
                               disabled={responding === s.id}
-                              style={{ flex: 1, padding: '5px 0', fontSize: 10, fontWeight: 600, borderRadius: 6, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', cursor: 'pointer' }}
+                              style={{ flex: 1, padding: '3px 0', fontSize: 8, fontWeight: 600, borderRadius: 4, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', cursor: 'pointer' }}
                             >
                               Reject
                             </button>
                             <button
                               onClick={() => respond(s.id, 'accepted')}
                               disabled={responding === s.id}
-                              style={{ flex: 2, padding: '5px 0', fontSize: 10, fontWeight: 600, borderRadius: 6, border: 'none', background: '#008080', color: '#fff', cursor: 'pointer', opacity: responding === s.id ? 0.7 : 1 }}
+                              style={{ flex: 2, padding: '3px 0', fontSize: 8, fontWeight: 600, borderRadius: 4, border: 'none', background: '#008080', color: '#fff', cursor: 'pointer', opacity: responding === s.id ? 0.7 : 1 }}
                             >
                               {responding === s.id ? '…' : 'Accept'}
                             </button>
                           </div>
                         )}
-
-                        {/* Locked */}
                         {s.status === 'auto_accepted' && (
-                          <div style={{ marginTop: 5, fontSize: 9, color: '#6366f1', display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <i className="ti ti-lock" style={{ fontSize: 10 }} /> Auto-accepted
+                          <div style={{ marginTop: 3, fontSize: 8, color: '#6366f1', display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <i className="ti ti-lock" style={{ fontSize: 9 }} /> Auto-accepted
                           </div>
                         )}
                       </div>
                     )
                   })}
-
-                  {daySched.length === 0 && (
-                    <div style={{ textAlign: 'center', paddingTop: 16, fontSize: 11, color: '#d1d5db' }}>—</div>
-                  )}
                 </div>
               </div>
             )
@@ -271,48 +262,46 @@ export default function StaffMySchedulePage() {
           })}
         </div>
 
-        {/* All-weeks list for past/upcoming outside current view */}
-        {schedules.filter(s => s.date < isoDate(weekStart) || s.date > isoDate(weekEnd)).length > 0 && (
+        {/* Other months list */}
+        {otherSchedules.length > 0 && (
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', marginBottom: 8 }}>Other weeks</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#6b7280', marginBottom: 8 }}>Other months</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {schedules
-                .filter(s => s.date < isoDate(weekStart) || s.date > isoDate(weekEnd))
-                .map(s => {
-                  const st = STATUS_STYLE[s.status as keyof typeof STATUS_STYLE] ?? STATUS_STYLE.pending
-                  const isPast = s.date < isoDate(today)
-                  const dl = s.status === 'pending' ? deadlineInfo(s.created_at) : null
-                  const canRespond = s.status === 'pending' && !!dl?.label
-                  return (
-                    <div key={s.id} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '12px 16px', opacity: isPast ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 14 }}>
-                      <div style={{ width: 44, textAlign: 'center', background: st.bg, borderRadius: 8, padding: '6px 4px', flexShrink: 0 }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, color: st.color, textTransform: 'uppercase' }}>
-                          {new Date(s.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short' })}
-                        </div>
-                        <div style={{ fontSize: 18, fontWeight: 700, color: st.color, lineHeight: 1.1 }}>
-                          {new Date(s.date + 'T12:00:00').getDate()}
-                        </div>
-                        <div style={{ fontSize: 9, color: st.color }}>
-                          {new Date(s.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
-                        </div>
+              {otherSchedules.map(s => {
+                const st = STATUS_STYLE[s.status as keyof typeof STATUS_STYLE] ?? STATUS_STYLE.pending
+                const isPast = s.date < isoDate(today)
+                const dl = s.status === 'pending' ? deadlineInfo(s.created_at) : null
+                const canRespond = s.status === 'pending' && !!dl?.label
+                return (
+                  <div key={s.id} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '12px 16px', opacity: isPast ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 44, textAlign: 'center', background: st.bg, borderRadius: 8, padding: '6px 4px', flexShrink: 0 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: st.color, textTransform: 'uppercase' }}>
+                        {new Date(s.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short' })}
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{clientMap[s.client_id] ?? '—'}</div>
-                        <div style={{ fontSize: 12, color: '#6b7280' }}>{fmt12(s.start_time)} – {fmt12(s.end_time)}</div>
-                        {s.notes && <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>"{s.notes}"</div>}
+                      <div style={{ fontSize: 18, fontWeight: 700, color: st.color, lineHeight: 1.1 }}>
+                        {new Date(s.date + 'T12:00:00').getDate()}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
-                        {canRespond && dl && (
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={() => respond(s.id, 'rejected')} disabled={responding === s.id} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>Reject</button>
-                            <button onClick={() => respond(s.id, 'accepted')} disabled={responding === s.id} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: 'none', background: '#008080', color: '#fff', cursor: 'pointer' }}>Accept</button>
-                          </div>
-                        )}
+                      <div style={{ fontSize: 9, color: st.color }}>
+                        {new Date(s.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
                       </div>
                     </div>
-                  )
-                })}
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{clientMap[s.client_id] ?? '—'}</div>
+                      <div style={{ fontSize: 12, color: '#6b7280' }}>{fmt12(s.start_time)} – {fmt12(s.end_time)}</div>
+                      {s.notes && <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>"{s.notes}"</div>}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: st.bg, color: st.color, fontWeight: 600 }}>{st.label}</span>
+                      {canRespond && dl && (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => respond(s.id, 'rejected')} disabled={responding === s.id} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', cursor: 'pointer' }}>Reject</button>
+                          <button onClick={() => respond(s.id, 'accepted')} disabled={responding === s.id} style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: 'none', background: '#008080', color: '#fff', cursor: 'pointer' }}>Accept</button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

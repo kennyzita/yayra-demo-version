@@ -4,17 +4,18 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
-function startOfWeek(date: Date): Date {
-  const d = new Date(date)
-  const day = d.getDay()
-  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1))
-  d.setHours(0, 0, 0, 0)
-  return d
+function startOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), 1)
 }
-function addDays(date: Date, n: number): Date {
-  const d = new Date(date)
-  d.setDate(d.getDate() + n)
-  return d
+function addMonths(d: Date, n: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + n, 1)
+}
+function endOfMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0)
+}
+function leadingBlanks(d: Date): number {
+  const day = d.getDay()
+  return day === 0 ? 6 : day - 1
 }
 function isoDate(d: Date) { return d.toISOString().split('T')[0] }
 function fmt12(t: string) {
@@ -40,7 +41,7 @@ const STATUS_STYLE = {
   auto_accepted:{ bg: 'rgba(99,102,241,0.12)',  color: '#6366f1', label: 'Auto-accepted' },
 } as const
 
-const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+const DAY_HEADERS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
 // ── email html ────────────────────────────────────────────────────────────────
 function buildDspEmail({ dspName, clientName, date, start, end, notes }: {
@@ -74,7 +75,7 @@ export default function AdminSchedulingPage() {
   const supabase = createClient()
   const today = new Date()
 
-  const [weekStart, setWeekStart]     = useState(() => startOfWeek(today))
+  const [month, setMonth]             = useState(() => startOfMonth(today))
   const [schedules, setSchedules]     = useState<Schedule[]>([])
   const [clients, setClients]         = useState<Client[]>([])
   const [allUsers, setAllUsers]       = useState<User[]>([])
@@ -92,7 +93,7 @@ export default function AdminSchedulingPage() {
   const [fEnd,    setFEnd]    = useState('')
   const [fNotes,  setFNotes]  = useState('')
 
-  const weekEnd = addDays(weekStart, 6)
+  const monthEnd = endOfMonth(month)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -102,9 +103,9 @@ export default function AdminSchedulingPage() {
   const load = useCallback(async () => {
     const [s, c, u, a] = await Promise.all([
       supabase.from('schedules').select('*')
-        .gte('date', isoDate(weekStart))
-        .lte('date', isoDate(weekEnd))
-        .order('start_time'),
+        .gte('date', isoDate(month))
+        .lte('date', isoDate(monthEnd))
+        .order('date').order('start_time'),
       supabase.from('clients').select('id, full_name').order('full_name'),
       supabase.from('users').select('id, first_name, last_name, email').order('first_name'),
       supabase.from('assignments').select('dsp_id, client_id'),
@@ -113,7 +114,7 @@ export default function AdminSchedulingPage() {
     setClients((c.data ?? []) as Client[])
     setAllUsers((u.data ?? []) as User[])
     setAssignments((a.data ?? []) as Assignment[])
-  }, [weekStart])
+  }, [month])
 
   useEffect(() => { load() }, [load])
 
@@ -138,8 +139,6 @@ export default function AdminSchedulingPage() {
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      console.log('[scheduling] user:', user?.id, 'payload:', { fClient, fDsp, fDate, fStart, fEnd })
-
       const { error } = await supabase.from('schedules').insert({
         client_id: fClient, dsp_id: fDsp, scheduled_by: user?.id,
         date: fDate, start_time: fStart, end_time: fEnd, notes: fNotes, status: 'pending',
@@ -190,7 +189,9 @@ export default function AdminSchedulingPage() {
     load()
   }
 
-  const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+  const monthLabel = month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const blanks     = leadingBlanks(month)
+  const daysCount  = monthEnd.getDate()
 
   const inp: React.CSSProperties = {
     width: '100%', border: '0.5px solid #d1d5db', borderRadius: 8,
@@ -212,7 +213,7 @@ export default function AdminSchedulingPage() {
       <div style={{ background: '#fff', borderBottom: '0.5px solid #e5e7eb', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 16, position: 'sticky', top: 0, zIndex: 10, flexShrink: 0 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 500, color: '#111' }}>Scheduling</div>
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>{weekLabel}</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>{monthLabel}</div>
         </div>
         <div style={{ flex: 1 }} />
         <button
@@ -227,55 +228,65 @@ export default function AdminSchedulingPage() {
       {/* Content */}
       <div style={{ padding: 24, background: '#f9fafb', minHeight: 'calc(100% - 56px)', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-        {/* Week navigation */}
+        {/* Month navigation */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => setWeekStart(w => addDays(w, -7))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <button onClick={() => setMonth(m => addMonths(m, -1))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             <i className="ti ti-chevron-left" />
           </button>
-          <span style={{ fontSize: 14, fontWeight: 500, color: '#111', minWidth: 210, textAlign: 'center' }}>{weekLabel}</span>
-          <button onClick={() => setWeekStart(w => addDays(w, 7))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <span style={{ fontSize: 14, fontWeight: 500, color: '#111', minWidth: 160, textAlign: 'center' }}>{monthLabel}</span>
+          <button onClick={() => setMonth(m => addMonths(m, 1))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: '#374151', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             <i className="ti ti-chevron-right" />
           </button>
-          <button onClick={() => setWeekStart(startOfWeek(today))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: '#6b7280', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+          <button onClick={() => setMonth(startOfMonth(today))} style={{ border: '0.5px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: '#6b7280', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
             Today
           </button>
         </div>
 
-        {/* 7-day grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 10 }}>
-          {DAYS.map((day, i) => {
-            const date = addDays(weekStart, i)
+        {/* Monthly calendar grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+          {/* Day-of-week headers */}
+          {DAY_HEADERS.map(d => (
+            <div key={d} style={{ textAlign: 'center', fontSize: 10, fontWeight: 600, color: '#9ca3af', padding: '4px 0 6px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{d}</div>
+          ))}
+
+          {/* Leading blank cells */}
+          {Array.from({ length: blanks }).map((_, i) => (
+            <div key={`b${i}`} />
+          ))}
+
+          {/* Day cells */}
+          {Array.from({ length: daysCount }).map((_, i) => {
+            const date    = new Date(month.getFullYear(), month.getMonth(), i + 1)
             const dateStr = isoDate(date)
             const isToday = dateStr === isoDate(today)
             const daySched = schedules.filter(s => s.date === dateStr)
 
             return (
-              <div key={day} style={{ background: '#fff', border: isToday ? '1.5px solid #008080' : '0.5px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', minHeight: 140, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                {/* Day header */}
-                <div style={{ padding: '10px 12px 8px', borderBottom: '0.5px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{day}</span>
-                  <div style={{ marginLeft: 'auto', width: 22, height: 22, borderRadius: '50%', background: isToday ? 'rgba(0,128,128,0.1)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <span style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? '#008080' : '#374151' }}>{date.getDate()}</span>
+              <div key={dateStr} style={{ background: '#fff', border: isToday ? '1.5px solid #008080' : '0.5px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', minHeight: 80, boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                {/* Date number */}
+                <div style={{ padding: '5px 6px 3px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: isToday ? 'rgba(0,128,128,0.1)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: isToday ? 700 : 400, color: isToday ? '#008080' : '#374151' }}>{date.getDate()}</span>
                   </div>
                 </div>
                 {/* Shifts */}
-                <div style={{ padding: 6, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ padding: '0 3px 4px', display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {daySched.map(s => {
                     const st = STATUS_STYLE[s.status as keyof typeof STATUS_STYLE] ?? STATUS_STYLE.pending
                     return (
-                      <div key={s.id} style={{ background: st.bg, border: `1px solid ${st.color}30`, borderRadius: 8, padding: '6px 8px', position: 'relative' }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: st.color }}>{fmt12(s.start_time)} – {fmt12(s.end_time)}</div>
-                        <div style={{ fontSize: 11, color: '#374151', fontWeight: 600, marginTop: 2 }}>{userMap[s.dsp_id] ?? '—'}</div>
-                        <div style={{ fontSize: 10, color: '#6b7280' }}>{clientMap[s.client_id] ?? '—'}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                          <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 8, background: 'rgba(255,255,255,0.6)', color: st.color, fontWeight: 600 }}>{st.label}</span>
+                      <div key={s.id} style={{ background: st.bg, border: `1px solid ${st.color}25`, borderRadius: 5, padding: '3px 5px' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: st.color }}>{fmt12(s.start_time)}</div>
+                        <div style={{ fontSize: 9, color: '#374151', fontWeight: 600, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userMap[s.dsp_id] ?? '—'}</div>
+                        <div style={{ fontSize: 9, color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{clientMap[s.client_id] ?? '—'}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 3 }}>
+                          <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, background: 'rgba(255,255,255,0.7)', color: st.color, fontWeight: 600 }}>{st.label}</span>
                           {deletingId === s.id ? (
-                            <div style={{ display: 'flex', gap: 3 }}>
-                              <button onClick={() => handleDelete(s.id)} style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer' }}>Delete</button>
-                              <button onClick={() => setDeletingId(null)} style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, background: '#e5e7eb', color: '#374151', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                            <div style={{ display: 'flex', gap: 2 }}>
+                              <button onClick={() => handleDelete(s.id)} style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer' }}>Del</button>
+                              <button onClick={() => setDeletingId(null)} style={{ fontSize: 8, padding: '1px 4px', borderRadius: 3, background: '#e5e7eb', color: '#374151', border: 'none', cursor: 'pointer' }}>✕</button>
                             </div>
                           ) : (
-                            <button onClick={() => setDeletingId(s.id)} style={{ fontSize: 11, color: '#9ca3af', background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}>
+                            <button onClick={() => setDeletingId(s.id)} style={{ fontSize: 10, color: '#d1d5db', background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>
                               <i className="ti ti-trash" />
                             </button>
                           )}
@@ -283,17 +294,14 @@ export default function AdminSchedulingPage() {
                       </div>
                     )
                   })}
-                  {daySched.length === 0 && (
-                    <div style={{ textAlign: 'center', paddingTop: 16, fontSize: 11, color: '#d1d5db' }}>—</div>
-                  )}
                 </div>
               </div>
             )
           })}
         </div>
 
-        {/* Summary row */}
-        <div style={{ display: 'flex', gap: 12 }}>
+        {/* Status summary */}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {Object.entries(STATUS_STYLE).map(([key, s]) => {
             const count = schedules.filter(sc => sc.status === key).length
             return (
@@ -320,7 +328,6 @@ export default function AdminSchedulingPage() {
             </div>
 
             <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-
               <div>
                 <label style={lbl}>Client *</label>
                 <select value={fClient} onChange={e => { setFClient(e.target.value); setFDsp('') }} style={inp}>
