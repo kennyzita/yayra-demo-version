@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 function startOfWeek(date: Date): Date {
@@ -47,7 +46,6 @@ const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
 
 // ── component ─────────────────────────────────────────────────────────────────
 export default function StaffMySchedulePage() {
-  const supabase = createClient()
   const today = new Date()
 
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today))
@@ -63,25 +61,23 @@ export default function StaffMySchedulePage() {
   }
 
   async function load() {
-    // Fire-and-forget auto-accept — must not block the schedule load
+    // Fire-and-forget auto-accept
     fetch('/api/schedules/auto-accept', { method: 'POST' }).catch(() => {})
 
-    const { data: { user }, error: authErr } = await supabase.auth.getUser()
-    if (authErr) console.error('[my-schedule] auth error:', authErr)
-    if (!user) { setLoading(false); return }
+    // Use server-side route so the auth cookie is read properly server-side,
+    // bypassing any browser-client JWT/RLS mismatch
+    const res = await fetch('/api/schedules/mine')
+    if (!res.ok) {
+      console.error('[my-schedule] API error:', res.status, await res.text())
+      setLoading(false)
+      return
+    }
 
-    console.log('[my-schedule] loading for user:', user.id)
+    const { schedules: data, clients: clientData } = await res.json()
+    console.log('[my-schedule] schedules:', data?.length ?? 0, data)
 
-    const [s, c] = await Promise.all([
-      supabase.from('schedules').select('*').eq('dsp_id', user.id).order('start_time'),
-      supabase.from('clients').select('id, full_name'),
-    ])
-
-    if (s.error) console.error('[my-schedule] query error:', s.error)
-    console.log('[my-schedule] schedules:', s.data?.length ?? 0, s.data)
-
-    setSchedules((s.data ?? []) as Schedule[])
-    setClients((c.data ?? []) as Client[])
+    setSchedules((data ?? []) as Schedule[])
+    setClients((clientData ?? []) as Client[])
     setLoading(false)
   }
 
