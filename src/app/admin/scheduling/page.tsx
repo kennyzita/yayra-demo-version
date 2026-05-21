@@ -143,7 +143,12 @@ export default function AdminSchedulingPage() {
       date: fDate, start_time: fStart, end_time: fEnd, notes: fNotes, status: 'pending',
     })
 
-    if (error) { showToast('Failed to save schedule'); setSaving(false); return }
+    if (error) {
+      console.error('[scheduling] insert error:', error)
+      showToast(error.message ?? 'Failed to save schedule')
+      setSaving(false)
+      return
+    }
 
     const dsp    = allUsers.find(u => u.id === fDsp)
     const client = clients.find(c => c.id === fClient)
