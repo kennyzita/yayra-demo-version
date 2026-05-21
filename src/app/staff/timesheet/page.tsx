@@ -61,6 +61,10 @@ export default function TimesheetPage() {
   const [toast,     setToast]       = useState('')
   const [existingId, setExistingId] = useState<string | null>(null)
 
+  // DB-fetched week metrics
+  const [dbHoursThisWeek,   setDbHoursThisWeek]   = useState(0)
+  const [dbClientsThisWeek, setDbClientsThisWeek] = useState(0)
+
   // History state
   const [showHistory, setShowHistory]           = useState(false)
   const [tsHistory, setTsHistory]               = useState<TsHistory[]>([])
@@ -82,6 +86,25 @@ export default function TimesheetPage() {
         .sort((a: any, b: any) => a.full_name.localeCompare(b.full_name))
       setAssignedClients(clients)
       setLoadingClients(false)
+    })()
+  }, [])
+
+  // Fetch actual submitted hours + clients for the current week from DB
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const today = new Date().toISOString().split('T')[0]
+      const { data } = await supabase
+        .from('timesheets')
+        .select('client_id, total_hours')
+        .eq('dsp_id', user.id)
+        .lte('week_start', today)
+        .gte('week_end', today)
+      if (data) {
+        setDbHoursThisWeek(data.reduce((s, t) => s + (Number(t.total_hours) || 0), 0))
+        setDbClientsThisWeek(new Set(data.map(t => t.client_id)).size)
+      }
     })()
   }, [])
 
@@ -387,12 +410,15 @@ export default function TimesheetPage() {
         <div style={{ padding: '20px 24px' }}>
           {/* Metrics */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12, marginBottom: 20 }}>
-            {[
-              { val: totalHours.toFixed(1), lbl: 'Total hours this week', pill: totalHours === 0 ? 'Not started' : totalHours < 40 ? 'In progress' : 'Complete', pillBg: totalHours === 0 ? 'rgba(100,140,255,0.12)' : totalHours < 40 ? 'rgba(0,160,160,0.1)' : 'rgba(30,160,80,0.1)', pillColor: totalHours === 0 ? '#4060c0' : totalHours < 40 ? '#008080' : '#187a40' },
-              { val: '40', lbl: 'Expected hours', pill: 'Full time', pillBg: 'rgba(100,140,255,0.12)', pillColor: '#4060c0' },
-              { val: remaining.toFixed(1), lbl: 'Hours remaining', pill: remaining > 0 ? `${remaining} hrs left` : 'Complete!', pillBg: 'rgba(200,110,40,0.12)', pillColor: '#b05a10' },
-              { val: client ? '1' : '0', lbl: 'Clients served', pill: 'This week', pillBg: 'rgba(30,160,80,0.1)', pillColor: '#187a40' },
-            ].map((m, i) => (
+            {((): { val: string; lbl: string; pill: string; pillBg: string; pillColor: string }[] => {
+              const rem = Math.max(0, Math.round((40 - dbHoursThisWeek) * 10) / 10)
+              return [
+                { val: dbHoursThisWeek.toFixed(1), lbl: 'Total hours this week', pill: dbHoursThisWeek === 0 ? 'Not started' : dbHoursThisWeek < 40 ? 'In progress' : 'Complete', pillBg: dbHoursThisWeek === 0 ? 'rgba(100,140,255,0.12)' : dbHoursThisWeek < 40 ? 'rgba(0,160,160,0.1)' : 'rgba(30,160,80,0.1)', pillColor: dbHoursThisWeek === 0 ? '#4060c0' : dbHoursThisWeek < 40 ? '#008080' : '#187a40' },
+                { val: '40', lbl: 'Expected hours', pill: 'Full time', pillBg: 'rgba(100,140,255,0.12)', pillColor: '#4060c0' },
+                { val: rem.toFixed(1), lbl: 'Hours remaining', pill: rem > 0 ? `${rem} hrs left` : 'Complete!', pillBg: 'rgba(200,110,40,0.12)', pillColor: '#b05a10' },
+                { val: String(dbClientsThisWeek), lbl: 'Clients served', pill: 'This week', pillBg: 'rgba(30,160,80,0.1)', pillColor: '#187a40' },
+              ]
+            })().map((m, i) => (
               <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: '18px 16px 14px' }}>
                 <div style={{ fontSize: 28, fontWeight: 500, color: '#111', letterSpacing: -0.5, lineHeight: 1.1 }}>{m.val}</div>
                 <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{m.lbl}</div>
