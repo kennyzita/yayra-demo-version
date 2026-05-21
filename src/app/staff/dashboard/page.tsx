@@ -7,16 +7,7 @@ interface AssignedClient { id: string; full_name: string }
 
 function isoDate(d: Date) { return d.toISOString().split('T')[0] }
 
-function weekBounds() {
-  const now = new Date()
-  const day = now.getDay()
-  const mon = new Date(now)
-  mon.setDate(now.getDate() - (day === 0 ? 6 : day - 1))
-  mon.setHours(0, 0, 0, 0)
-  const sun = new Date(mon)
-  sun.setDate(mon.getDate() + 6)
-  return { weekStart: isoDate(mon), weekEnd: isoDate(sun) }
-}
+function todayIso() { return isoDate(new Date()) }
 
 function monthStart() {
   const d = new Date()
@@ -39,14 +30,16 @@ export default function StaffDashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 
-      const { weekStart, weekEnd } = weekBounds()
+      const today = todayIso()
       const mStart = monthStart()
 
       const [profileRes, assignmentRes, timesheetRes, caseNoteCountRes, draftNoteRes] = await Promise.all([
         supabase.from('users').select('first_name').eq('id', user.id).single(),
         supabase.from('assignments').select('client_id').eq('dsp_id', user.id),
+        // Fetch timesheets where today falls within [week_start, week_end] —
+        // works regardless of whether weeks start on Sunday or Monday.
         supabase.from('timesheets').select('total_hours').eq('dsp_id', user.id)
-          .gte('week_start', weekStart).lte('week_end', weekEnd),
+          .lte('week_start', today).gte('week_end', today),
         supabase.from('case_notes').select('id', { count: 'exact', head: true }).eq('dsp_id', user.id)
           .eq('status', 'submitted').gte('submitted_at', mStart),
         supabase.from('case_notes').select('id', { count: 'exact', head: true }).eq('dsp_id', user.id)
