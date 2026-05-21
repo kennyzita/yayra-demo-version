@@ -106,11 +106,21 @@ const staffSections: NavSection[] = [
   },
 ]
 
+function getStaffSections(userRole: string): NavSection[] {
+  if (userRole === 'DSP') {
+    return staffSections.filter(s => s.label === 'Applications')
+  }
+  if (userRole === 'DSP Staff') {
+    return staffSections.filter(s => s.label === 'Work' || s.label === 'Resources')
+  }
+  return staffSections
+}
+
 export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const sections = role === 'admin' ? adminSections : staffSections
+  const sections = role === 'admin' ? adminSections : getStaffSections(userRole)
 
   async function handleSignOut() {
     await supabase.auth.signOut()
