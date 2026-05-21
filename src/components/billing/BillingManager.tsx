@@ -1681,8 +1681,7 @@ export default function BillingManager(){
   const activeStaff=staff.find(s=>s.id===sid);
 
   function addC(){
-    toast.info("Add new clients in Admin → Clients. They'll appear here automatically.");
-    router.push('/admin/clients');
+    router.push('/admin/clients/new');
   }
   function updC(id,p){setClients(prev=>prev.map(c=>c.id===id?{...c,...p}:c));}
   // Soft-archive only: data preserved for audit. The form sets archived flag via upd().
