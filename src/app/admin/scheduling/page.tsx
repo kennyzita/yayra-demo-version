@@ -96,7 +96,7 @@ export default function AdminSchedulingPage() {
 
   function showToast(msg: string) {
     setToast(msg)
-    setTimeout(() => setToast(null), 3500)
+    setTimeout(() => setToast(null), 6000)
   }
 
   const load = useCallback(async () => {
@@ -136,43 +136,50 @@ export default function AdminSchedulingPage() {
     if (fStart >= fEnd) { showToast('End time must be after start time'); return }
 
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      console.log('[scheduling] user:', user?.id, 'payload:', { fClient, fDsp, fDate, fStart, fEnd })
 
-    const { error } = await supabase.from('schedules').insert({
-      client_id: fClient, dsp_id: fDsp, scheduled_by: user?.id,
-      date: fDate, start_time: fStart, end_time: fEnd, notes: fNotes, status: 'pending',
-    })
-
-    if (error) {
-      console.error('[scheduling] insert error:', error)
-      showToast(error.message ?? 'Failed to save schedule')
-      setSaving(false)
-      return
-    }
-
-    const dsp    = allUsers.find(u => u.id === fDsp)
-    const client = clients.find(c => c.id === fClient)
-    if (dsp?.email) {
-      await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: dsp.email,
-          subject: `YayraCare: You've been scheduled`,
-          html: buildDspEmail({
-            dspName: `${dsp.first_name} ${dsp.last_name}`,
-            clientName: client?.full_name ?? '',
-            date: fDate, start: fStart, end: fEnd, notes: fNotes,
-          }),
-        }),
+      const { error } = await supabase.from('schedules').insert({
+        client_id: fClient, dsp_id: fDsp, scheduled_by: user?.id,
+        date: fDate, start_time: fStart, end_time: fEnd, notes: fNotes, status: 'pending',
       })
-    }
 
-    setSaving(false)
-    setPanelOpen(false)
-    resetForm()
-    showToast('Schedule created — DSP notified by email')
-    load()
+      if (error) {
+        console.error('[scheduling] insert error:', error)
+        showToast(error.message ?? 'Failed to save schedule')
+        setSaving(false)
+        return
+      }
+
+      const dsp    = allUsers.find(u => u.id === fDsp)
+      const client = clients.find(c => c.id === fClient)
+      if (dsp?.email) {
+        await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: dsp.email,
+            subject: `YayraCare: You've been scheduled`,
+            html: buildDspEmail({
+              dspName: `${dsp.first_name} ${dsp.last_name}`,
+              clientName: client?.full_name ?? '',
+              date: fDate, start: fStart, end: fEnd, notes: fNotes,
+            }),
+          }),
+        })
+      }
+
+      setSaving(false)
+      setPanelOpen(false)
+      resetForm()
+      showToast('Schedule created — DSP notified by email')
+      load()
+    } catch (err) {
+      console.error('[scheduling] unexpected error:', err)
+      showToast(err instanceof Error ? err.message : 'Unexpected error — check console')
+      setSaving(false)
+    }
   }
 
   async function handleDelete(id: string) {
