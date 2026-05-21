@@ -42,8 +42,9 @@ const adminSections: NavSection[] = [
   {
     label: 'Work',
     items: [
-      { href: '/admin/timesheets', label: 'Time sheet', icon: 'ti-clock', warnBadge: 5 },
-      { href: '/admin/case-notes', label: 'Case notes', icon: 'ti-notes', warnBadge: 3 },
+      { href: '/admin/timesheets',  label: 'Time sheet',  icon: 'ti-clock',    warnBadge: 5 },
+      { href: '/admin/case-notes',  label: 'Case notes',  icon: 'ti-notes',    warnBadge: 3 },
+      { href: '/admin/scheduling',  label: 'Scheduling',  icon: 'ti-calendar'               },
     ],
   },
   {
@@ -91,8 +92,9 @@ const staffSections: NavSection[] = [
   {
     label: 'Work',
     items: [
-      { href: '/staff/timesheet', label: 'My timesheet', icon: 'ti-clock' },
-      { href: '/staff/case-notes', label: 'My case notes', icon: 'ti-notes' },
+      { href: '/staff/timesheet',    label: 'My timesheet',  icon: 'ti-clock'    },
+      { href: '/staff/case-notes',   label: 'My case notes', icon: 'ti-notes'    },
+      { href: '/staff/my-schedule',  label: 'My schedule',   icon: 'ti-calendar' },
     ],
   },
   {
