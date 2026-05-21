@@ -73,7 +73,8 @@ export default function StaffMySchedulePage() {
       return
     }
 
-    const { schedules: data, clients: clientData } = await res.json()
+    const { schedules: data, clients: clientData, _debug } = await res.json()
+    console.log('[my-schedule] server userId:', _debug?.userId, 'serviceRole:', _debug?.serviceRole, 'count:', _debug?.count)
     console.log('[my-schedule] schedules:', data?.length ?? 0, data)
 
     setSchedules((data ?? []) as Schedule[])
