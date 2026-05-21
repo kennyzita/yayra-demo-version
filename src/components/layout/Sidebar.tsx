@@ -143,39 +143,37 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
       {/* Nav sections */}
       {sections.map((section) => (
         <div key={section.label}>
-          <div style={{ padding: '14px 18px 6px', fontSize: 10, fontWeight: 500, color: 'rgba(168,200,204,0.5)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <div style={{ padding: '14px 18px 5px', fontSize: 10, fontWeight: 600, color: 'rgba(168,200,204,0.45)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
             {section.label}
           </div>
           {section.items.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '8px 18px', fontSize: 13,
-                  color: isActive ? 'white' : '#a8c8cc',
-                  background: isActive ? 'rgba(48,176,96,0.18)' : 'transparent',
-                  textDecoration: 'none', position: 'relative', transition: 'all 0.15s',
-                }}
-              >
-                {isActive && (
-                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: '#30B060', borderRadius: '0 2px 2px 0' }} />
-                )}
-                <i className={`ti ${item.icon}`} style={{ fontSize: 16, width: 18, flexShrink: 0 }} />
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {item.badge != null && (
-                  <span style={{ background: '#30B060', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 500 }}>
-                    {item.badge}
-                  </span>
-                )}
-                {item.warnBadge != null && (
-                  <span style={{ background: '#BA7517', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 500 }}>
-                    {item.warnBadge}
-                  </span>
-                )}
-              </Link>
+              <div key={item.href} style={{ padding: '2px 8px' }}>
+                <Link
+                  href={item.href}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '8px 10px', fontSize: 13, borderRadius: 8,
+                    color: isActive ? 'white' : '#a8c8cc',
+                    background: isActive ? '#008080' : 'transparent',
+                    textDecoration: 'none', transition: 'background 0.15s',
+                  }}
+                >
+                  <i className={`ti ${item.icon}`} style={{ fontSize: 16, width: 18, flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{item.label}</span>
+                  {item.badge != null && (
+                    <span style={{ background: '#f97316', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>
+                      {item.badge}
+                    </span>
+                  )}
+                  {item.warnBadge != null && (
+                    <span style={{ background: '#f97316', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>
+                      {item.warnBadge}
+                    </span>
+                  )}
+                </Link>
+              </div>
             )
           })}
         </div>
