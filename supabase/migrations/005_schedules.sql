@@ -15,9 +15,17 @@ CREATE TABLE IF NOT EXISTS public.schedules (
 
 ALTER TABLE public.schedules ENABLE ROW LEVEL SECURITY;
 
--- Admin/HR: full access
+-- Admin/HR: full access (explicit WITH CHECK required for INSERT to work)
 CREATE POLICY "admin_all_schedules" ON public.schedules
-  FOR ALL USING (
+  FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.users u
+      JOIN public.roles r ON u.role_id = r.id
+      WHERE u.id = auth.uid() AND r.name IN ('Admin','HR')
+    )
+  )
+  WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.users u
       JOIN public.roles r ON u.role_id = r.id
