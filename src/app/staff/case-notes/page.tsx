@@ -14,6 +14,53 @@ const STRATEGIES = [
   { title: 'Assistance with Transportation', desc: 'Travel training, bus routes, ride scheduling, safety in transit, etc.' },
 ]
 
+function getNoteTag(strategies: string[]): { label: string; bg: string; color: string } {
+  const first = (strategies[0] ?? '').toLowerCase()
+  if (first.includes('health') || first.includes('wellness')) {
+    return { label: 'Medical Note', bg: 'rgba(234,179,8,0.13)', color: '#854d0e' }
+  }
+  if (first.includes('daily living') || first.includes('transportation') || first.includes('on-the-job')) {
+    return { label: 'Routine', bg: 'rgba(34,197,94,0.12)', color: '#15803d' }
+  }
+  return { label: 'Progress Note', bg: 'rgba(99,102,241,0.1)', color: '#4338ca' }
+}
+
+function formatClientTitle(name: string, clientId: string): string {
+  const parts = name.trim().split(' ')
+  const formatted = parts.length >= 2
+    ? `${parts[parts.length - 1]}, ${parts.slice(0, -1).join(' ')}`
+    : name
+  const num = parseInt(clientId.replace(/-/g, '').slice(0, 4), 16) % 9000 + 1000
+  return `${formatted} — Client #${String(num).padStart(4, '0')}`
+}
+
+function getNoteDescription(entries: { desc?: string; strategy?: string }[]): string {
+  const descs = entries.map(e => e.desc).filter(Boolean)
+  if (descs.length > 0) return descs.slice(0, 2).join(' ').slice(0, 260) + (descs.join(' ').length > 260 ? '…' : '')
+  const strats = entries.map(e => e.strategy).filter(Boolean)
+  return strats.length > 0 ? strats[0]! : 'No description provided.'
+}
+
+function getNoteDateTime(entries: { date?: string; start?: string }[], submittedAt: string | null): string {
+  const first = entries.find(e => e.date)
+  if (first?.date) {
+    const d = new Date(first.date + 'T00:00:00')
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const timeStr = first.start
+      ? (() => {
+          const [h, m] = first.start!.split(':').map(Number)
+          return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
+        })()
+      : ''
+    return timeStr ? `${dateStr} · ${timeStr}` : dateStr
+  }
+  if (submittedAt) {
+    const d = new Date(submittedAt)
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  }
+  return '—'
+}
+
 function generateWeeks(): string[] {
   const weeks: string[] = []
   const today = new Date()
@@ -264,99 +311,117 @@ export default function CaseNotesPage() {
         )}
 
         {showHistory ? (
-          /* ── History ── */
-          <div style={sectionStyle}>
-            <div style={sectionHead}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>My Submission History</span>
-              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>{history.length} record{history.length !== 1 ? 's' : ''}</span>
+          /* ── History — artifact card design ── */
+          <div>
+            {/* Section header */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#111' }}>Case Notes</div>
+                <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Document client progress, incidents, and service delivery</div>
+              </div>
+              <button
+                onClick={() => setShowHistory(false)}
+                style={{ display: 'flex', alignItems: 'center', gap: 7, background: '#008080', color: '#fff', border: 'none', borderRadius: 10, padding: '11px 20px', fontSize: 14, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+              >
+                + New Note
+              </button>
             </div>
-            <div style={{ background: 'white' }}>
-              {historyLoading ? (
-                <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                  <i className="ti ti-loader-2" style={{ fontSize: 22, display: 'block', marginBottom: 8 }} />Loading…
-                </div>
-              ) : history.length === 0 ? (
-                <div style={{ padding: 32, textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
-                  <i className="ti ti-notes-off" style={{ fontSize: 28, display: 'block', marginBottom: 8, color: '#d1d5db' }} />No submissions yet.
-                </div>
-              ) : history.map((note, i) => {
-                const ss = STATUS_STYLE[note.status] ?? STATUS_STYLE.draft
-                const isExpanded = expandedId === note.id
-                const canEdit = note.status !== 'approved'
-                const isDeleting = deletingId === note.id
-                return (
-                  <div key={note.id} style={{ borderBottom: i < history.length - 1 ? '0.5px solid #f3f4f6' : 'none' }}>
-                    <div onClick={() => setExpandedId(isExpanded ? null : note.id)}
-                      style={{ padding: '15px 20px', display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 3 }}>{note.client_name}</div>
-                        <div style={{ fontSize: 12, color: '#6b7280' }}>{note.week_label}</div>
-                        <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 3 }}>
-                          {note.entries.length} activit{note.entries.length !== 1 ? 'ies' : 'y'} · {note.strategies.length} strateg{note.strategies.length !== 1 ? 'ies' : 'y'}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, flexShrink: 0 }}>
-                        <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: ss.bg, color: ss.color, fontWeight: 600 }}>{ss.label}</span>
-                        <div style={{ fontSize: 11, color: '#9ca3af' }}>
-                          {note.submitted_at ? new Date(note.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
-                        </div>
-                      </div>
-                      <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 14, color: '#9ca3af', marginTop: 2, flexShrink: 0 }} />
-                    </div>
 
-                    {isExpanded && (
-                      <div style={{ padding: '0 20px 18px', borderTop: '0.5px solid #f3f4f6' }}>
-                        {note.strategies.length > 0 && (
-                          <div style={{ marginTop: 14, marginBottom: 14 }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Strategies</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                              {note.strategies.map(s => (
-                                <span key={s} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'rgba(0,64,80,0.08)', color: '#004050', fontWeight: 500 }}>{s}</span>
+            {historyLoading ? (
+              <div style={{ padding: '48px 0', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                <i className="ti ti-loader-2" style={{ fontSize: 24, display: 'block', marginBottom: 10 }} />Loading…
+              </div>
+            ) : history.length === 0 ? (
+              <div style={{ padding: '48px 0', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                <i className="ti ti-notes-off" style={{ fontSize: 32, display: 'block', marginBottom: 10, color: '#d1d5db' }} />No submissions yet.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {history.map(note => {
+                  const tag        = getNoteTag(note.strategies)
+                  const title      = formatClientTitle(note.client_name, note.client_id)
+                  const desc       = getNoteDescription(note.entries)
+                  const dateTime   = getNoteDateTime(note.entries, note.submitted_at)
+                  const isExpanded = expandedId === note.id
+                  const canEdit    = note.status !== 'approved'
+                  const isDeleting = deletingId === note.id
+
+                  return (
+                    <div key={note.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                      {/* Card body */}
+                      <div
+                        onClick={() => setExpandedId(isExpanded ? null : note.id)}
+                        style={{ padding: '20px 24px', cursor: 'pointer' }}
+                      >
+                        <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 8 }}>{title}</div>
+                        <div style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.65, marginBottom: 14 }}>{desc}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, color: '#9ca3af' }}>{dateTime}</span>
+                          <span style={{ fontSize: 12, padding: '4px 13px', borderRadius: 20, fontWeight: 500, background: tag.bg, color: tag.color }}>{tag.label}</span>
+                          {note.status === 'approved' && (
+                            <span style={{ fontSize: 12, padding: '4px 13px', borderRadius: 20, fontWeight: 500, background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>Approved</span>
+                          )}
+                          <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 13, color: '#d1d5db', marginLeft: 'auto' }} />
+                        </div>
+                      </div>
+
+                      {/* Expanded detail */}
+                      {isExpanded && (
+                        <div style={{ borderTop: '1px solid #f3f4f6', padding: '18px 24px', background: '#fafafa' }}>
+                          {note.strategies.length > 0 && (
+                            <div style={{ marginBottom: 14 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Strategies</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                {note.strategies.map(s => (
+                                  <span key={s} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, background: 'rgba(0,64,80,0.07)', color: '#004050', fontWeight: 500 }}>{s}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {note.entries.length > 0 && (
+                            <div style={{ marginBottom: 16 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Activity log</div>
+                              {note.entries.map((e, ei) => (
+                                <div key={ei} style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #e5e7eb' }}>
+                                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: e.desc ? 6 : 0 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                                      {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
+                                    </span>
+                                    <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
+                                    {e.strategy && <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
+                                  </div>
+                                  {e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>{e.desc}</div>}
+                                </div>
                               ))}
                             </div>
-                          </div>
-                        )}
-                        {note.entries.length > 0 && (
-                          <div style={{ marginBottom: 14 }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Activity Log</div>
-                            {note.entries.map((e, ei) => (
-                              <div key={ei} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #e5e7eb' }}>
-                                <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: e.desc ? 6 : 0, flexWrap: 'wrap' }}>
-                                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
-                                    {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
-                                  </span>
-                                  <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
-                                  {e.strategy && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
-                                </div>
-                                {e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{e.desc}</div>}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-                          {canEdit ? (
-                            <>
-                              <button onClick={() => startEdit(note)}
-                                style={{ fontSize: 13, padding: '7px 16px', borderRadius: 7, border: '1px solid #004050', background: 'white', color: '#004050', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
-                                <i className="ti ti-edit" /> Edit
-                              </button>
-                              <button onClick={() => handleDelete(note.id)} disabled={isDeleting}
-                                style={{ fontSize: 13, padding: '7px 16px', borderRadius: 7, border: '1px solid #fca5a5', background: 'white', color: '#dc2626', cursor: isDeleting ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', opacity: isDeleting ? 0.5 : 1 }}>
-                                <i className={`ti ${isDeleting ? 'ti-loader-2' : 'ti-trash'}`} /> {isDeleting ? 'Deleting…' : 'Delete'}
-                              </button>
-                            </>
-                          ) : (
-                            <span style={{ fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 5 }}>
-                              <i className="ti ti-lock" /> Approved — no further changes allowed
-                            </span>
                           )}
+
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {canEdit ? (
+                              <>
+                                <button onClick={() => startEdit(note)}
+                                  style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #008080', background: '#fff', color: '#008080', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+                                  <i className="ti ti-edit" /> Edit
+                                </button>
+                                <button onClick={() => handleDelete(note.id)} disabled={isDeleting}
+                                  style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', cursor: isDeleting ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', opacity: isDeleting ? 0.5 : 1 }}>
+                                  <i className={`ti ${isDeleting ? 'ti-loader-2' : 'ti-trash'}`} /> {isDeleting ? 'Deleting…' : 'Delete'}
+                                </button>
+                              </>
+                            ) : (
+                              <span style={{ fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <i className="ti ti-lock" /> Approved — no further changes allowed
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         ) : (
           /* ── New / Edit form ── */
