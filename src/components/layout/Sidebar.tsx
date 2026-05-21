@@ -65,6 +65,12 @@ const adminSections: NavSection[] = [
       { href: '/admin/billing', label: 'Billing Management', icon: 'ti-receipt-2' },
     ],
   },
+  {
+    label: 'Administration',
+    items: [
+      { href: '/admin/users', label: 'User Accounts', icon: 'ti-users-group' },
+    ],
+  },
 ]
 
 const staffSections: NavSection[] = [
