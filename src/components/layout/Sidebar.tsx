@@ -108,10 +108,10 @@ const staffSections: NavSection[] = [
 
 function getStaffSections(userRole: string): NavSection[] {
   if (userRole === 'DSP') {
-    return staffSections.filter(s => s.label === 'Applications')
+    return staffSections.filter(s => s.label === 'Main' || s.label === 'Applications')
   }
   if (userRole === 'DSP Staff') {
-    return staffSections.filter(s => s.label === 'Work' || s.label === 'Resources')
+    return staffSections.filter(s => s.label === 'Main' || s.label === 'Work' || s.label === 'Resources')
   }
   return staffSections
 }
