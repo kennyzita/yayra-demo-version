@@ -50,11 +50,16 @@ export default function StaffMySchedulePage() {
   }
 
   async function load() {
-    // Auto-accept any expired pending schedules via server route
-    await fetch('/api/schedules/auto-accept', { method: 'POST' })
+    try {
+      // Fire-and-forget: auto-accept expired pending schedules
+      fetch('/api/schedules/auto-accept', { method: 'POST' }).catch(() => {})
+    } catch {}
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    const { data: { user }, error: authErr } = await supabase.auth.getUser()
+    if (authErr) console.error('[my-schedule] auth error:', authErr)
+    if (!user) { setLoading(false); return }
+
+    console.log('[my-schedule] loading for user:', user.id)
 
     const [s, c] = await Promise.all([
       supabase.from('schedules').select('*')
@@ -63,6 +68,10 @@ export default function StaffMySchedulePage() {
         .order('start_time'),
       supabase.from('clients').select('id, full_name'),
     ])
+
+    if (s.error) console.error('[my-schedule] schedules query error:', s.error)
+    console.log('[my-schedule] schedules fetched:', s.data?.length ?? 0, s.data)
+
     setSchedules((s.data ?? []) as Schedule[])
     setClients((c.data ?? []) as Client[])
     setLoading(false)
