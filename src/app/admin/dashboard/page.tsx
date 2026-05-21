@@ -1,43 +1,79 @@
 'use client'
 
+import Link from 'next/link'
+
 export default function AdminDashboardPage() {
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 
-  const staffRows = [
-    { initials: 'MS', avBg: 'rgba(0,128,128,0.12)', avColor: '#008080', name: 'Maria Santos', role: 'DSP', roleBg: 'rgba(0,128,128,0.1)', roleColor: '#008080', action: 'Submitted timesheet', status: 'Awaiting approval', statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517' },
-    { initials: 'KO', avBg: 'rgba(55,138,221,0.1)', avColor: '#378ADD', name: "Kevin O'Brien", role: 'DSP', roleBg: 'rgba(0,128,128,0.1)', roleColor: '#008080', action: 'Submitted case note', status: 'Awaiting review', statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517' },
-    { initials: 'AO', avBg: 'rgba(186,117,23,0.1)', avColor: '#BA7517', name: 'Amara Okafor', role: 'DSP', roleBg: 'rgba(0,128,128,0.1)', roleColor: '#008080', action: 'Pending onboarding', status: 'Incomplete', statusBg: 'rgba(226,75,74,0.1)', statusColor: '#E24B4A' },
-    { initials: 'RT', avBg: 'rgba(48,176,96,0.12)', avColor: '#30B060', name: 'Rachel Torres', role: 'HR', roleBg: 'rgba(48,176,96,0.12)', roleColor: '#30B060', action: 'Approved timesheet', status: 'Done', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060' },
-    { initials: 'DM', avBg: 'rgba(0,128,128,0.12)', avColor: '#008080', name: 'David Mills', role: 'DSP', roleBg: 'rgba(0,128,128,0.1)', roleColor: '#008080', action: 'Docs under review', status: 'Review', statusBg: 'rgba(55,138,221,0.1)', statusColor: '#378ADD' },
-  ]
-
-  const activityItems = [
-    { icon: 'ti-clock', color: '#BA7517', bg: 'rgba(186,117,23,0.1)', text: <><strong>Maria Santos</strong> submitted weekly timesheet — awaiting approval.</>, time: '10 min ago' },
-    { icon: 'ti-notes', color: '#E24B4A', bg: 'rgba(226,75,74,0.1)', text: <>Case note submitted for <strong>Client #0043</strong> — awaiting review.</>, time: '42 min ago' },
-    { icon: 'ti-user-plus', color: '#378ADD', bg: 'rgba(55,138,221,0.1)', text: <>New client profile created: <strong>Johnson, M.</strong></>, time: '2 hrs ago' },
-    { icon: 'ti-alert-triangle', color: '#E24B4A', bg: 'rgba(226,75,74,0.1)', text: <><strong>Amara Okafor</strong> onboarding incomplete — action required.</>, time: '3 hrs ago' },
-    { icon: 'ti-file-check', color: '#30B060', bg: 'rgba(48,176,96,0.12)', text: <>Timesheet approved for <strong>Kevin O&apos;Brien</strong>.</>, time: 'Yesterday' },
-  ]
-
   const metrics = [
-    { icon: 'ti-users', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080', badge: '+4 new', badgeBg: 'rgba(48,176,96,0.12)', badgeColor: '#30B060', value: '47', label: 'Active clients' },
-    { icon: 'ti-user-check', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', badge: '+2', badgeBg: 'rgba(48,176,96,0.12)', badgeColor: '#30B060', value: '18', label: 'DSP staff' },
-    { icon: 'ti-clock', iconBg: 'rgba(186,117,23,0.1)', iconColor: '#BA7517', badge: '5 pending', badgeBg: 'rgba(186,117,23,0.12)', badgeColor: '#BA7517', value: '5', label: 'Timesheets to approve' },
-    { icon: 'ti-notes', iconBg: 'rgba(226,75,74,0.1)', iconColor: '#E24B4A', badge: '3 pending', badgeBg: 'rgba(226,75,74,0.1)', badgeColor: '#E24B4A', value: '3', label: 'Case notes to review' },
+    {
+      icon: 'ti-users',
+      iconBg: 'rgba(16,185,129,0.12)', iconColor: '#059669',
+      badge: '+4 new', badgeBg: 'rgba(16,185,129,0.12)', badgeColor: '#059669',
+      value: '47', label: 'Active clients',
+    },
+    {
+      icon: 'ti-user',
+      iconBg: 'rgba(245,158,11,0.13)', iconColor: '#d97706',
+      badge: '+2', badgeBg: 'rgba(16,185,129,0.12)', badgeColor: '#059669',
+      value: '18', label: 'DSP staff',
+    },
+    {
+      icon: 'ti-clock',
+      iconBg: 'rgba(99,102,241,0.12)', iconColor: '#6366f1',
+      badge: '5 pending', badgeBg: 'rgba(239,68,68,0.1)', badgeColor: '#dc2626',
+      value: '5', label: 'Timesheets to approve',
+    },
+    {
+      icon: 'ti-edit',
+      iconBg: 'rgba(168,85,247,0.12)', iconColor: '#a855f7',
+      badge: '3 pending', badgeBg: 'rgba(239,68,68,0.1)', badgeColor: '#dc2626',
+      value: '3', label: 'Case notes to review',
+    },
   ]
 
   const quickActions = [
-    { icon: 'ti-user-plus', label: 'New client', bg: 'rgba(0,128,128,0.1)', color: '#008080' },
-    { icon: 'ti-clock', label: 'Approve timesheets', bg: 'rgba(186,117,23,0.1)', color: '#BA7517' },
-    { icon: 'ti-notes', label: 'Review case notes', bg: 'rgba(226,75,74,0.1)', color: '#E24B4A' },
-    { icon: 'ti-arrows-exchange', label: 'DSP assignment', bg: 'rgba(48,176,96,0.12)', color: '#30B060' },
+    { href: '/admin/clients/new', icon: 'ti-user-plus',       label: 'New client'          },
+    { href: '/admin/timesheets',  icon: 'ti-clock',            label: 'Approve timesheets'  },
+    { href: '/admin/case-notes',  icon: 'ti-notes',            label: 'Review case notes'   },
+    { href: '/admin/assignments', icon: 'ti-arrows-exchange',  label: 'DSP assignment'      },
   ]
 
-  const s: Record<string, React.CSSProperties> = {
-    panel: { background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' },
-    panelHeader: { padding: '14px 16px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 },
-    panelTitle: { fontSize: 14, fontWeight: 500, color: '#111', flex: 1 },
-  }
+  const staffRows = [
+    { initials: 'MS', avBg: 'rgba(16,185,129,0.12)', avColor: '#059669',  name: 'Maria Santos',   role: 'DSP', action: 'Submitted timesheet',  status: 'Done',    statusBg: 'rgba(16,185,129,0.12)', statusColor: '#059669' },
+    { initials: 'KO', avBg: 'rgba(99,102,241,0.12)', avColor: '#6366f1',  name: "Kevin O'Brien",  role: 'DSP', action: 'Added case note',        status: 'Done',    statusBg: 'rgba(16,185,129,0.12)', statusColor: '#059669' },
+    { initials: 'AO', avBg: 'rgba(245,158,11,0.13)', avColor: '#d97706',  name: 'Amara Okafor',   role: 'DSP', action: 'Pending onboarding',     status: 'Pending', statusBg: 'rgba(245,158,11,0.13)', statusColor: '#d97706' },
+    { initials: 'RT', avBg: 'rgba(168,85,247,0.12)', avColor: '#a855f7',  name: 'Rachel Torres',  role: 'HR',  action: 'Approved timesheet',     status: 'Done',    statusBg: 'rgba(16,185,129,0.12)', statusColor: '#059669' },
+    { initials: 'DM', avBg: 'rgba(16,185,129,0.12)', avColor: '#059669',  name: 'David Mills',    role: 'DSP', action: 'Docs under review',      status: 'Pending', statusBg: 'rgba(245,158,11,0.13)', statusColor: '#d97706' },
+  ]
+
+  const activityItems = [
+    {
+      iconBg: 'rgba(16,185,129,0.12)', iconColor: '#059669', icon: 'ti-check',
+      text: <><strong>Maria Santos</strong> submitted her weekly timesheet.</>,
+      time: '10 min ago',
+    },
+    {
+      iconBg: 'rgba(245,158,11,0.13)', iconColor: '#d97706', icon: 'ti-notes',
+      text: <>Case note added for <strong>Client #0043</strong>.</>,
+      time: '42 min ago',
+    },
+    {
+      iconBg: 'rgba(99,102,241,0.12)', iconColor: '#6366f1', icon: 'ti-user',
+      text: <><strong>New client</strong> profile created: Johnson, M.</>,
+      time: '2 hrs ago',
+    },
+    {
+      iconBg: 'rgba(239,68,68,0.1)', iconColor: '#dc2626', icon: 'ti-alert-triangle',
+      text: <><strong>Amara Okafor</strong> onboarding incomplete — action required.</>,
+      time: '3 hrs ago',
+    },
+    {
+      iconBg: 'rgba(16,185,129,0.12)', iconColor: '#059669', icon: 'ti-file-check',
+      text: <>Timesheet approved for <strong>Kevin O&apos;Brien</strong>.</>,
+      time: 'Yesterday',
+    },
+  ]
 
   return (
     <>
@@ -53,84 +89,86 @@ export default function AdminDashboardPage() {
           <input type="text" placeholder="Search staff, clients…" style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#111', outline: 'none', width: '100%' }} />
         </div>
         <div style={{ position: 'relative' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: 18 }}><i className="ti ti-bell" /></div>
-          <div style={{ position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: '50%', background: '#E24B4A', border: '1.5px solid #fff' }} />
+          <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: 18 }}>
+            <i className="ti ti-bell" />
+          </div>
+          <div style={{ position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #fff' }} />
         </div>
-        <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: 18 }}><i className="ti ti-settings" /></div>
+        <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: 18 }}>
+          <i className="ti ti-settings" />
+        </div>
       </div>
 
       {/* Content */}
-      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20, background: '#f9fafb', minHeight: 'calc(100% - 56px)' }}>
 
-        {/* Metrics */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
+        {/* Metric cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14 }}>
           {metrics.map((m, i) => (
-            <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: 16, cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: m.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: m.iconColor }}>
+            <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, padding: '20px 20px 18px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: m.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: m.iconColor }}>
                   <i className={`ti ${m.icon}`} />
                 </div>
-                <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, fontWeight: 500, background: m.badgeBg, color: m.badgeColor }}>{m.badge}</span>
+                <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, fontWeight: 500, background: m.badgeBg, color: m.badgeColor }}>{m.badge}</span>
               </div>
-              <div style={{ fontSize: 26, fontWeight: 500, color: '#111', letterSpacing: -0.5 }}>{m.value}</div>
-              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{m.label}</div>
+              <div style={{ fontSize: 30, fontWeight: 700, color: '#111', letterSpacing: -0.5, lineHeight: 1 }}>{m.value}</div>
+              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 6 }}>{m.label}</div>
             </div>
           ))}
         </div>
 
         {/* Quick actions */}
         <div>
-          <div style={{ marginBottom: 10 }}><span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Quick actions</span></div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 10 }}>
-            {quickActions.map((qa) => (
-              <div key={qa.label} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, cursor: 'pointer', textAlign: 'center' }}>
-                <div style={{ width: 38, height: 38, borderRadius: 8, background: qa.bg, color: qa.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                  <i className={`ti ${qa.icon}`} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#111', marginBottom: 12 }}>Quick Actions</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14 }}>
+            {quickActions.map(qa => (
+              <Link key={qa.label} href={qa.href} style={{ textDecoration: 'none' }}>
+                <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, padding: '24px 12px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, cursor: 'pointer', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', transition: 'box-shadow 0.15s' }}
+                  onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.09)')}
+                  onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)')}>
+                  <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(0,128,128,0.1)', color: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
+                    <i className={`ti ${qa.icon}`} />
+                  </div>
+                  <span style={{ fontSize: 13, color: '#111', fontWeight: 500 }}>{qa.label}</span>
                 </div>
-                <span style={{ fontSize: 12, color: '#111', fontWeight: 500 }}>{qa.label}</span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
 
-        {/* Two-col */}
+        {/* Two-col: staff table + activity feed */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
 
-          {/* Staff table */}
-          <div style={s.panel}>
-            <div style={s.panelHeader}>
-              <span style={s.panelTitle}>Recent staff activity</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#30B060', fontWeight: 500 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#30B060' }} />
-                Live
-              </div>
+          {/* Recent staff activity */}
+          <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#111', flex: 1 }}>Recent Staff Activity</span>
+              <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 20, background: 'rgba(16,185,129,0.12)', color: '#059669', fontWeight: 600 }}>Live</span>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ borderBottom: '0.5px solid #e5e7eb' }}>
-                  {['Staff member', 'Role', 'Action', 'Status'].map(h => (
-                    <th key={h} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 500, color: '#6b7280', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                <tr style={{ borderBottom: '0.5px solid #f3f4f6' }}>
+                  {['Staff Member', 'Role', 'Action', 'Status'].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', fontSize: 11, fontWeight: 600, color: '#9ca3af', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {staffRows.map((row, i) => (
-                  <tr key={i} style={{ borderBottom: i < staffRows.length - 1 ? '0.5px solid #e5e7eb' : 'none' }}>
-                    <td style={{ padding: '10px 16px', fontSize: 13, color: '#111' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: row.avBg, color: row.avColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 500, flexShrink: 0 }}>{row.initials}</div>
-                        {row.name}
+                  <tr key={i} style={{ borderBottom: i < staffRows.length - 1 ? '0.5px solid #f9fafb' : 'none' }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: '50%', background: row.avBg, color: row.avColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>{row.initials}</div>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{row.name}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: row.roleBg, color: row.roleColor }}>{row.role}</span>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, fontWeight: 500, background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>{row.role}</span>
                     </td>
-                    <td style={{ padding: '10px 16px', fontSize: 12, color: '#6b7280' }}>{row.action}</td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 4, background: row.statusBg, color: row.statusColor }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: row.statusColor }} />
-                        {row.status}
-                      </span>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: '#6b7280' }}>{row.action}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{ fontSize: 12, padding: '3px 12px', borderRadius: 20, fontWeight: 500, background: row.statusBg, color: row.statusColor }}>{row.status}</span>
                     </td>
                   </tr>
                 ))}
@@ -138,26 +176,27 @@ export default function AdminDashboardPage() {
             </table>
           </div>
 
-          {/* Activity feed */}
-          <div style={s.panel}>
-            <div style={s.panelHeader}>
-              <span style={s.panelTitle}>Recent activity</span>
-              <span style={{ fontSize: 12, color: '#008080', cursor: 'pointer' }}>View all</span>
+          {/* Recent activity feed */}
+          <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: '#111', flex: 1 }}>Recent Activity</span>
+              <span style={{ fontSize: 12, color: '#008080', cursor: 'pointer', fontWeight: 500 }}>View all</span>
             </div>
             <div>
               {activityItems.map((item, i) => (
-                <div key={i} style={{ display: 'flex', gap: 11, padding: '12px 16px', borderBottom: i < activityItems.length - 1 ? '0.5px solid #e5e7eb' : 'none', alignItems: 'flex-start' }}>
-                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: item.bg, color: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0, marginTop: 1 }}>
+                <div key={i} style={{ display: 'flex', gap: 12, padding: '14px 18px', borderBottom: i < activityItems.length - 1 ? '0.5px solid #f3f4f6' : 'none', alignItems: 'flex-start' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: item.iconBg, color: item.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
                     <i className={`ti ${item.icon}`} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, color: '#111', lineHeight: 1.4 }}>{item.text}</div>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{item.time}</div>
+                    <div style={{ fontSize: 13, color: '#111', lineHeight: 1.5 }}>{item.text}</div>
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{item.time}</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+
         </div>
       </div>
     </>
