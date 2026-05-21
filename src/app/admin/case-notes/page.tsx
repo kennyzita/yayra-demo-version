@@ -1,78 +1,88 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
-type NoteType = 'Routine' | 'Medical Note' | 'Progress Note' | 'Incident' | 'Behavioral'
-
-interface CaseNote {
-  id: number
-  clientName: string
-  clientNumber: string
-  note: string
-  date: string
-  time: string
-  type: NoteType
-  author: string
+type CnRecord = {
+  id: string; dsp_id: string; client_id: string
+  staff_name: string; client_name: string
+  week_label: string; status: string
+  submitted_at: string | null
+  strategies: string[]; entries: any[]
 }
 
-const SAMPLE_NOTES: CaseNote[] = [
-  {
-    id: 1,
-    clientName: 'Johnson, Michael',
-    clientNumber: '0031',
-    note: 'Client participated in morning ADL routine without assistance. Mood was cooperative and engaged throughout. No behavioral incidents to report during 3-hour visit.',
-    date: 'Apr 29, 2026',
-    time: '9:00 AM',
-    type: 'Routine',
-    author: 'Maria Santos',
-  },
-  {
-    id: 2,
-    clientName: 'Williams, Teresa',
-    clientNumber: '0019',
-    note: 'Client reported mild discomfort in left knee. Companion activities adjusted to seated engagement. Family notified per care plan protocol. Follow-up recommended.',
-    date: 'Apr 28, 2026',
-    time: '2:30 PM',
-    type: 'Medical Note',
-    author: 'Kevin O\'Brien',
-  },
-  {
-    id: 3,
-    clientName: 'Davis, Robert',
-    clientNumber: '0043',
-    note: 'Completed community outing to local grocery store. Client demonstrated improved independence in selecting items. Minimal verbal prompting required — notable progress toward goal.',
-    date: 'Apr 26, 2026',
-    time: '11:00 AM',
-    type: 'Progress Note',
-    author: 'Amara Okafor',
-  },
-]
-
-const TYPE_STYLES: Record<NoteType, { bg: string; color: string }> = {
-  'Routine':      { bg: 'rgba(0,128,128,0.1)',   color: '#007a7a' },
-  'Medical Note': { bg: 'rgba(217,119,6,0.12)',  color: '#b45309' },
-  'Progress Note':{ bg: 'rgba(99,102,241,0.1)',  color: '#4f46e5' },
-  'Incident':     { bg: 'rgba(220,38,38,0.1)',   color: '#dc2626' },
-  'Behavioral':   { bg: 'rgba(234,88,12,0.1)',   color: '#c2410c' },
+const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  submitted: { bg: 'rgba(234,179,8,0.12)',  color: '#854d0e', label: 'Pending'  },
+  approved:  { bg: 'rgba(22,163,74,0.1)',   color: '#16a34a', label: 'Approved' },
+  rejected:  { bg: 'rgba(220,38,38,0.1)',   color: '#dc2626', label: 'Rejected' },
+  draft:     { bg: 'rgba(107,114,128,0.1)', color: '#6b7280', label: 'Draft'    },
 }
-
-const ALL_TYPES: NoteType[] = ['Routine', 'Medical Note', 'Progress Note', 'Incident', 'Behavioral']
 
 export default function AdminCaseNotesPage() {
-  const [notes] = useState<CaseNote[]>(SAMPLE_NOTES)
-  const [search, setSearch] = useState('')
-  const [filterType, setFilterType] = useState<NoteType | 'All'>('All')
-  const [showNewNote, setShowNewNote] = useState(false)
-  const [newNote, setNewNote] = useState({ clientName: '', clientNumber: '', note: '', type: 'Routine' as NoteType })
+  const supabase = createClient()
 
-  const filtered = notes.filter(n => {
+  const [records, setRecords]           = useState<CnRecord[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [search, setSearch]             = useState('')
+  const [filterStatus, setFilterStatus] = useState('All')
+  const [expandedId, setExpandedId]     = useState<string | null>(null)
+  const [actioning, setActioning]       = useState<string | null>(null)
+  const [rejectingId, setRejectingId]   = useState<string | null>(null)
+  const [toast, setToast]               = useState('')
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    setLoading(true)
+    const [{ data: cnData }, { data: usersData }, { data: clientsData }] = await Promise.all([
+      supabase.from('case_notes').select('*').order('submitted_at', { ascending: false }),
+      supabase.from('users').select('id, first_name, last_name'),
+      supabase.from('clients').select('id, full_name'),
+    ])
+    const userMap   = new Map((usersData   ?? []).map((u: any) => [u.id, `${u.first_name} ${u.last_name}`]))
+    const clientMap = new Map((clientsData ?? []).map((c: any) => [c.id, c.full_name]))
+    setRecords((cnData ?? []).map((n: any) => ({
+      id: n.id, dsp_id: n.dsp_id, client_id: n.client_id,
+      staff_name:  userMap.get(n.dsp_id)     ?? 'Unknown staff',
+      client_name: clientMap.get(n.client_id) ?? 'Unknown client',
+      week_label: n.week_label,
+      status: n.status ?? 'submitted',
+      submitted_at: n.submitted_at,
+      strategies: n.strategies ?? [],
+      entries: n.entries ?? [],
+    })))
+    setLoading(false)
+  }
+
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
+
+  async function handleApprove(id: string) {
+    setActioning(id)
+    const { error } = await supabase.from('case_notes').update({ status: 'approved' }).eq('id', id)
+    if (error) showToast('Error: ' + error.message)
+    else { showToast('Case note approved ✓'); setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r)) }
+    setActioning(null)
+  }
+
+  async function handleReject(id: string) {
+    setActioning(id)
+    const { error } = await supabase.from('case_notes').update({ status: 'rejected' }).eq('id', id)
+    if (error) showToast('Error: ' + error.message)
+    else { showToast('Case note rejected'); setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r)); setRejectingId(null) }
+    setActioning(null)
+  }
+
+  const filtered = records.filter(r => {
     const matchSearch = search === '' ||
-      n.clientName.toLowerCase().includes(search.toLowerCase()) ||
-      n.clientNumber.includes(search) ||
-      n.note.toLowerCase().includes(search.toLowerCase())
-    const matchType = filterType === 'All' || n.type === filterType
-    return matchSearch && matchType
+      r.staff_name.toLowerCase().includes(search.toLowerCase()) ||
+      r.client_name.toLowerCase().includes(search.toLowerCase())
+    const matchStatus = filterStatus === 'All' || r.status === filterStatus
+    return matchSearch && matchStatus
   })
+
+  const pending  = records.filter(r => r.status === 'submitted').length
+  const approved = records.filter(r => r.status === 'approved').length
+  const rejected = records.filter(r => r.status === 'rejected').length
 
   return (
     <>
@@ -80,177 +90,170 @@ export default function AdminCaseNotesPage() {
       <div style={{ background: '#fff', borderBottom: '0.5px solid #e5e7eb', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 16, position: 'sticky', top: 0, zIndex: 10, flexShrink: 0 }}>
         <div>
           <div style={{ fontSize: 16, fontWeight: 600, color: '#111' }}>Case Notes</div>
-          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Document client interactions and progress</div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Review and approve DSP case note submissions</div>
         </div>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f9fafb', border: '0.5px solid #d1d5db', borderRadius: 8, padding: '0 12px', height: 34, width: 220 }}>
           <i className="ti ti-search" style={{ fontSize: 15, color: '#9ca3af' }} />
-          <input
-            type="text"
-            placeholder="Search staff, clients…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#111', outline: 'none', width: '100%' }}
-          />
-        </div>
-        <div style={{ position: 'relative' }}>
-          <div style={{ width: 34, height: 34, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: 18 }}>
-            <i className="ti ti-bell" />
-          </div>
-          <div style={{ position: 'absolute', top: 5, right: 5, width: 7, height: 7, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #fff' }} />
-        </div>
-        <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
-          AD
+          <input type="text" placeholder="Search staff or client…" value={search} onChange={e => setSearch(e.target.value)}
+            style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#111', outline: 'none', width: '100%' }} />
         </div>
       </div>
 
-      {/* Content */}
       <div style={{ padding: '24px', background: '#f5f4ef', minHeight: 'calc(100% - 56px)' }}>
 
-        {/* Section header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#111', marginBottom: 4 }}>Case Notes</div>
-            <div style={{ fontSize: 13, color: '#6b7280' }}>Document client progress, incidents, and service delivery</div>
-          </div>
-          <button
-            onClick={() => setShowNewNote(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', borderRadius: 8, border: 'none', background: '#008080', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
-          >
-            <i className="ti ti-plus" style={{ fontSize: 15 }} />
-            New Note
-          </button>
+        {/* Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+          {[
+            { label: 'Total',          value: records.length, bg: '#fff',                color: '#111',    border: '#e5e7eb'             },
+            { label: 'Pending review', value: pending,        bg: 'rgba(234,179,8,0.06)', color: '#854d0e', border: 'rgba(234,179,8,0.3)' },
+            { label: 'Approved',       value: approved,       bg: 'rgba(22,163,74,0.06)', color: '#16a34a', border: 'rgba(22,163,74,0.25)'},
+            { label: 'Rejected',       value: rejected,       bg: 'rgba(220,38,38,0.05)', color: '#dc2626', border: 'rgba(220,38,38,0.2)' },
+          ].map(s => (
+            <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 10, padding: '16px 20px' }}>
+              <div style={{ fontSize: 26, fontWeight: 700, color: s.color, lineHeight: 1.1 }}>{s.value}</div>
+              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>{s.label}</div>
+            </div>
+          ))}
         </div>
 
-        {/* Filters */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          {(['All', ...ALL_TYPES] as const).map(t => (
-            <button
-              key={t}
-              onClick={() => setFilterType(t as NoteType | 'All')}
-              style={{
-                padding: '5px 13px', borderRadius: 20, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: 'none',
-                background: filterType === t ? '#008080' : '#fff',
-                color: filterType === t ? '#fff' : '#6b7280',
-                boxShadow: '0 0 0 0.5px #e5e7eb',
-              }}
-            >
-              {t}
+        {/* Filter pills */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {['All', 'submitted', 'approved', 'rejected'].map(f => (
+            <button key={f} onClick={() => setFilterStatus(f)}
+              style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: 'none',
+                background: filterStatus === f ? '#004050' : '#fff', color: filterStatus === f ? '#fff' : '#6b7280',
+                boxShadow: '0 0 0 0.5px #e5e7eb' }}>
+              {f === 'All' ? 'All' : f === 'submitted' ? 'Pending' : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>
 
-        {/* Notes list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filtered.length === 0 ? (
-            <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e5e7eb', padding: 40, textAlign: 'center', color: '#9ca3af' }}>
-              <i className="ti ti-notes-off" style={{ fontSize: 32, display: 'block', marginBottom: 8 }} />
-              <div style={{ fontSize: 14 }}>No case notes found</div>
-            </div>
-          ) : (
-            filtered.map(n => {
-              const badge = TYPE_STYLES[n.type]
+        {/* List */}
+        {loading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
+            <i className="ti ti-loader-2" style={{ fontSize: 28, display: 'block', marginBottom: 10 }} />Loading…
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e5e7eb', padding: 40, textAlign: 'center', color: '#9ca3af' }}>
+            <i className="ti ti-notes-off" style={{ fontSize: 32, display: 'block', marginBottom: 8 }} />
+            <div style={{ fontSize: 14 }}>No case notes found</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {filtered.map(r => {
+              const ss = STATUS_STYLE[r.status] ?? STATUS_STYLE.draft
+              const isExpanded  = expandedId  === r.id
+              const isActioning = actioning   === r.id
+              const isRejecting = rejectingId === r.id
+              const initials    = r.staff_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
               return (
-                <div
-                  key={n.id}
-                  style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e5e7eb', padding: '20px 24px', cursor: 'pointer', transition: 'box-shadow 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.08)')}
-                  onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
-                >
-                  <div style={{ fontWeight: 700, fontSize: 15, color: '#111', marginBottom: 8 }}>
-                    {n.clientName} — Client #{n.clientNumber}
+                <div key={r.id} style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e5e7eb', overflow: 'hidden' }}>
+                  {/* Summary row */}
+                  <div onClick={() => { setExpandedId(isExpanded ? null : r.id); setRejectingId(null) }}
+                    style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}>
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: '#008080', flexShrink: 0 }}>
+                      {initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{r.staff_name}</div>
+                      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                        {r.client_name} · {r.week_label} · {r.entries.length} entr{r.entries.length !== 1 ? 'ies' : 'y'}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: ss.bg, color: ss.color, fontWeight: 600, flexShrink: 0 }}>{ss.label}</span>
+                    <div style={{ fontSize: 11, color: '#9ca3af', flexShrink: 0, minWidth: 72, textAlign: 'right' }}>
+                      {r.submitted_at ? new Date(r.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                    </div>
+                    <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 14, color: '#9ca3af', flexShrink: 0 }} />
                   </div>
-                  <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.6, marginBottom: 12 }}>
-                    {n.note}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 12, color: '#9ca3af' }}>{n.date} · {n.time}</span>
-                    <span style={{ fontSize: 12, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: badge.bg, color: badge.color }}>
-                      {n.type}
-                    </span>
-                    <span style={{ marginLeft: 'auto', fontSize: 12, color: '#9ca3af' }}>
-                      <i className="ti ti-user" style={{ fontSize: 12, marginRight: 4 }} />
-                      {n.author}
-                    </span>
-                  </div>
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div style={{ borderTop: '0.5px solid #f3f4f6', padding: '16px 20px 20px' }}>
+
+                      {/* Strategies */}
+                      {r.strategies.length > 0 && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Strategies</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {r.strategies.map(s => (
+                              <span key={s} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'rgba(0,64,80,0.08)', color: '#004050', fontWeight: 500 }}>{s}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Activity entries */}
+                      {r.entries.length > 0 && (
+                        <div style={{ marginBottom: 16 }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Activity Log</div>
+                          {r.entries.map((e: any, ei: number) => (
+                            <div key={ei} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #e5e7eb' }}>
+                              <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: e.desc ? 6 : 0, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                                  {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
+                                </span>
+                                <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
+                                {e.strategy && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
+                              </div>
+                              {e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{e.desc}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      {r.status === 'submitted' && (
+                        isRejecting ? (
+                          <div style={{ background: '#fff8f8', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 14px' }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', marginBottom: 10 }}>Confirm rejection of this case note?</div>
+                            <div style={{ display: 'flex', gap: 10 }}>
+                              <button onClick={() => handleReject(r.id)} disabled={!!isActioning}
+                                style={{ fontSize: 13, padding: '7px 18px', borderRadius: 7, border: 'none', background: '#dc2626', color: 'white', cursor: 'pointer', fontWeight: 600, opacity: isActioning ? 0.6 : 1 }}>
+                                {isActioning ? 'Rejecting…' : 'Confirm Reject'}
+                              </button>
+                              <button onClick={() => setRejectingId(null)}
+                                style={{ fontSize: 13, padding: '7px 14px', borderRadius: 7, border: '0.5px solid #d1d5db', background: 'white', color: '#374151', cursor: 'pointer' }}>
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            <button onClick={() => handleApprove(r.id)} disabled={!!isActioning}
+                              style={{ fontSize: 13, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#16a34a', color: 'white', cursor: isActioning ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, opacity: isActioning ? 0.6 : 1 }}>
+                              <i className="ti ti-circle-check" /> {isActioning ? 'Approving…' : 'Approve'}
+                            </button>
+                            <button onClick={() => setRejectingId(r.id)}
+                              style={{ fontSize: 13, padding: '8px 20px', borderRadius: 7, border: '1px solid #fca5a5', background: 'white', color: '#dc2626', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <i className="ti ti-x" /> Reject
+                            </button>
+                          </div>
+                        )
+                      )}
+                      {r.status === 'approved' && (
+                        <span style={{ fontSize: 13, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <i className="ti ti-circle-check" /> Approved
+                        </span>
+                      )}
+                      {r.status === 'rejected' && (
+                        <span style={{ fontSize: 13, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <i className="ti ti-x" /> Rejected
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
-            })
-          )}
-        </div>
+            })}
+          </div>
+        )}
       </div>
 
-      {/* New Note modal */}
-      {showNewNote && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 14, width: 520, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>New Case Note</div>
-              <button onClick={() => setShowNewNote(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 20, lineHeight: 1 }}>
-                <i className="ti ti-x" />
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>Client name</label>
-                  <input
-                    value={newNote.clientName}
-                    onChange={e => setNewNote(p => ({ ...p, clientName: e.target.value }))}
-                    placeholder="e.g. Johnson, Michael"
-                    style={{ width: '100%', padding: '8px 11px', fontSize: 13, borderRadius: 8, border: '0.5px solid #d1d5db', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>Client #</label>
-                  <input
-                    value={newNote.clientNumber}
-                    onChange={e => setNewNote(p => ({ ...p, clientNumber: e.target.value }))}
-                    placeholder="0031"
-                    style={{ width: '100%', padding: '8px 11px', fontSize: 13, borderRadius: 8, border: '0.5px solid #d1d5db', outline: 'none', boxSizing: 'border-box' }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>Note type</label>
-                <select
-                  value={newNote.type}
-                  onChange={e => setNewNote(p => ({ ...p, type: e.target.value as NoteType }))}
-                  style={{ width: '100%', padding: '8px 11px', fontSize: 13, borderRadius: 8, border: '0.5px solid #d1d5db', outline: 'none', background: '#fff', cursor: 'pointer' }}
-                >
-                  {ALL_TYPES.map(t => <option key={t}>{t}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', display: 'block', marginBottom: 4 }}>Note</label>
-                <textarea
-                  value={newNote.note}
-                  onChange={e => setNewNote(p => ({ ...p, note: e.target.value }))}
-                  placeholder="Describe the client interaction, progress, or incident…"
-                  rows={5}
-                  style={{ width: '100%', padding: '8px 11px', fontSize: 13, borderRadius: 8, border: '0.5px solid #d1d5db', outline: 'none', resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5, boxSizing: 'border-box' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button
-                style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', background: '#008080', color: '#fff', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}
-                onClick={() => setShowNewNote(false)}
-              >
-                Save Note
-              </button>
-              <button
-                onClick={() => setShowNewNote(false)}
-                style={{ padding: '9px 18px', borderRadius: 8, border: '0.5px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer' }}
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
+      {toast && (
+        <div style={{ position: 'fixed', bottom: 20, right: 20, background: '#004050', color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 8, zIndex: 200, boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+          {toast}
         </div>
       )}
     </>
