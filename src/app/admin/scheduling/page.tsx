@@ -52,10 +52,10 @@ function buildDspEmail({ dspName, clientName, date, start, end, notes }: {
   })
   const appUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
   return `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-    <div style="background:#008080;padding:24px;color:#fff"><h2 style="margin:0;font-size:20px">YayraCare — New Schedule</h2></div>
+    <div style="background:#008080;padding:24px;color:#fff"><h2 style="margin:0;font-size:20px">Home Health Care — New Schedule</h2></div>
     <div style="padding:24px">
       <p style="color:#374151;font-size:15px">Hi ${dspName},</p>
-      <p style="color:#374151;font-size:14px">You've been scheduled for a shift. Log in to <strong>YayraCare</strong> to accept or reject within <strong>24 hours</strong>. No action means automatic acceptance.</p>
+      <p style="color:#374151;font-size:14px">You've been scheduled for a shift. Log in to <strong>Home Health Care</strong> to accept or reject within <strong>24 hours</strong>. No action means automatic acceptance.</p>
       <div style="background:#f9fafb;border-radius:10px;padding:16px;margin:20px 0">
         <table style="width:100%;font-size:14px;color:#111">
           <tr><td style="padding:6px 0;color:#6b7280;width:90px">Client</td><td style="font-weight:600">${clientName}</td></tr>
@@ -65,7 +65,7 @@ function buildDspEmail({ dspName, clientName, date, start, end, notes }: {
         </table>
       </div>
       <a href="${appUrl}/staff/my-schedule" style="display:inline-block;background:#008080;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:500">View My Schedule →</a>
-      <p style="color:#9ca3af;font-size:12px;margin-top:24px">YayraCare · Contact your supervisor with any questions.</p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:24px">Home Health Care · Contact your supervisor with any questions.</p>
     </div>
   </div>`
 }
@@ -159,7 +159,7 @@ export default function AdminSchedulingPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: dsp.email,
-            subject: `YayraCare: You've been scheduled`,
+            subject: `Home Health Care: You've been scheduled`,
             html: buildDspEmail({
               dspName: `${dsp.first_name} ${dsp.last_name}`,
               clientName: client?.full_name ?? '',

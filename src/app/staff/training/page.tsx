@@ -5,7 +5,7 @@ import { useState } from 'react'
 type Tab = 'all' | 'assess' | 'certs'
 
 const trainings = [
-  { icon: 'ti-clipboard-text', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080', name: 'DSP Final Assessment', meta: 'YayraCare · Required · Embedded in portal', pct: 30, barColor: '#008080', status: 'In progress', statusBg: 'rgba(0,128,128,0.1)', statusColor: '#008080', tab: 'assess' as const },
+  { icon: 'ti-clipboard-text', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080', name: 'DSP Final Assessment', meta: 'Home Health Care · Required · Embedded in portal', pct: 30, barColor: '#008080', status: 'In progress', statusBg: 'rgba(0,128,128,0.1)', statusColor: '#008080', tab: 'assess' as const },
   { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: 'CPR / First Aid / BLS', meta: 'Completed May 2025 · Expires Apr 30, 2027', pct: 100, barColor: '#30B060', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', tab: null },
   { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: 'CDS training', meta: 'Completed Apr 2026 · No expiry', pct: 100, barColor: '#30B060', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', tab: null },
   { icon: 'ti-alert-triangle', iconBg: 'rgba(186,117,23,0.1)', iconColor: '#BA7517', name: "Danielle's Law compliance", meta: 'Required · Due May 20, 2026 · Mandatory annual', pct: 30, barColor: '#BA7517', status: 'Due soon', statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517', tab: null },
@@ -69,7 +69,7 @@ export default function TrainingPage() {
           <div style={panel}>
             <div style={{ background: '#004050', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Training modules</span>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>YayraCare</span>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Home Health Care</span>
             </div>
             {trainings.map((t, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < trainings.length - 1 ? '0.5px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
@@ -103,7 +103,7 @@ export default function TrainingPage() {
             <div style={{ background: '#004050', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>DSP Final Assessment</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>YayraCare · Required for all DSP staff</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Home Health Care · Required for all DSP staff</div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => showToast('Saving progress...')} style={{ fontSize: 11, padding: '5px 12px', borderRadius: 6, border: '0.5px solid rgba(255,255,255,0.2)', background: 'transparent', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
@@ -126,8 +126,8 @@ export default function TrainingPage() {
               <div style={{ width: 64, height: 64, borderRadius: 12, background: 'linear-gradient(135deg,#004050,#008080)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#004050' }}>YayraCare</div>
-              <div style={{ fontSize: 14, color: '#666', maxWidth: 480, lineHeight: 1.6 }}>DSP Final Assessment — tests your knowledge of Direct Support Professional responsibilities, client care standards, NJ DDD compliance, and YayraCare policies.</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: '#004050' }}>Home Health Care</div>
+              <div style={{ fontSize: 14, color: '#666', maxWidth: 480, lineHeight: 1.6 }}>DSP Final Assessment — tests your knowledge of Direct Support Professional responsibilities, client care standards, NJ DDD compliance, and Home Health Care policies.</div>
               <div style={{ width: '100%', maxWidth: 560, border: '1px solid #e0e0e0', borderRadius: 8, overflow: 'hidden', textAlign: 'left' }}>
                 {[{ lbl: 'Staff name', val: 'Maria Santos' }, { lbl: 'Staff ID', val: 'RCS-1042' }, { lbl: 'Position', val: 'DSP Staff' }, { lbl: 'Date', val: 'May 13, 2026' }].map((f, i) => (
                   <div key={i} style={{ padding: '12px 16px', borderBottom: i < 3 ? '0.5px solid #e0e0e0' : 'none', borderRight: i % 2 === 0 ? '0.5px solid #e0e0e0' : 'none', display: 'inline-block', width: '50%', verticalAlign: 'top', boxSizing: 'border-box' }}>
@@ -164,7 +164,7 @@ export default function TrainingPage() {
             {[
               { name: 'CPR / First Aid / BLS', exp: 'Issued: May 2025 · Expires: Apr 30, 2027', status: 'Valid', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', disabled: false },
               { name: 'CDS training certificate', exp: 'Issued: Apr 2026 · No expiry', status: 'Valid', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', disabled: false },
-              { name: '60-day orientation completion', exp: 'Issued: May 1, 2026 · YayraCare', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', disabled: false },
+              { name: '60-day orientation completion', exp: 'Issued: May 1, 2026 · Home Health Care', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', disabled: false },
               { name: 'DSP final assessment', exp: 'In progress · Certificate issued on completion', status: 'Pending', statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517', disabled: true },
             ].map((c, i) => (
               <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>

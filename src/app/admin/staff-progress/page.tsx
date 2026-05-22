@@ -77,7 +77,7 @@ export default function StaffProgressPage() {
   const sysRows = [
     { label: 'CDS account created', note: 'Active since Apr 2026' },
     { label: "Manager's Zone access", note: 'Role: DSP Staff' },
-    { label: 'YayraCare portal access', note: 'Last login: May 13, 2026' },
+    { label: 'Home Health Care portal access', note: 'Last login: May 13, 2026' },
   ]
 
   const trainingRows = [

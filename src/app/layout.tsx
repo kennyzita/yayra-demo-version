@@ -6,8 +6,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'YayraCare — HIPAA-Compliant Home Health Management',
-  description: 'Manage your DDD and home health agency with YayraCare.',
+  title: 'Home Health Care — HIPAA-Compliant Home Health Management',
+  description: 'Manage your DDD and home health agency with Home Health Care.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

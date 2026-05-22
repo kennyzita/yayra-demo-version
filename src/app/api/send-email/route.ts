@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'YayraCare <onboarding@resend.dev>',
+      from: 'Home Health Care <onboarding@resend.dev>',
       to: Array.isArray(to) ? to : [to],
       subject,
       html,
