@@ -142,7 +142,7 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
           <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
         </div>
         <span style={{ fontSize: 16, fontWeight: 500, color: '#fff', letterSpacing: -0.3 }}>
-          Yayra<span style={{ color: '#30B060' }}>Care</span>
+          Home Health Care
         </span>
       </div>
 
