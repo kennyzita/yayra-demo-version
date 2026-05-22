@@ -192,7 +192,7 @@ export default function StaffProfilePage() {
             {profile ? `${profile.first_name} ${profile.last_name}` : '—'}
           </div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginBottom: 12 }}>
-            {profile?.role} · Home Health Care
+            {profile?.role} · Reliance Care Services
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[

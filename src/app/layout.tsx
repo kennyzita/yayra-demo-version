@@ -6,8 +6,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Home Health Care — HIPAA-Compliant Home Health Management',
-  description: 'Manage your DDD and home health agency with Home Health Care.',
+  title: 'Reliance Care Services — HIPAA-Compliant Home Health Management',
+  description: 'Manage your DDD and home health agency with Reliance Care Services.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

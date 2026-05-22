@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const html = `
       <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
         <div style="background:${status === 'accepted' ? '#059669' : '#dc2626'};padding:24px;color:#fff">
-          <h2 style="margin:0;font-size:20px">Home Health Care — Schedule ${status === 'accepted' ? 'Accepted' : 'Rejected'}</h2>
+          <h2 style="margin:0;font-size:20px">Reliance Care Services — Schedule ${status === 'accepted' ? 'Accepted' : 'Rejected'}</h2>
         </div>
         <div style="padding:24px">
           <p style="color:#374151;font-size:15px"><strong>${dspName}</strong> has <strong>${responseLabel}</strong> a scheduled shift.</p>
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Home Health Care <onboarding@resend.dev>',
+        from: 'Reliance Care Services <onboarding@resend.dev>',
         to: adminEmails,
         subject: `${dspName} ${status === 'accepted' ? 'accepted' : 'rejected'} a scheduled shift`,
         html,

@@ -84,7 +84,7 @@ const STEPS: React.ReactNode[] = [
   // 0 — Personal info
   <div key="0">
     <div style={{ background: 'rgba(0,128,128,0.05)', border: '0.5px solid rgba(0,128,128,0.2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 20 }}>
-      Home Health Care is an equal opportunity employer. Applicants are considered without regard to race, age, sex, gender identity, marital status, family status, political or religious conviction, impairment, or pregnancy.
+      Reliance Care Services is an equal opportunity employer. Applicants are considered without regard to race, age, sex, gender identity, marital status, family status, political or religious conviction, impairment, or pregnancy.
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
       <Field label="First name" required><input type="text" placeholder="First name" style={fi} /></Field>
