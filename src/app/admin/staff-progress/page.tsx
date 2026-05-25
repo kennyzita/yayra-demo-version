@@ -100,18 +100,20 @@ export default function StaffProgressPage() {
     ? new Date(formsSignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
 
-  // Overall progress items — all turn green when forms are signed
+  // 8 items flip green when the PDFfiller onboarding package is signed
   const onboardItems = [
-    { done: true,       label: 'DSP application submitted'  },
-    { done: true,       label: 'W4 completed'               },
-    { done: true,       label: 'Form I-9 submitted'         },
-    { done: true,       label: "Driver's license uploaded"  },
-    { done: true,       label: 'CPR certificate uploaded'   },
-    { done: true,       label: 'CRO consent signed'         },
-    { done: formsSigned, warn: !formsSigned, label: 'Direct deposit form'        },
-    { done: formsSigned, warn: !formsSigned, label: 'NJ W4 pending'              },
-    { done: formsSigned, miss: !formsSigned, label: 'CARI clearance'             },
-    { done: formsSigned, miss: !formsSigned, label: "Danielle's Law sign-off"    },
+    { done: true,                                           label: 'DSP application submitted'   },
+    { done: formsSigned, warn: !formsSigned,                label: 'W4 completed'                },
+    { done: formsSigned, warn: !formsSigned,                label: 'Form I-9 submitted'          },
+    { done: true,                                           label: "Driver's license uploaded"   },
+    { done: true,                                           label: 'CPR certificate uploaded'    },
+    { done: formsSigned, warn: !formsSigned,                label: 'CRO consent signed'          },
+    { done: formsSigned, warn: !formsSigned,                label: 'Direct deposit form'         },
+    { done: formsSigned, warn: !formsSigned,                label: 'NJ W4'                       },
+    { done: false,        miss: true,                       label: 'CARI clearance'              },
+    { done: formsSigned, warn: !formsSigned,                label: "Danielle's Law sign-off"     },
+    { done: formsSigned, warn: !formsSigned,                label: "Stephen Komnino's Law"       },
+    { done: formsSigned, warn: !formsSigned,                label: 'Appendix A'                  },
   ]
 
   const completedCount = onboardItems.filter(i => i.done).length
