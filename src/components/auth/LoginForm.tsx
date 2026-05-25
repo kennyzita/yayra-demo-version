@@ -97,6 +97,8 @@ export function LoginForm() {
 
     if (roleName === 'Admin' || roleName === 'HR') {
       router.push('/admin/dashboard')
+    } else if (roleName === 'DSP') {
+      router.push('/staff/application')
     } else {
       router.push('/staff/dashboard')
     }

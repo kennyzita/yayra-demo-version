@@ -19,5 +19,8 @@ export default async function Home() {
   if (roleName === 'Admin' || roleName === 'HR') {
     redirect('/admin/dashboard')
   }
+  if (roleName === 'DSP') {
+    redirect('/staff/application')
+  }
   redirect('/staff/dashboard')
 }
