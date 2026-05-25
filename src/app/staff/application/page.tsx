@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 const STEP_META = [
   { label: 'Personal info', sub: 'Name, address, contact' },
@@ -271,11 +272,82 @@ const STEPS: React.ReactNode[] = [
 ]
 
 export default function ApplicationPage() {
+  const supabase = createClient()
   const [step, setStep] = useState(0)
   const total = STEP_META.length
+  const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function checkSubmitted() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('billing_staff_data')
+        .select('data')
+        .eq('staff_id', user.id)
+        .maybeSingle()
+      if ((data?.data as Record<string, string> | null)?.application_submitted === 'true') {
+        setSubmitted(true)
+      }
+    }
+    checkSubmitted()
+  }, [])
+
+  async function handleSubmit() {
+    setSubmitting(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSubmitting(false); return }
+
+    const { data: existing } = await supabase
+      .from('billing_staff_data')
+      .select('data')
+      .eq('staff_id', user.id)
+      .maybeSingle()
+
+    const merged = {
+      ...((existing?.data as Record<string, string>) ?? {}),
+      application_submitted: 'true',
+      application_submitted_at: new Date().toISOString(),
+      application_status: 'pending',
+    }
+
+    const { error } = await supabase
+      .from('billing_staff_data')
+      .upsert({ staff_id: user.id, data: merged })
+
+    if (error) {
+      setToast('Error submitting application. Please try again.')
+      setTimeout(() => setToast(null), 3500)
+    } else {
+      setSubmitted(true)
+    }
+    setSubmitting(false)
+  }
+
+  if (submitted) {
+    return (
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', flexDirection: 'column', gap: 20 }}>
+        <div style={{ width: 88, height: 88, borderRadius: '50%', background: 'rgba(48,176,96,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, color: '#30B060' }}>
+          <i className="ti ti-circle-check" />
+        </div>
+        <div style={{ fontSize: 26, fontWeight: 700, color: '#111' }}>Application Submitted!</div>
+        <div style={{ fontSize: 15, color: '#6b7280', textAlign: 'center', maxWidth: 420 }}>
+          Your application has been received and is under review.
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {toast && (
+        <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: '#111', color: '#fff', padding: '10px 20px', borderRadius: 10, fontSize: 13, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.18)' }}>
+          {toast}
+        </div>
+      )}
+
       {/* Topbar */}
       <div style={{ background: '#fff', borderBottom: '0.5px solid #e5e7eb', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#008080', cursor: 'pointer', padding: '6px 10px', borderRadius: 6 }}>
@@ -289,8 +361,12 @@ export default function ApplicationPage() {
           <i className="ti ti-download" /> Download PDF
         </button>
         {step === total - 1 && (
-          <button style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', background: '#004050', color: 'white', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>
-            Submit application
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            style={{ fontSize: 12, padding: '6px 16px', borderRadius: 6, border: 'none', background: submitting ? '#6b7280' : '#004050', color: 'white', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 500, fontFamily: 'inherit', opacity: submitting ? 0.8 : 1 }}
+          >
+            {submitting ? 'Submitting…' : 'Submit application'}
           </button>
         )}
       </div>
@@ -348,8 +424,12 @@ export default function ApplicationPage() {
                   Next <i className="ti ti-arrow-right" />
                 </button>
               ) : (
-                <button style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', background: '#004050', color: 'white', cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
-                  Submit application <i className="ti ti-send" />
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', background: submitting ? '#6b7280' : '#004050', color: 'white', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', opacity: submitting ? 0.8 : 1 }}
+                >
+                  {submitting ? 'Submitting…' : 'Submit application'} <i className="ti ti-send" />
                 </button>
               )}
             </div>

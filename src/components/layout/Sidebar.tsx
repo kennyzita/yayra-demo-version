@@ -35,7 +35,7 @@ const adminSections: NavSection[] = [
   {
     label: 'Applications',
     items: [
-      { href: '/admin/applications', label: 'DSP application', icon: 'ti-file-text', badge: 3 },
+      { href: '/admin/applications', label: 'Hiring', icon: 'ti-briefcase', badge: 3 },
       { href: '/admin/documents', label: 'Upload documents', icon: 'ti-upload' },
     ],
   },

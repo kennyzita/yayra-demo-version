@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const FORM_URL =
-  'https://www.pdffiller.com/jsfiller-desk13/?flat_pdf_quality=high&mode=link_to_fill&requestHash=1e78520873f1d1a933c35b8467f195b0d6ec3bbec5a60d4ae05f1536620c4146&lang=en&et=l2f&projectId=2072509557&jsf-dss-v2=true&isSkipEditorLoadFrequency=true&jsf-fake-edit-embedded=true&jsf-socket-io=true&jsf-context-menu-to-right-panel=false&jsf-disable-autosave=true&jsf-fake-edit-stream-editing=true&jsf-disable-browser-translation=true&acc-header-redesign=false&jsf-editor-pdfjs-five=true&jsf-simplified-modes-iteration-1=false&richTextFormatting=true&jsf-redesign-full=true&acc-header-redesign-2=false&routeId=0ed42be7ddaace9d569e723e4aacb6a9#8e5a0bba4d0644d78e24d09088c579b3'
+  'https://pdf.ac/y7ftbzlyGj'
 
 export default function OnboardingFormsPage() {
   const supabase = createClient()
@@ -14,6 +14,8 @@ export default function OnboardingFormsPage() {
   const [completedAt,  setCompletedAt]  = useState<string | null>(null)
   const [saving,       setSaving]       = useState(false)
   const [toast,        setToast]        = useState<string | null>(null)
+  const [appSubmitted, setAppSubmitted] = useState(false)
+  const [checkingApp,  setCheckingApp]  = useState(true)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -23,7 +25,7 @@ export default function OnboardingFormsPage() {
   useEffect(() => {
     async function check() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setLoading(false); return }
+      if (!user) { setLoading(false); setCheckingApp(false); return }
       const { data } = await supabase
         .from('billing_staff_data')
         .select('data')
@@ -34,7 +36,11 @@ export default function OnboardingFormsPage() {
         setCompleted(true)
         setCompletedAt(extra.onboarding_forms_signed_at ?? null)
       }
+      if (extra.application_submitted === 'true') {
+        setAppSubmitted(true)
+      }
       setLoading(false)
+      setCheckingApp(false)
     }
     check()
   }, [])
@@ -74,9 +80,27 @@ export default function OnboardingFormsPage() {
     ? new Date(completedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : null
 
-  if (loading) return (
+  if (loading || checkingApp) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af', fontSize: 14 }}>
       Loading…
+    </div>
+  )
+
+  if (!appSubmitted) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 20, padding: 32 }}>
+      <div style={{ fontSize: 56, color: '#d97706' }}>
+        <i className="ti ti-lock" />
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: '#111', textAlign: 'center' }}>Complete Your DSP Application First</div>
+      <div style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', maxWidth: 420, lineHeight: 1.7 }}>
+        You must submit your DSP job application before you can access the onboarding forms.
+      </div>
+      <a
+        href="/staff/application"
+        style={{ padding: '11px 24px', background: '#008080', color: '#fff', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
+      >
+        <i className="ti ti-file-text" /> Go to DSP Application
+      </a>
     </div>
   )
 
