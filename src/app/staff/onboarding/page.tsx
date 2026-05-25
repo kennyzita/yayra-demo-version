@@ -130,30 +130,30 @@ export default function OnboardingFormsPage() {
         </a>
       </div>
 
-      {completed ? (
-        /* ── Completion banner ── */
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}>
-          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(48,176,96,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, color: '#30B060' }}>
-            <i className="ti ti-circle-check" />
+      {/* Already-completed overlay */}
+      {completed && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 18, padding: '44px 48px', maxWidth: 480, width: '90%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(48,176,96,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, color: '#30B060', margin: '0 auto 20px' }}>
+              <i className="ti ti-circle-check" />
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#111', marginBottom: 12 }}>
+              You already completed your Onboarding forms
+            </div>
+            <div style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.75, marginBottom: 20 }}>
+              We will reach out to you shortly. If you have any issues send an email to{' '}
+              <a href="mailto:admin@reliancecareservicesllc.com" style={{ color: '#008080', fontWeight: 600, textDecoration: 'none' }}>
+                admin@reliancecareservicesllc.com
+              </a>
+            </div>
+            {signedDate && (
+              <div style={{ fontSize: 12, color: '#9ca3af' }}>Submitted on {signedDate}</div>
+            )}
           </div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#111' }}>Forms Completed</div>
-          <div style={{ fontSize: 14, color: '#6b7280', textAlign: 'center', maxWidth: 420, lineHeight: 1.7 }}>
-            You have completed and signed all required onboarding forms.
-            {signedDate && <> Your submission was recorded on <strong>{signedDate}</strong>.</>}
-          </div>
-          <div style={{ padding: '14px 24px', background: 'rgba(48,176,96,0.08)', border: '1px solid rgba(48,176,96,0.25)', borderRadius: 12, fontSize: 13, color: '#15803d', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <i className="ti ti-lock" /> Your administrator has been notified and will review your submission.
-          </div>
-          <a
-            href={FORM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ fontSize: 13, color: '#008080', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500 }}
-          >
-            <i className="ti ti-external-link" /> View submitted forms
-          </a>
         </div>
-      ) : (
+      )}
+
+      {!completed && (
         /* ── Form embed ── */
         <>
           <div style={{ background: 'rgba(0,128,128,0.06)', borderBottom: '1px solid rgba(0,128,128,0.15)', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>

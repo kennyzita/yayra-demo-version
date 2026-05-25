@@ -326,22 +326,26 @@ export default function ApplicationPage() {
     setSubmitting(false)
   }
 
-  if (submitted) {
-    return (
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)', flexDirection: 'column', gap: 20 }}>
-        <div style={{ width: 88, height: 88, borderRadius: '50%', background: 'rgba(48,176,96,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 44, color: '#30B060' }}>
-          <i className="ti ti-circle-check" />
-        </div>
-        <div style={{ fontSize: 26, fontWeight: 700, color: '#111' }}>Application Submitted!</div>
-        <div style={{ fontSize: 15, color: '#6b7280', textAlign: 'center', maxWidth: 420 }}>
-          Your application has been received and is under review.
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+      {/* Already-submitted overlay */}
+      {submitted && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: 18, padding: '44px 48px', maxWidth: 440, width: '90%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(0,128,128,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, color: '#008080', margin: '0 auto 20px' }}>
+              <i className="ti ti-circle-check" />
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#111', marginBottom: 10 }}>
+              You already completed your application
+            </div>
+            <div style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.7 }}>
+              Your DSP application has been received and is currently under review. You will be contacted once a decision has been made.
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && (
         <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: '#111', color: '#fff', padding: '10px 20px', borderRadius: 10, fontSize: 13, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.18)' }}>
           {toast}

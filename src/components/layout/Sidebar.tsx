@@ -108,7 +108,12 @@ const staffSections: NavSection[] = [
 
 function getStaffSections(userRole: string): NavSection[] {
   if (userRole === 'DSP') {
-    return staffSections.filter(s => s.label === 'Main' || s.label === 'Applications')
+    return staffSections
+      .filter(s => s.label === 'Main' || s.label === 'Applications')
+      .map(s => s.label === 'Main'
+        ? { ...s, items: s.items.filter(item => item.label !== 'My overview') }
+        : s
+      )
   }
   if (userRole === 'DSP Staff') {
     return staffSections.filter(s => s.label === 'Main' || s.label === 'Work' || s.label === 'Resources')
@@ -197,23 +202,12 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
         </div>
       ))}
 
-      {/* Staff sub-item: Employee handbook */}
-      {role === 'staff' && (
-        <Link
-          href="/staff/handbook"
-          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 18px 6px 46px', fontSize: 12, color: '#00A090', textDecoration: 'none' }}
-        >
-          <i className="ti ti-download" style={{ fontSize: 14, width: 16, flexShrink: 0 }} />
-          Employee handbook
-        </Link>
-      )}
-
       <div style={{ flex: 1 }} />
 
       {/* Bottom */}
       <div style={{ padding: '12px 18px', borderTop: '0.5px solid rgba(255,255,255,0.07)' }}>
         <Link
-          href="/settings"
+          href={role === 'admin' ? '/admin/settings' : '/staff/settings'}
           style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', fontSize: 13, color: '#a8c8cc', textDecoration: 'none' }}
         >
           <i className="ti ti-settings" style={{ fontSize: 16, width: 18 }} />
