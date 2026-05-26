@@ -70,6 +70,7 @@ const adminSections: NavSection[] = [
     label: 'Administration',
     items: [
       { href: '/admin/users', label: 'User Accounts', icon: 'ti-users-group' },
+      { href: '/admin/roles', label: 'Role Management', icon: 'ti-shield-half' },
     ],
   },
 ]

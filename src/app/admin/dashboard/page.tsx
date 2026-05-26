@@ -100,7 +100,8 @@ export default function AdminDashboardPage() {
       setClientCount(clients.length)
       setNewClients(clients.filter(c => c.created_at >= sevenDaysAgo).length)
 
-      const dspUsers = users.filter(u => ((u.role as unknown as { name: string } | null)?.name ?? '').includes('DSP'))
+      const staffRoles = ['DSP', 'DSP Staff']
+      const dspUsers = users.filter(u => staffRoles.includes((u.role as unknown as { name: string } | null)?.name ?? ''))
       setDspCount(dspUsers.length)
       setNewDsp(dspUsers.filter(u => (u.created_at ?? '') >= sevenDaysAgo).length)
       setPendingTs(tsCount ?? 0)
@@ -215,7 +216,7 @@ export default function AdminDashboardPage() {
       iconBg: 'rgba(245,158,11,0.13)', iconColor: '#d97706',
       badge: newDsp > 0 ? `+${newDsp} new` : 'Total',
       badgeBg: 'rgba(16,185,129,0.12)', badgeColor: '#059669',
-      value: loading ? '—' : String(dspCount), label: 'DSP staff',
+      value: loading ? '—' : String(dspCount), label: 'Total staff',
     },
     {
       icon: 'ti-clock',
