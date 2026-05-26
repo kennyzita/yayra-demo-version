@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppFormState } from '@/app/staff/application/page'
+import type { StaffDocFile } from '@/app/api/list-staff-documents/route'
 
 const BUCKET = 'staff-documents'
 
@@ -66,6 +67,9 @@ export default function HiringPage() {
   const [toast,      setToast]      = useState<string | null>(null)
   const [viewingId,  setViewingId]  = useState<string | null>(null)
   const [docUrls,    setDocUrls]    = useState<Record<string, string>>({})
+  const [docsViewingId,  setDocsViewingId]  = useState<string | null>(null)
+  const [docFiles,       setDocFiles]       = useState<StaffDocFile[]>([])
+  const [docsLoading,    setDocsLoading]    = useState(false)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -133,6 +137,16 @@ export default function HiringPage() {
         })
     ).then(pairs => setDocUrls(Object.fromEntries(pairs.filter(([, url]) => url))))
   }, [viewingId])
+
+  useEffect(() => {
+    if (!docsViewingId) return
+    setDocFiles([])
+    setDocsLoading(true)
+    fetch(`/api/list-staff-documents?staffId=${docsViewingId}`)
+      .then(r => r.json())
+      .then(json => { setDocFiles(json.files ?? []); setDocsLoading(false) })
+      .catch(() => setDocsLoading(false))
+  }, [docsViewingId])
 
   async function updateStatus(staffId: string, newStatus: string) {
     const { data: existing } = await supabase
@@ -288,6 +302,9 @@ export default function HiringPage() {
                           <button onClick={() => setViewingId(r.staffId)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #008080', background: 'transparent', color: '#008080', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
                             <i className="ti ti-eye" style={{ fontSize: 13 }} /> View
                           </button>
+                          <button onClick={() => setDocsViewingId(r.staffId)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #6366f1', background: 'transparent', color: '#6366f1', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <i className="ti ti-folder-open" style={{ fontSize: 13 }} /> View Docs
+                          </button>
                           {effectiveStatus === 'pending' && (
                             <>
                               <button onClick={() => updateStatus(r.staffId, 'approved')} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #10b981', background: 'transparent', color: '#059669', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Approve</button>
@@ -310,6 +327,136 @@ export default function HiringPage() {
           </div>
         )}
       </div>
+
+      {/* Documents modal */}
+      {docsViewingId && (() => {
+        const r = records.find(x => x.staffId === docsViewingId)
+        if (!r) return null
+
+        const grouped = docFiles.reduce<Record<string, StaffDocFile[]>>((acc, f) => {
+          ;(acc[f.folder] ??= []).push(f)
+          return acc
+        }, {})
+
+        function fmtSize(b: number) {
+          if (!b) return ''
+          if (b < 1024) return `${b} B`
+          if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
+          return `${(b / (1024 * 1024)).toFixed(1)} MB`
+        }
+        function fmtDate(iso: string) {
+          if (!iso) return ''
+          try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) } catch { return '' }
+        }
+        function fileIcon(name: string) {
+          const ext = name.split('.').pop()?.toLowerCase()
+          if (ext === 'pdf') return { icon: 'ti-file-type-pdf', color: '#dc2626' }
+          if (['jpg','jpeg','png','gif','webp'].includes(ext ?? '')) return { icon: 'ti-photo', color: '#0d9488' }
+          if (['doc','docx'].includes(ext ?? '')) return { icon: 'ti-file-word', color: '#2563eb' }
+          return { icon: 'ti-file', color: '#6b7280' }
+        }
+        function cleanName(raw: string) {
+          // strip leading timestamp prefix added by upload route e.g. "dl-front_1234567890.jpg"
+          return raw.replace(/^[a-z-]+_\d+\./, raw.split('.').pop() ? raw.split('.')[0].replace(/_\d+$/, '') + '.' + raw.split('.').pop() : raw)
+        }
+
+        const folderLabel: Record<string, string> = { application: 'Application Uploads' }
+
+        return (
+          <>
+            <div onClick={() => setDocsViewingId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 40 }} />
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 480, background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+              {/* Header */}
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: '#6366f1', flexShrink: 0 }}>
+                  <i className="ti ti-folder-open" />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>Uploaded Documents</div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>{r.name}</div>
+                </div>
+                <button onClick={() => setDocsViewingId(null)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16, color: '#6b7280' }}>
+                  <i className="ti ti-x" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+                {docsLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 48, color: '#9ca3af', fontSize: 14, gap: 10 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 11-18 0" strokeOpacity="0.25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
+                    Loading documents…
+                  </div>
+                ) : docFiles.length === 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 48, color: '#9ca3af', gap: 12, textAlign: 'center' }}>
+                    <i className="ti ti-folder" style={{ fontSize: 40 }} />
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: '#374151', marginBottom: 4 }}>No documents found</div>
+                      <div style={{ fontSize: 13 }}>This candidate hasn't uploaded any documents yet.</div>
+                    </div>
+                  </div>
+                ) : (
+                  Object.entries(grouped).map(([folder, files]) => (
+                    <div key={folder} style={{ marginBottom: 20 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                        <i className="ti ti-folder" style={{ fontSize: 15, color: '#6366f1' }} />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                          {folderLabel[folder] ?? folder}
+                        </span>
+                        <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 10, background: 'rgba(99,102,241,0.1)', color: '#6366f1', fontWeight: 600 }}>
+                          {files.length}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {files.map(f => {
+                          const fi = fileIcon(f.name)
+                          return (
+                            <div key={f.path} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10 }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 8, background: '#fff', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18, color: fi.color }}>
+                                <i className={`ti ${fi.icon}`} />
+                              </div>
+                              <div style={{ flex: 1, overflow: 'hidden' }}>
+                                <div style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {cleanName(f.name)}
+                                </div>
+                                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
+                                  {[fmtSize(f.size), fmtDate(f.createdAt)].filter(Boolean).join(' · ')}
+                                </div>
+                              </div>
+                              {f.signedUrl && (
+                                <a
+                                  href={f.signedUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{ flexShrink: 0, padding: '6px 14px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', fontSize: 12, color: '#374151', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5, fontWeight: 500, whiteSpace: 'nowrap' }}
+                                >
+                                  <i className="ti ti-external-link" style={{ fontSize: 13 }} /> Open
+                                </a>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 12, color: '#6b7280' }}>
+                  {docsLoading ? 'Loading…' : `${docFiles.length} file${docFiles.length !== 1 ? 's' : ''} found`}
+                </span>
+                <button onClick={() => setDocsViewingId(null)} style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', fontSize: 13, color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Close
+                </button>
+              </div>
+            </div>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          </>
+        )
+      })()}
 
       {/* Application detail drawer */}
       {viewingId && (() => {
