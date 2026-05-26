@@ -48,14 +48,88 @@ function UploadBox({ label, hint, required, optional }: { label: string; hint: s
   )
 }
 
-function RadioGroup({ name, options }: { name: string; options: string[] }) {
+function RadioGroup({ name, options, value, onChange }: { name: string; options: string[]; value?: string; onChange?: (v: string) => void }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
       {options.map(v => (
-        <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#111', cursor: 'pointer', padding: '5px 10px', border: '1px solid #d1d5db', borderRadius: 6, background: '#fff' }}>
-          <input type="radio" name={name} style={{ accentColor: '#008080' }} /> {v}
+        <label key={v} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#111', cursor: 'pointer', padding: '5px 10px', border: `1px solid ${value === v ? '#008080' : '#d1d5db'}`, borderRadius: 6, background: value === v ? 'rgba(0,128,128,0.06)' : '#fff' }}>
+          <input
+            type="radio"
+            name={name}
+            checked={value !== undefined ? value === v : undefined}
+            onChange={() => onChange?.(v)}
+            style={{ accentColor: '#008080' }}
+          /> {v}
         </label>
       ))}
+    </div>
+  )
+}
+
+function EligibilityStep() {
+  const [isCitizen,    setIsCitizen]    = useState('')
+  const [workedBefore, setWorkedBefore] = useState('')
+  const [bgCheck,      setBgCheck]      = useState('')
+  const [malpractice,  setMalpractice]  = useState('')
+
+  return (
+    <div>
+      {/* 1. Citizenship */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={fLabel}>Are you a citizen of the United States?{req}</div>
+        <RadioGroup name="cit" options={['Yes', 'No']} value={isCitizen} onChange={setIsCitizen} />
+      </div>
+
+      {/* Conditional: work authorization — only when citizen = No */}
+      {isCitizen === 'No' && (
+        <div style={{ marginBottom: 16, marginLeft: 16, paddingLeft: 12, borderLeft: '2px solid rgba(0,128,128,0.3)' }}>
+          <div style={fLabel}>Are you authorized to work in the U.S.?{req}</div>
+          <RadioGroup name="auth" options={['Yes', 'No']} />
+        </div>
+      )}
+
+      {/* 2. Worked before */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={fLabel}>Have you ever worked for this company?{req}</div>
+        <RadioGroup name="prev" options={['Yes', 'No']} value={workedBefore} onChange={setWorkedBefore} />
+      </div>
+
+      {/* Conditional: If yes, when? — only when worked before = Yes */}
+      {workedBefore === 'Yes' && (
+        <div style={{ marginBottom: 16, marginLeft: 16, paddingLeft: 12, borderLeft: '2px solid rgba(0,128,128,0.3)' }}>
+          <Field label="If yes, when?"><input type="date" style={{ ...fi, maxWidth: 200 }} /></Field>
+        </div>
+      )}
+
+      {/* 3. Background check */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={fLabel}>Do you authorize RCS to conduct a criminal background check?{req}</div>
+        <RadioGroup name="bg" options={['Yes', 'No']} value={bgCheck} onChange={setBgCheck} />
+      </div>
+
+      {/* Conditional: explain — only when bg check = No */}
+      {bgCheck === 'No' && (
+        <div style={{ marginBottom: 16, marginLeft: 16, paddingLeft: 12, borderLeft: '2px solid rgba(0,128,128,0.3)' }}>
+          <Field label="Please explain (if applicable)">
+            <textarea placeholder="Provide any relevant details..." style={{ ...fi, minHeight: 72, resize: 'vertical', lineHeight: 1.5 }} />
+          </Field>
+        </div>
+      )}
+
+      {/* 4. Malpractice insurance */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={fLabel}>Do you have malpractice insurance?{req}</div>
+        <RadioGroup name="mal" options={['Yes', 'No']} value={malpractice} onChange={setMalpractice} />
+      </div>
+
+      {/* Conditional: carrier info — only when malpractice = Yes */}
+      {malpractice === 'Yes' && (
+        <div style={{ marginBottom: 16, marginLeft: 16, paddingLeft: 12, borderLeft: '2px solid rgba(0,128,128,0.3)' }}>
+          <Field label="If yes, name and address of carrier">
+            <textarea placeholder="Insurance carrier name and address..." style={{ ...fi, minHeight: 72, resize: 'vertical', lineHeight: 1.5 }} />
+          </Field>
+        </div>
+      )}
     </div>
   )
 }
@@ -147,23 +221,7 @@ const STEPS: React.ReactNode[] = [
   </div>,
 
   // 2 — Eligibility
-  <div key="2">
-    {[
-      { q: 'Are you a citizen of the United States?', name: 'cit' },
-      { q: 'Are you authorized to work in the U.S.?', name: 'auth' },
-      { q: 'Have you ever worked for this company?', name: 'prev' },
-      { q: 'Do you authorize RCS to conduct a criminal background check?', name: 'bg' },
-      { q: 'Do you have malpractice insurance?', name: 'mal' },
-    ].map(({ q, name }) => (
-      <div key={name} style={{ marginBottom: 16 }}>
-        <div style={fLabel}>{q}{req}</div>
-        <RadioGroup name={name} options={['Yes', 'No']} />
-      </div>
-    ))}
-    <div style={{ marginBottom: 14 }}><Field label="If yes, when?"><input type="date" style={{ ...fi, maxWidth: 200 }} /></Field></div>
-    <div style={{ marginBottom: 14 }}><Field label="Please explain (if applicable)"><textarea placeholder="Provide any relevant details..." style={{ ...fi, minHeight: 72, resize: 'vertical', lineHeight: 1.5 }} /></Field></div>
-    <Field label="If yes, name and address of carrier" required><textarea placeholder="Insurance carrier name and address..." style={{ ...fi, minHeight: 72, resize: 'vertical', lineHeight: 1.5 }} /></Field>
-  </div>,
+  <EligibilityStep key="2" />,
 
   // 3 — Education
   <div key="3">
