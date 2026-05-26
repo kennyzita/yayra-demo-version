@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const STEP_META = [
@@ -28,6 +28,21 @@ function Field({ label, required, hint, children }: { label: string; required?: 
       {children}
       {hint && <span style={{ fontSize: 11, color: '#9ca3af' }}>{hint}</span>}
     </div>
+  )
+}
+
+function SSNInput() {
+  const [val, setVal] = useState('')
+  return (
+    <input
+      type="password"
+      inputMode="numeric"
+      placeholder="9-digit SSN"
+      value={val}
+      maxLength={9}
+      onChange={e => setVal(e.target.value.replace(/\D/g, '').slice(0, 9))}
+      style={fi}
+    />
   )
 }
 
@@ -134,6 +149,137 @@ function EligibilityStep() {
   )
 }
 
+type ExtractStatus = 'idle' | 'extracting' | 'done' | 'error'
+
+function DocUpload({
+  label, hint, required, optional, extractExpiry, expiryLabel,
+}: {
+  label: string; hint: string; required?: boolean; optional?: boolean
+  extractExpiry?: boolean; expiryLabel?: string
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  const [file,   setFile]   = useState<File | null>(null)
+  const [status, setStatus] = useState<ExtractStatus>('idle')
+  const [expiry, setExpiry] = useState('')
+
+  async function handleFile(f: File) {
+    setFile(f)
+    if (!extractExpiry) return
+    setStatus('extracting')
+    setExpiry('')
+    try {
+      const form = new FormData()
+      form.append('file', f)
+      const res  = await fetch('/api/extract-expiry', { method: 'POST', body: form })
+      const json = await res.json()
+      if (json.date) { setExpiry(json.date); setStatus('done') }
+      else setStatus('error')
+    } catch { setStatus('error') }
+  }
+
+  const isExtracting = status === 'extracting'
+
+  return (
+    <div>
+      <div
+        onClick={() => ref.current?.click()}
+        onDragOver={e => e.preventDefault()}
+        onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
+        style={{ border: `1px dashed ${file ? '#008080' : '#d1d5db'}`, borderRadius: 8, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', background: file ? 'rgba(0,128,128,0.03)' : '#f9fafb', transition: 'all 0.15s' }}
+      >
+        <input ref={ref} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+        <div style={{ width: 32, height: 32, borderRadius: 6, background: file ? 'rgba(0,128,128,0.15)' : 'rgba(0,128,128,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: '#008080', flexShrink: 0 }}>
+          <i className={`ti ${file ? 'ti-file-check' : 'ti-upload'}`} />
+        </div>
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <div style={{ fontSize: 12, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {file ? file.name : label}{required && !optional && <span style={{ color: '#e24b4a' }}> *</span>}
+          </div>
+          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>
+            {file ? `${(file.size / 1024).toFixed(0)} KB · click to replace` : hint}
+          </div>
+        </div>
+        <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, fontWeight: 500, flexShrink: 0, background: file ? 'rgba(0,128,128,0.12)' : optional ? '#f3f4f6' : 'rgba(186,117,23,0.1)', color: file ? '#008080' : optional ? '#6b7280' : '#BA7517' }}>
+          {file ? 'Uploaded' : optional ? 'Optional' : 'Required'}
+        </span>
+      </div>
+
+      {extractExpiry && file && (
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', whiteSpace: 'nowrap' }}>
+            {expiryLabel ?? 'Expiration date'}
+          </label>
+          {isExtracting ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeOpacity="0.25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
+              Extracting from document…
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="date"
+                value={expiry}
+                onChange={e => setExpiry(e.target.value)}
+                style={{ ...fi, width: 'auto', minWidth: 160 }}
+              />
+              {status === 'done' && (
+                <span style={{ fontSize: 11, color: '#059669', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <i className="ti ti-sparkles" style={{ fontSize: 12 }} /> Auto-filled
+                </span>
+              )}
+              {status === 'error' && (
+                <span style={{ fontSize: 11, color: '#9ca3af' }}>Enter manually</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DocumentsStep() {
+  return (
+    <div>
+      <SectionTitle label="Identification" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+        <DocUpload label="Resume" hint="PDF or Word · max 5MB" required />
+        <DocUpload
+          label="Driver's license — front"
+          hint="JPG, PNG or PDF · expiry date will be extracted automatically"
+          required
+          extractExpiry
+          expiryLabel="DL expiration date"
+        />
+        <DocUpload label="Driver's license — back" hint="JPG, PNG or PDF" required />
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
+        <DocUpload label="SSN card" hint="Stored encrypted · HIPAA protected" required />
+        <DocUpload
+          label="EAD / Green card — front"
+          hint="If applicable · expiry date will be extracted automatically"
+          optional
+          extractExpiry
+          expiryLabel="EAD / Green card expiration date"
+        />
+        <DocUpload label="EAD / Green card — back" hint="If applicable" optional />
+      </div>
+
+      <SectionTitle label="Certifications" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <DocUpload
+          label="CPR / First Aid / BLS certificate"
+          hint="PDF or image · expiry date will be extracted automatically"
+          required
+          extractExpiry
+          expiryLabel="CPR / BLS expiration date"
+        />
+      </div>
+    </div>
+  )
+}
+
 function CheckGroup({ options }: { options: string[] }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -181,8 +327,8 @@ const STEPS: React.ReactNode[] = [
       <Field label="Date of birth" required hint="Stored encrypted · HIPAA protected"><input type="date" style={fi} /></Field>
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      <Field label="Social security number" required hint="AES-256 encrypted · never stored in plain text">
-        <input type="password" placeholder="XXX-XX-XXXX" style={fi} />
+      <Field label="Social security number" required hint="9 digits · AES-256 encrypted · never stored in plain text">
+        <SSNInput />
       </Field>
     </div>
   </div>,
@@ -282,32 +428,7 @@ const STEPS: React.ReactNode[] = [
   </div>,
 
   // 5 — Documents
-  <div key="5">
-    <SectionTitle label="Identification" />
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-      <UploadBox label="Resume" hint="PDF or Word · max 5MB" required />
-      <UploadBox label="Driver's license — front" hint="JPG, PNG or PDF" required />
-      <UploadBox label="Driver's license — back" hint="JPG, PNG or PDF" required />
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
-      <Field label="Driver's license expiration date" required><input type="date" style={fi} /></Field>
-    </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-      <UploadBox label="SSN card" hint="Stored encrypted · HIPAA protected" required />
-      <UploadBox label="EAD / Green card — front" hint="If applicable" optional />
-      <UploadBox label="EAD / Green card — back" hint="If applicable" optional />
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
-      <Field label="EAD / Green card expiration date" hint="Leave blank if not applicable"><input type="date" style={fi} /></Field>
-    </div>
-    <SectionTitle label="Certifications" />
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-      <UploadBox label="CPR / First Aid / BLS certificate" hint="PDF or image" required />
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-      <Field label="CPR / BLS expiration date" required><input type="date" style={fi} /></Field>
-    </div>
-  </div>,
+  <DocumentsStep key="5" />,
 
   // 6 — Signature
   <div key="6">
@@ -498,6 +619,7 @@ export default function ApplicationPage() {
           </div>
         </div>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }
