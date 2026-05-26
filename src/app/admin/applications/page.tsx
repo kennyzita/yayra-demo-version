@@ -7,9 +7,11 @@ interface AppRecord {
   staffId: string
   name: string
   email: string
+  phone: string
   role: string
   submittedAt: string
   status: string
+  createdAt: string
 }
 
 function initials(name: string) {
@@ -58,6 +60,7 @@ export default function HiringPage() {
   const [filter, setFilter] = useState('All')
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
+  const [viewingId, setViewingId] = useState<string | null>(null)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -67,7 +70,7 @@ export default function HiringPage() {
   useEffect(() => {
     async function load() {
       const [usersRes, staffDataRes] = await Promise.all([
-        supabase.from('users').select('id, first_name, last_name, email, created_at, role:roles(name)'),
+        supabase.from('users').select('id, first_name, last_name, email, phone, created_at, role:roles(name)'),
         supabase.from('billing_staff_data').select('staff_id, data'),
       ])
 
@@ -82,15 +85,19 @@ export default function HiringPage() {
         const firstName = (user as { first_name?: string } | undefined)?.first_name ?? ''
         const lastName = (user as { last_name?: string } | undefined)?.last_name ?? ''
         const email = (user as { email?: string } | undefined)?.email ?? ''
+        const phone = (user as { phone?: string } | undefined)?.phone ?? ''
+        const createdAt = (user as { created_at?: string } | undefined)?.created_at ?? ''
         const roleObj = (user as { role?: unknown } | undefined)?.role
         const roleName = (roleObj as { name?: string } | null)?.name ?? 'DSP'
         return {
           staffId: row.staff_id,
           name: `${firstName} ${lastName}`.trim() || 'Unknown',
           email,
+          phone,
           role: roleName,
           submittedAt: data.application_submitted_at ?? '',
           status: data.application_status ?? 'pending',
+          createdAt,
         }
       })
 
@@ -250,7 +257,10 @@ export default function HiringPage() {
                         <StatusPill status={effectiveStatus} />
                       </td>
                       <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button onClick={() => setViewingId(r.staffId)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #008080', background: 'transparent', color: '#008080', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <i className="ti ti-eye" style={{ fontSize: 13 }} /> View
+                          </button>
                           {effectiveStatus === 'pending' && (
                             <>
                               <button onClick={() => updateStatus(r.staffId, 'approved')} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #10b981', background: 'transparent', color: '#059669', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Approve</button>
@@ -273,6 +283,145 @@ export default function HiringPage() {
           </div>
         )}
       </div>
+
+      {/* Application detail drawer */}
+      {viewingId && (() => {
+        const r = records.find(x => x.staffId === viewingId)
+        if (!r) return null
+        const effectiveStatus = statusMap[r.staffId] ?? r.status
+
+        const DetailRow = ({ icon, label, value }: { icon: string; label: string; value: string }) => (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: '#6b7280', flexShrink: 0 }}>
+              <i className={`ti ${icon}`} />
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 1, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>{label}</div>
+              <div style={{ fontSize: 13, color: '#111', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{value || '—'}</div>
+            </div>
+          </div>
+        )
+
+        return (
+          <>
+            {/* Backdrop */}
+            <div
+              onClick={() => setViewingId(null)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 40 }}
+            />
+            {/* Drawer */}
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 420, background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+              {/* Drawer header */}
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>Application Details</div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Submitted {formatDate(r.submittedAt)}</div>
+                </div>
+                <button
+                  onClick={() => setViewingId(null)}
+                  style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16, color: '#6b7280' }}
+                >
+                  <i className="ti ti-x" />
+                </button>
+              </div>
+
+              {/* Drawer body */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+
+                {/* Applicant card */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px', background: '#f9fafb', borderRadius: 12, marginBottom: 20, border: '1px solid #e5e7eb' }}>
+                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: avatarColor(r.name), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                    {initials(r.name)}
+                  </div>
+                  <div style={{ flex: 1, overflow: 'hidden' }}>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
+                    <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: 'rgba(79,70,229,0.1)', color: '#4f46e5' }}>{r.role}</span>
+                      <StatusPill status={effectiveStatus} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact & submission info */}
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Contact Information</div>
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0 12px', marginBottom: 20 }}>
+                  <DetailRow icon="ti-mail" label="Email" value={r.email} />
+                  <DetailRow icon="ti-phone" label="Phone" value={r.phone} />
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: '#6b7280', flexShrink: 0 }}>
+                      <i className="ti ti-shield-check" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 1, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>Role</div>
+                      <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: 'rgba(79,70,229,0.1)', color: '#4f46e5' }}>{r.role}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Application Timeline</div>
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0 12px', marginBottom: 20 }}>
+                  <DetailRow icon="ti-user-plus" label="Account created" value={formatDate(r.createdAt)} />
+                  <DetailRow icon="ti-send" label="Application submitted" value={formatDate(r.submittedAt)} />
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: '#6b7280', flexShrink: 0 }}>
+                      <i className="ti ti-clipboard-check" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>Current status</div>
+                      <StatusPill status={effectiveStatus} />
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Drawer footer actions */}
+              <div style={{ padding: '14px 20px', borderTop: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {effectiveStatus === 'pending' && (
+                  <>
+                    <button
+                      onClick={() => { updateStatus(r.staffId, 'approved'); setViewingId(null) }}
+                      style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#059669', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                    >
+                      <i className="ti ti-check" /> Approve
+                    </button>
+                    <button
+                      onClick={() => { updateStatus(r.staffId, 'rejected'); setViewingId(null) }}
+                      style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#dc2626', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                    >
+                      <i className="ti ti-x" /> Reject
+                    </button>
+                  </>
+                )}
+                {effectiveStatus === 'approved' && (
+                  <button
+                    onClick={() => { updateStatus(r.staffId, 'pending'); setViewingId(null) }}
+                    style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Revoke approval
+                  </button>
+                )}
+                {effectiveStatus === 'rejected' && (
+                  <button
+                    onClick={() => { updateStatus(r.staffId, 'approved'); setViewingId(null) }}
+                    style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#059669', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                  >
+                    <i className="ti ti-check" /> Approve
+                  </button>
+                )}
+                <button
+                  onClick={() => setViewingId(null)}
+                  style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </>
+        )
+      })()}
     </div>
   )
 }
