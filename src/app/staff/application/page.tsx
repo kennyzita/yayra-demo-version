@@ -508,23 +508,6 @@ export default function ApplicationPage() {
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* Already-submitted overlay */}
-      {submitted && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ background: '#fff', borderRadius: 18, padding: '44px 48px', maxWidth: 440, width: '90%', textAlign: 'center', boxShadow: '0 24px 64px rgba(0,0,0,0.28)' }}>
-            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(0,128,128,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, color: '#008080', margin: '0 auto 20px' }}>
-              <i className="ti ti-circle-check" />
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#111', marginBottom: 10 }}>
-              You already completed your application
-            </div>
-            <div style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.7 }}>
-              Your DSP application has been received and is currently under review. You will be contacted once a decision has been made.
-            </div>
-          </div>
-        </div>
-      )}
-
       {toast && (
         <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: '#111', color: '#fff', padding: '10px 20px', borderRadius: 10, fontSize: 13, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.18)' }}>
           {toast}
@@ -543,7 +526,11 @@ export default function ApplicationPage() {
         <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #008080', background: 'transparent', color: '#008080', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
           <i className="ti ti-download" /> Download PDF
         </button>
-        {step === total - 1 && (
+        {submitted ? (
+          <span style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, background: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <i className="ti ti-circle-check" /> Application submitted
+          </span>
+        ) : step === total - 1 && (
           <button
             onClick={handleSubmit}
             disabled={submitting}
@@ -584,6 +571,12 @@ export default function ApplicationPage() {
         {/* Form area */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
+            {submitted && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#059669' }}>
+                <i className="ti ti-circle-check" style={{ fontSize: 16, flexShrink: 0 }} />
+                <span>Your application has been submitted and is under review. You can browse but cannot re-submit.</span>
+              </div>
+            )}
             {/* Progress bar */}
             <div style={{ height: 3, background: '#f3f4f6', borderRadius: 2, marginBottom: 24, overflow: 'hidden' }}>
               <div style={{ height: '100%', background: '#008080', borderRadius: 2, width: PROG[step], transition: 'width 0.4s' }} />
@@ -606,6 +599,10 @@ export default function ApplicationPage() {
                 <button onClick={() => setStep(s => s + 1)} style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', background: '#004050', color: 'white', cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
                   Next <i className="ti ti-arrow-right" />
                 </button>
+              ) : submitted ? (
+                <span style={{ fontSize: 13, padding: '7px 16px', borderRadius: 6, background: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <i className="ti ti-circle-check" /> Application submitted
+                </span>
               ) : (
                 <button
                   onClick={handleSubmit}
