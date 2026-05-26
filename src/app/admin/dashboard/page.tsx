@@ -63,15 +63,17 @@ export default function AdminDashboardPage() {
   const supabase = createClient()
   const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 
-  const [loading,       setLoading]       = useState(true)
-  const [clientCount,   setClientCount]   = useState(0)
-  const [newClients,    setNewClients]     = useState(0)
-  const [dspCount,      setDspCount]      = useState(0)
-  const [newDsp,        setNewDsp]        = useState(0)
-  const [pendingTs,     setPendingTs]     = useState(0)
-  const [pendingCn,     setPendingCn]     = useState(0)
-  const [feedItems,     setFeedItems]     = useState<FeedItem[]>([])
-  const [staffRows,     setStaffRows]     = useState<StaffRow[]>([])
+  const [loading,         setLoading]         = useState(true)
+  const [clientCount,     setClientCount]     = useState(0)
+  const [newClients,      setNewClients]      = useState(0)
+  const [dspStaffCount,   setDspStaffCount]   = useState(0)
+  const [newDspStaff,     setNewDspStaff]     = useState(0)
+  const [dspOnlyCount,    setDspOnlyCount]    = useState(0)
+  const [newDspOnly,      setNewDspOnly]      = useState(0)
+  const [pendingTs,       setPendingTs]       = useState(0)
+  const [pendingCn,       setPendingCn]       = useState(0)
+  const [feedItems,       setFeedItems]       = useState<FeedItem[]>([])
+  const [staffRows,       setStaffRows]       = useState<StaffRow[]>([])
 
   useEffect(() => {
     async function load() {
@@ -100,10 +102,13 @@ export default function AdminDashboardPage() {
       setClientCount(clients.length)
       setNewClients(clients.filter(c => c.created_at >= sevenDaysAgo).length)
 
-      const staffRoles = ['DSP', 'DSP Staff']
-      const dspUsers = users.filter(u => staffRoles.includes((u.role as unknown as { name: string } | null)?.name ?? ''))
-      setDspCount(dspUsers.length)
-      setNewDsp(dspUsers.filter(u => (u.created_at ?? '') >= sevenDaysAgo).length)
+      const roleName = (u: typeof users[0]) => (u.role as unknown as { name: string } | null)?.name ?? ''
+      const dspStaffUsers = users.filter(u => roleName(u) === 'DSP Staff')
+      const dspOnlyUsers  = users.filter(u => roleName(u) === 'DSP')
+      setDspStaffCount(dspStaffUsers.length)
+      setNewDspStaff(dspStaffUsers.filter(u => (u.created_at ?? '') >= sevenDaysAgo).length)
+      setDspOnlyCount(dspOnlyUsers.length)
+      setNewDspOnly(dspOnlyUsers.filter(u => (u.created_at ?? '') >= sevenDaysAgo).length)
       setPendingTs(tsCount ?? 0)
       setPendingCn(cnCount ?? 0)
 
@@ -214,9 +219,16 @@ export default function AdminDashboardPage() {
     {
       icon: 'ti-user',
       iconBg: 'rgba(245,158,11,0.13)', iconColor: '#d97706',
-      badge: newDsp > 0 ? `+${newDsp} new` : 'Total',
+      badge: newDspStaff > 0 ? `+${newDspStaff} new` : 'Total',
       badgeBg: 'rgba(16,185,129,0.12)', badgeColor: '#059669',
-      value: loading ? '—' : String(dspCount), label: 'Total staff',
+      value: loading ? '—' : String(dspStaffCount), label: 'DSP Staff',
+    },
+    {
+      icon: 'ti-user-check',
+      iconBg: 'rgba(20,184,166,0.12)', iconColor: '#0d9488',
+      badge: newDspOnly > 0 ? `+${newDspOnly} new` : 'Total',
+      badgeBg: 'rgba(16,185,129,0.12)', badgeColor: '#059669',
+      value: loading ? '—' : String(dspOnlyCount), label: 'DSP',
     },
     {
       icon: 'ti-clock',
@@ -273,7 +285,7 @@ export default function AdminDashboardPage() {
       <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20, background: '#f9fafb', minHeight: 'calc(100% - 56px)' }}>
 
         {/* Metric cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0,1fr))', gap: 14 }}>
           {metrics.map((m, i) => (
             <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, padding: '20px 20px 18px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
