@@ -71,7 +71,6 @@ const STEP_META = [
 const PROG      = ['14%', '28%', '42%', '57%', '71%', '85%', '100%']
 const DAYS_AVAIL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const SHIFTS    = ['7AM – 3PM', '3PM – 11PM', '11PM – 7AM']
-const BUCKET    = 'staff-documents'
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
@@ -162,16 +161,15 @@ type ExtractStatus = 'idle' | 'extracting' | 'done' | 'error'
 function DocUpload({
   label, hint, required, optional,
   extractExpiry, expiryLabel, expiryValue,
-  userId, docKey,
+  docKey,
   onUploaded, onExpiryChange,
 }: {
   label: string; hint: string; required?: boolean; optional?: boolean
   extractExpiry?: boolean; expiryLabel?: string; expiryValue?: string
-  userId: string | null; docKey: string
+  docKey: string
   onUploaded: (path: string) => void
   onExpiryChange?: (date: string) => void
 }) {
-  const supabase  = createClient()
   const ref       = useRef<HTMLInputElement>(null)
   const [file,    setFile]    = useState<File | null>(null)
   const [upSt,    setUpSt]    = useState<UploadStatus>('idle')
@@ -182,20 +180,26 @@ function DocUpload({
     setUpSt('uploading')
     setExSt('idle')
 
-    const ext  = f.name.split('.').pop() || 'bin'
-    const path = `${userId ?? 'anon'}/application/${docKey}_${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from(BUCKET).upload(path, f, {
-      cacheControl: '3600', upsert: true, contentType: f.type || 'application/octet-stream',
-    })
-    if (error) { setUpSt('error'); return }
-    setUpSt('done')
-    onUploaded(path)
+    const fd = new FormData()
+    fd.append('file', f)
+    fd.append('docKey', docKey)
+
+    try {
+      const res  = await fetch('/api/upload-document', { method: 'POST', body: fd })
+      const json = await res.json()
+      if (!res.ok) { setUpSt('error'); return }
+      setUpSt('done')
+      onUploaded(json.path)
+    } catch {
+      setUpSt('error')
+      return
+    }
 
     if (extractExpiry) {
       setExSt('extracting')
       try {
-        const fd = new FormData(); fd.append('file', f)
-        const res  = await fetch('/api/extract-expiry', { method: 'POST', body: fd })
+        const ef = new FormData(); ef.append('file', f)
+        const res  = await fetch('/api/extract-expiry', { method: 'POST', body: ef })
         const json = await res.json()
         if (json.date) { setExSt('done'); onExpiryChange?.(json.date) }
         else setExSt('error')
@@ -272,7 +276,7 @@ export default function ApplicationPage() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [toast,    setToast]     = useState<string | null>(null)
-  const [userId,   setUserId]    = useState<string | null>(null)
+  const [userId,   setUserId]    = useState<string | null>(null) // used for submit only
   const [form,     setForm]      = useState<AppFormState>(INIT_FORM)
 
   const sf = <K extends keyof AppFormState>(k: K, v: AppFormState[K]) =>
@@ -517,27 +521,27 @@ export default function ApplicationPage() {
         <div>
           <SectionTitle label="Identification" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
-            <DocUpload label="Resume" hint="PDF or Word · max 5MB" required userId={userId} docKey="resume"
+            <DocUpload label="Resume" hint="PDF or Word · max 5MB" required docKey="resume"
               onUploaded={p => sf('docResume', p)} />
             <DocUpload label="Driver's license — front" hint="JPG, PNG or PDF · expiry extracted automatically" required
-              userId={userId} docKey="dl-front" extractExpiry expiryLabel="DL expiration date" expiryValue={form.dlExpiry}
+              docKey="dl-front" extractExpiry expiryLabel="DL expiration date" expiryValue={form.dlExpiry}
               onUploaded={p => sf('docDLFront', p)} onExpiryChange={v => sf('dlExpiry', v)} />
             <DocUpload label="Driver's license — back" hint="JPG, PNG or PDF" required
-              userId={userId} docKey="dl-back" onUploaded={p => sf('docDLBack', p)} />
+              docKey="dl-back" onUploaded={p => sf('docDLBack', p)} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
             <DocUpload label="SSN card" hint="Stored encrypted · HIPAA protected" required
-              userId={userId} docKey="ssn" onUploaded={p => sf('docSSN', p)} />
+              docKey="ssn" onUploaded={p => sf('docSSN', p)} />
             <DocUpload label="EAD / Green card — front" hint="If applicable · expiry extracted automatically" optional
-              userId={userId} docKey="ead-front" extractExpiry expiryLabel="EAD / Green card expiration date" expiryValue={form.eadExpiry}
+              docKey="ead-front" extractExpiry expiryLabel="EAD / Green card expiration date" expiryValue={form.eadExpiry}
               onUploaded={p => sf('docEADFront', p)} onExpiryChange={v => sf('eadExpiry', v)} />
             <DocUpload label="EAD / Green card — back" hint="If applicable" optional
-              userId={userId} docKey="ead-back" onUploaded={p => sf('docEADBack', p)} />
+              docKey="ead-back" onUploaded={p => sf('docEADBack', p)} />
           </div>
           <SectionTitle label="Certifications" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <DocUpload label="CPR / First Aid / BLS certificate" hint="PDF or image · expiry extracted automatically" required
-              userId={userId} docKey="cpr" extractExpiry expiryLabel="CPR / BLS expiration date" expiryValue={form.cprExpiry}
+              docKey="cpr" extractExpiry expiryLabel="CPR / BLS expiration date" expiryValue={form.cprExpiry}
               onUploaded={p => sf('docCPR', p)} onExpiryChange={v => sf('cprExpiry', v)} />
           </div>
         </div>
