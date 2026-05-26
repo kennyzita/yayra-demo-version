@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { AppFormState } from '@/app/staff/application/page'
+
+const BUCKET = 'staff-documents'
 
 interface AppRecord {
   staffId: string
@@ -12,6 +15,7 @@ interface AppRecord {
   submittedAt: string
   status: string
   createdAt: string
+  formData: AppFormState | null
 }
 
 function initials(name: string) {
@@ -54,13 +58,14 @@ function StatusPill({ status }: { status: string }) {
 
 export default function HiringPage() {
   const supabase = createClient()
-  const [records, setRecords] = useState<AppRecord[]>([])
-  const [statusMap, setStatusMap] = useState<Record<string, string>>({})
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('All')
-  const [loading, setLoading] = useState(true)
-  const [toast, setToast] = useState<string | null>(null)
-  const [viewingId, setViewingId] = useState<string | null>(null)
+  const [records,    setRecords]    = useState<AppRecord[]>([])
+  const [statusMap,  setStatusMap]  = useState<Record<string, string>>({})
+  const [search,     setSearch]     = useState('')
+  const [filter,     setFilter]     = useState('All')
+  const [loading,    setLoading]    = useState(true)
+  const [toast,      setToast]      = useState<string | null>(null)
+  const [viewingId,  setViewingId]  = useState<string | null>(null)
+  const [docUrls,    setDocUrls]    = useState<Record<string, string>>({})
 
   function showToast(msg: string) {
     setToast(msg)
@@ -98,6 +103,7 @@ export default function HiringPage() {
           submittedAt: data.application_submitted_at ?? '',
           status: data.application_status ?? 'pending',
           createdAt,
+          formData: (data.form as AppFormState | null) ?? null,
         }
       })
 
@@ -106,6 +112,27 @@ export default function HiringPage() {
     }
     load()
   }, [])
+
+  useEffect(() => {
+    if (!viewingId) return
+    const r = records.find(x => x.staffId === viewingId)
+    if (!r?.formData) return
+    const fd = r.formData
+    const docPaths: Record<string, string> = {
+      Resume: fd.docResume, 'DL Front': fd.docDLFront, 'DL Back': fd.docDLBack,
+      'SSN Card': fd.docSSN, 'EAD Front': fd.docEADFront, 'EAD Back': fd.docEADBack,
+      'CPR Cert': fd.docCPR,
+    }
+    setDocUrls({})
+    Promise.all(
+      Object.entries(docPaths)
+        .filter(([, path]) => !!path)
+        .map(async ([label, path]) => {
+          const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600)
+          return [label, data?.signedUrl ?? ''] as [string, string]
+        })
+    ).then(pairs => setDocUrls(Object.fromEntries(pairs.filter(([, url]) => url))))
+  }, [viewingId])
 
   async function updateStatus(staffId: string, newStatus: string) {
     const { data: existing } = await supabase
@@ -336,7 +363,7 @@ export default function HiringPage() {
                   </div>
                   <div style={{ flex: 1, overflow: 'hidden' }}>
                     <div style={{ fontSize: 16, fontWeight: 700, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
-                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
+                    <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{r.email}</div>
                     <div style={{ marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: 'rgba(79,70,229,0.1)', color: '#4f46e5' }}>{r.role}</span>
                       <StatusPill status={effectiveStatus} />
@@ -344,36 +371,164 @@ export default function HiringPage() {
                   </div>
                 </div>
 
-                {/* Contact & submission info */}
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Contact Information</div>
-                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0 12px', marginBottom: 20 }}>
-                  <DetailRow icon="ti-mail" label="Email" value={r.email} />
-                  <DetailRow icon="ti-phone" label="Phone" value={r.phone} />
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: '#6b7280', flexShrink: 0 }}>
-                      <i className="ti ti-shield-check" />
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 1, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>Role</div>
-                      <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: 'rgba(79,70,229,0.1)', color: '#4f46e5' }}>{r.role}</span>
-                    </div>
-                  </div>
-                </div>
+                {r.formData ? (() => {
+                  const fd = r.formData!
 
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Application Timeline</div>
-                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '0 12px', marginBottom: 20 }}>
-                  <DetailRow icon="ti-user-plus" label="Account created" value={formatDate(r.createdAt)} />
-                  <DetailRow icon="ti-send" label="Application submitted" value={formatDate(r.submittedAt)} />
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 0' }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: '#6b7280', flexShrink: 0 }}>
-                      <i className="ti ti-clipboard-check" />
+                  const Section = ({ title }: { title: string }) => (
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8, marginTop: 4 }}>{title}</div>
+                  )
+                  const Card = ({ children }: { children: React.ReactNode }) => (
+                    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px', marginBottom: 16 }}>{children}</div>
+                  )
+                  const Row = ({ label, value }: { label: string; value?: string | boolean | string[] }) => {
+                    const display = Array.isArray(value) ? (value.length ? value.join(', ') : '—') : value === true ? 'Yes' : value === false ? 'No' : value || '—'
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
+                        <span style={{ fontSize: 12, color: '#111', wordBreak: 'break-word' }}>{display}</span>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <>
+                      <Section title="Personal Information" />
+                      <Card>
+                        <Row label="Full name" value={[fd.firstName, fd.middleName, fd.lastName].filter(Boolean).join(' ')} />
+                        <Row label="Email" value={fd.email} />
+                        <Row label="Phone" value={fd.phone} />
+                        <Row label="Date of birth" value={fd.dob} />
+                        <Row label="SSN" value={fd.ssnProvided ? 'Provided ✓' : 'Not provided'} />
+                        <Row label="Address" value={[fd.address1, fd.address2, fd.city, fd.state, fd.zip].filter(Boolean).join(', ')} />
+                      </Card>
+
+                      <Section title="Availability" />
+                      <Card>
+                        <Row label="Allergies" value={fd.allergies} />
+                        <Row label="Work holidays" value={fd.canWorkHolidays} />
+                        <Row label="Days available" value={fd.daysAvailable} />
+                        <Row label="Preferred shifts" value={fd.preferredShifts} />
+                        <Row label="Start date" value={fd.dateAvailable} />
+                        <Row label="Heard about us" value={fd.heardAbout} />
+                        <Row label="Position" value={fd.positionApplying} />
+                        <Row label="Assignment type" value={fd.assignmentType} />
+                      </Card>
+
+                      <Section title="Eligibility" />
+                      <Card>
+                        <Row label="US citizen" value={fd.isCitizen} />
+                        {fd.isCitizen === 'No' && <Row label="Authorized to work" value={fd.isAuthorizedWork} />}
+                        <Row label="Worked here before" value={fd.workedBefore} />
+                        {fd.workedBefore === 'Yes' && <Row label="When" value={fd.workedBeforeWhen} />}
+                        <Row label="BG check consent" value={fd.bgCheck} />
+                        {fd.bgCheckExplain && <Row label="BG explanation" value={fd.bgCheckExplain} />}
+                        <Row label="Malpractice ins." value={fd.malpractice} />
+                        {fd.malpracticeCarrier && <Row label="Carrier" value={fd.malpracticeCarrier} />}
+                      </Card>
+
+                      {fd.schools?.length > 0 && (
+                        <>
+                          <Section title="Education History" />
+                          {fd.schools.filter(s => s.name).map((s, i) => (
+                            <Card key={i}>
+                              <Row label="School" value={s.name} />
+                              <Row label="Period" value={`${s.from || '?'} – ${s.to || '?'}`} />
+                              <Row label="Graduated" value={s.graduated} />
+                              <Row label="Diploma / GED" value={s.diploma} />
+                              <Row label="Degree" value={s.degree} />
+                            </Card>
+                          ))}
+                        </>
+                      )}
+
+                      {fd.employers?.length > 0 && (
+                        <>
+                          <Section title="Employment History" />
+                          {fd.employers.filter(e => e.company).map((e, i) => (
+                            <Card key={i}>
+                              <Row label="Company" value={e.company} />
+                              <Row label="Title" value={e.title} />
+                              <Row label="Supervisor" value={e.supervisor} />
+                              <Row label="Responsibilities" value={e.responsibilities} />
+                              <Row label="Reason left" value={e.reasonLeaving} />
+                              <Row label="Can contact" value={e.canContact} />
+                            </Card>
+                          ))}
+                        </>
+                      )}
+
+                      {fd.references?.length > 0 && (
+                        <>
+                          <Section title="References" />
+                          <Card>
+                            {fd.references.filter(r => r.name).map((r, i) => (
+                              <Row key={i} label={`Ref ${i + 1}`} value={`${r.name} · ${r.years}`} />
+                            ))}
+                          </Card>
+                        </>
+                      )}
+
+                      <Section title="Emergency Contact" />
+                      <Card>
+                        <Row label="Name" value={fd.emergencyName} />
+                        <Row label="Relationship" value={fd.emergencyRelationship} />
+                        <Row label="Phone" value={fd.emergencyPhone} />
+                      </Card>
+
+                      <Section title="Document Expiry Dates" />
+                      <Card>
+                        <Row label="DL expiry" value={fd.dlExpiry} />
+                        <Row label="EAD expiry" value={fd.eadExpiry} />
+                        <Row label="CPR expiry" value={fd.cprExpiry} />
+                      </Card>
+
+                      <Section title="Uploaded Documents" />
+                      <Card>
+                        {Object.entries(docUrls).length === 0 && !fd.docResume && !fd.docDLFront && !fd.docCPR ? (
+                          <div style={{ fontSize: 12, color: '#9ca3af' }}>No documents uploaded.</div>
+                        ) : Object.entries(docUrls).length === 0 ? (
+                          <div style={{ fontSize: 12, color: '#9ca3af' }}>Generating links…</div>
+                        ) : (
+                          Object.entries(docUrls).map(([label, url]) => (
+                            <div key={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f9fafb' }}>
+                              <span style={{ fontSize: 12, color: '#374151', fontWeight: 500 }}>{label}</span>
+                              <a href={url} target="_blank" rel="noreferrer"
+                                style={{ fontSize: 12, color: '#008080', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', border: '1px solid rgba(0,128,128,0.3)', borderRadius: 6 }}>
+                                <i className="ti ti-download" style={{ fontSize: 12 }} /> Open
+                              </a>
+                            </div>
+                          ))
+                        )}
+                      </Card>
+
+                      <Section title="Signature" />
+                      <Card>
+                        <Row label="Signed name" value={fd.signatureName} />
+                        <Row label="Date signed" value={fd.signatureDate} />
+                      </Card>
+
+                      <Section title="Timeline" />
+                      <Card>
+                        <Row label="Account created" value={formatDate(r.createdAt)} />
+                        <Row label="App submitted" value={formatDate(r.submittedAt)} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0' }}>
+                          <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Status</span>
+                          <StatusPill status={effectiveStatus} />
+                        </div>
+                      </Card>
+                    </>
+                  )
+                })() : (
+                  <>
+                    <DetailRow icon="ti-mail"      label="Email"            value={r.email} />
+                    <DetailRow icon="ti-phone"     label="Phone"            value={r.phone} />
+                    <DetailRow icon="ti-user-plus" label="Account created"  value={formatDate(r.createdAt)} />
+                    <DetailRow icon="ti-send"      label="App submitted"    value={formatDate(r.submittedAt)} />
+                    <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 12, textAlign: 'center' }}>
+                      Full application data not yet available — candidate may not have submitted via the new form.
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>Current status</div>
-                      <StatusPill status={effectiveStatus} />
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
 
               </div>
 
