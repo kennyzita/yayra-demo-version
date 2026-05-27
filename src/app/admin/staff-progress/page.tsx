@@ -1,16 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import type { AppFormState } from '@/app/staff/application/page'
 
-type PillState = 'yes' | 'no' | 'pending'
-const PILL_CYCLE: PillState[] = ['yes', 'no', 'pending']
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type PillState   = 'yes' | 'no' | 'pending'
+type BinState    = 'yes' | 'no'
+type ResultState = 'none' | 'negative' | 'positive'
+
+const PILL_CYCLE: PillState[]     = ['yes', 'no', 'pending']
+const RESULT_CYCLE: ResultState[] = ['none', 'negative', 'positive']
+
+// ── Pill components ────────────────────────────────────────────────────────────
 
 function CompliancePill({ state, onChange }: { state: PillState; onChange: () => void }) {
   const cfg = {
-    yes:     { bg: 'rgba(48,176,96,0.1)',   color: '#30B060', icon: 'ti-check', label: 'Yes'     },
-    no:      { bg: 'rgba(226,75,74,0.1)',   color: '#E24B4A', icon: 'ti-x',     label: 'No'      },
-    pending: { bg: 'rgba(186,117,23,0.1)',  color: '#BA7517', icon: 'ti-clock', label: 'Pending' },
+    yes:     { bg: 'rgba(48,176,96,0.1)',  color: '#30B060', icon: 'ti-check', label: 'Yes'     },
+    no:      { bg: 'rgba(226,75,74,0.1)',  color: '#E24B4A', icon: 'ti-x',     label: 'No'      },
+    pending: { bg: 'rgba(186,117,23,0.1)', color: '#BA7517', icon: 'ti-clock', label: 'Pending' },
   }[state]
   return (
     <button onClick={onChange} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 10, fontWeight: 500, background: cfg.bg, color: cfg.color, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
@@ -19,29 +28,174 @@ function CompliancePill({ state, onChange }: { state: PillState; onChange: () =>
   )
 }
 
-interface StaffUser {
-  id: string
-  first_name: string
-  last_name: string
+function BinPill({ state, onChange, disabled }: { state: BinState; onChange: () => void; disabled?: boolean }) {
+  const cfg = state === 'yes'
+    ? { bg: 'rgba(48,176,96,0.1)',  color: '#30B060', icon: 'ti-check', label: 'Yes' }
+    : { bg: 'rgba(226,75,74,0.1)', color: '#E24B4A', icon: 'ti-x',     label: 'No'  }
+  return (
+    <button
+      onClick={onChange}
+      disabled={disabled}
+      style={{ fontSize: 11, padding: '3px 9px', borderRadius: 10, fontWeight: 500, background: cfg.bg, color: cfg.color, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'inherit', opacity: disabled ? 0.55 : 1 }}
+    >
+      <i className={`ti ${cfg.icon}`} /> {cfg.label}
+    </button>
+  )
 }
+
+function ResultPill({ state, onChange }: { state: ResultState; onChange: () => void }) {
+  if (state === 'none') {
+    return (
+      <button onClick={onChange} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 10, fontWeight: 500, background: '#f3f4f6', color: '#9ca3af', border: '1px dashed #d1d5db', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
+        — Set result
+      </button>
+    )
+  }
+  const cfg = state === 'negative'
+    ? { bg: 'rgba(48,176,96,0.1)',  color: '#30B060', icon: 'ti-check',          label: 'Negative' }
+    : { bg: 'rgba(226,75,74,0.1)', color: '#E24B4A', icon: 'ti-alert-triangle', label: 'Positive' }
+  return (
+    <button onClick={onChange} style={{ fontSize: 11, padding: '3px 9px', borderRadius: 10, fontWeight: 500, background: cfg.bg, color: cfg.color, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
+      <i className={`ti ${cfg.icon}`} /> {cfg.label}
+    </button>
+  )
+}
+
+// ── Signature pad ──────────────────────────────────────────────────────────────
+
+function SignaturePad({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing   = useRef(false)
+
+  useEffect(() => {
+    if (!value || !canvasRef.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return
+    const img = new window.Image()
+    img.onload = () => ctx.drawImage(img, 0, 0)
+    img.src = value
+  }, []) // restore on mount only
+
+  function pos(canvas: HTMLCanvasElement, e: React.MouseEvent | React.TouchEvent) {
+    const r = canvas.getBoundingClientRect()
+    const sx = canvas.width / r.width
+    const sy = canvas.height / r.height
+    if ('touches' in e) {
+      const t = e.touches[0]
+      return { x: (t.clientX - r.left) * sx, y: (t.clientY - r.top) * sy }
+    }
+    return { x: ((e as React.MouseEvent).clientX - r.left) * sx, y: ((e as React.MouseEvent).clientY - r.top) * sy }
+  }
+
+  function start(e: React.MouseEvent | React.TouchEvent) {
+    const canvas = canvasRef.current; if (!canvas) return
+    e.preventDefault(); drawing.current = true
+    const ctx = canvas.getContext('2d')!
+    const p = pos(canvas, e)
+    ctx.beginPath(); ctx.moveTo(p.x, p.y)
+  }
+
+  function move(e: React.MouseEvent | React.TouchEvent) {
+    if (!drawing.current) return
+    const canvas = canvasRef.current; if (!canvas) return
+    e.preventDefault()
+    const ctx = canvas.getContext('2d')!
+    const p = pos(canvas, e)
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#111'
+    ctx.lineTo(p.x, p.y); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(p.x, p.y)
+  }
+
+  function end() {
+    if (!drawing.current) return
+    drawing.current = false
+    const canvas = canvasRef.current; if (!canvas) return
+    onChange(canvas.toDataURL('image/png'))
+  }
+
+  function clear() {
+    const canvas = canvasRef.current; if (!canvas) return
+    canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
+    onChange('')
+  }
+
+  return (
+    <div>
+      <div style={{ position: 'relative', border: `1px solid ${value ? 'rgba(48,176,96,0.4)' : '#d1d5db'}`, borderRadius: 8, background: '#f9fafb', overflow: 'hidden' }}>
+        <canvas
+          ref={canvasRef} width={600} height={110}
+          style={{ display: 'block', width: '100%', height: 110, cursor: 'crosshair', touchAction: 'none' }}
+          onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
+          onTouchStart={start} onTouchMove={move} onTouchEnd={end}
+        />
+        {!value && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+            <span style={{ fontSize: 12, color: '#d1d5db', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <i className="ti ti-writing" /> Draw signature here
+            </span>
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+        <span style={{ fontSize: 11, color: value ? '#30B060' : '#9ca3af' }}>
+          {value ? '✓ Signature captured' : 'Use mouse or touchscreen to sign'}
+        </span>
+        {value && (
+          <button onClick={clear} style={{ fontSize: 11, color: '#6b7280', cursor: 'pointer', background: 'none', border: '1px solid #e5e7eb', borderRadius: 4, padding: '2px 8px', fontFamily: 'inherit' }}>
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+interface StaffUser { id: string; first_name: string; last_name: string }
+
+// ── Main component ─────────────────────────────────────────────────────────────
 
 export default function StaffProgressPage() {
   const supabase = createClient()
 
-  const [staffList,      setStaffList]      = useState<StaffUser[]>([])
-  const [selectedId,     setSelectedId]     = useState('')
-  const [formsSignedAt,  setFormsSignedAt]  = useState<string | null>(null)
-  const [formsSigned,    setFormsSigned]    = useState(false)
-  const [adminSigned,    setAdminSigned]    = useState(false)
-  const [toast,          setToast]          = useState('')
-  const [loadingStaff,   setLoadingStaff]   = useState(true)
-  const [loadingStatus,  setLoadingStatus]  = useState(false)
+  // Staff list (DSP Staff role only)
+  const [staffList,     setStaffList]     = useState<StaffUser[]>([])
+  const [selectedId,    setSelectedId]    = useState('')
+  const [loadingStaff,  setLoadingStaff]  = useState(true)
+  const [loadingStatus, setLoadingStatus] = useState(false)
+  const [toast,         setToast]         = useState('')
 
+  // Staff onboarding data loaded per-selection
+  const [formsSignedAt, setFormsSignedAt] = useState<string | null>(null)
+  const [formsSigned,   setFormsSigned]   = useState(false)
+  const [eadUploaded,   setEadUploaded]   = useState(false)
+  const [lastLogin,     setLastLogin]     = useState<string | null>(null)
+
+  // Admin identity
+  const [adminName,      setAdminName]      = useState('')
+  const [adminSignature, setAdminSignature] = useState('')
+
+  // Compliance
   const [compliance, setCompliance] = useState<[PillState, PillState][]>([
     ['yes', 'yes'], ['yes', 'yes'], ['yes', 'pending'], ['yes', 'pending'], ['yes', 'yes'],
   ])
-  const [sysAccess, setSysAccess] = useState<PillState[]>(['yes', 'yes', 'yes'])
-  const [training,  setTraining]  = useState<PillState[]>(['yes', 'yes', 'yes', 'pending', 'pending', 'yes'])
+  const [complianceResults, setComplianceResults] = useState<ResultState[]>([
+    'negative', 'negative', 'none', 'none', 'negative',
+  ])
+
+  // System access
+  const [cdsAccess,     setCdsAccess]     = useState<BinState>('yes')
+  const [managerAccess, setManagerAccess] = useState<BinState>('yes')
+  const [portalAccess,  setPortalAccess]  = useState<BinState>('yes')
+
+  // Training
+  const [training,      setTraining]      = useState<PillState[]>(['yes', 'yes', 'yes', 'pending', 'pending', 'yes'])
+  const [trainingDates, setTrainingDates] = useState<string[]>([
+    '2026-04-01', '2026-05-01', '2026-06-01', '2026-07-01', '2026-09-01', '',
+  ])
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
   function cycleCompliance(row: number, col: 0 | 1) {
     setCompliance(prev => prev.map((r, i) => {
@@ -51,109 +205,147 @@ export default function StaffProgressPage() {
     }))
   }
 
-  function showToast(msg: string) {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2500)
+  function cycleResult(i: number) {
+    setComplianceResults(prev => prev.map((v, idx) =>
+      idx === i ? RESULT_CYCLE[(RESULT_CYCLE.indexOf(v) + 1) % RESULT_CYCLE.length] : v
+    ))
   }
 
-  // Load staff list on mount
+  function toggleCds() {
+    const next: BinState = cdsAccess === 'yes' ? 'no' : 'yes'
+    if (next === 'yes' && managerAccess === 'yes') {
+      showToast("Cannot set CDS to Yes while Manager's Zone access is Yes")
+      return
+    }
+    setCdsAccess(next)
+  }
+
+  function toggleManager() {
+    const next: BinState = managerAccess === 'yes' ? 'no' : 'yes'
+    if (next === 'yes') setCdsAccess('no') // enforce mutual exclusivity
+    setManagerAccess(next)
+  }
+
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(''), 2800)
+  }
+
+  // ── Load DSP Staff list (exact role match) ────────────────────────────────────
+
   useEffect(() => {
     async function load() {
       const { data } = await supabase
         .from('users')
         .select('id, first_name, last_name, role:roles(name)')
         .order('first_name')
-      const dsps = (data ?? []).filter(u => {
+      const dspStaff = (data ?? []).filter(u => {
         const name = (u.role as unknown as { name: string } | null)?.name ?? ''
-        return name.includes('DSP') || name.includes('Staff')
+        return name === 'DSP Staff'
       })
-      setStaffList(dsps.map(u => ({ id: u.id, first_name: u.first_name, last_name: u.last_name })))
+      setStaffList(dspStaff.map(u => ({ id: u.id, first_name: u.first_name, last_name: u.last_name })))
       setLoadingStaff(false)
     }
     load()
   }, [])
 
-  // Load selected staff's onboarding status
+  // ── Load logged-in admin name ─────────────────────────────────────────────────
+
   useEffect(() => {
-    if (!selectedId) { setFormsSigned(false); setFormsSignedAt(null); return }
+    async function loadAdmin() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase.from('users').select('first_name, last_name').eq('id', user.id).maybeSingle()
+      if (data) {
+        const row = data as { first_name?: string; last_name?: string }
+        setAdminName(`${row.first_name ?? ''} ${row.last_name ?? ''}`.trim())
+      }
+    }
+    loadAdmin()
+  }, [])
+
+  // ── Load selected staff onboarding + last login ───────────────────────────────
+
+  useEffect(() => {
+    if (!selectedId) {
+      setFormsSigned(false); setFormsSignedAt(null)
+      setEadUploaded(false); setLastLogin(null)
+      return
+    }
     setLoadingStatus(true)
     async function loadStatus() {
-      const { data } = await supabase
-        .from('billing_staff_data')
-        .select('data')
-        .eq('staff_id', selectedId)
-        .maybeSingle()
-      const extra = (data?.data ?? {}) as Record<string, string>
+      const [staffRes, loginJson] = await Promise.all([
+        supabase.from('billing_staff_data').select('data').eq('staff_id', selectedId).maybeSingle(),
+        fetch(`/api/get-user-last-login?userId=${selectedId}`).then(r => r.json()).catch(() => ({ lastLogin: null })),
+      ])
+
+      const extra = (staffRes.data?.data ?? {}) as Record<string, unknown>
       const signed = extra.onboarding_forms_signed === 'true'
       setFormsSigned(signed)
-      setFormsSignedAt(signed ? (extra.onboarding_forms_signed_at ?? null) : null)
-      setAdminSigned(false)
+      setFormsSignedAt(signed ? ((extra.onboarding_forms_signed_at as string) ?? null) : null)
+
+      const formData = extra.form as AppFormState | undefined
+      setEadUploaded(!!(formData?.docEADFront))
+
+      setLastLogin((loginJson as { lastLogin: string | null }).lastLogin ?? null)
+      setAdminSignature('')
       setLoadingStatus(false)
     }
     loadStatus()
   }, [selectedId])
 
+  // ── Derived values ────────────────────────────────────────────────────────────
+
   const selectedStaff = staffList.find(s => s.id === selectedId)
-  const fullName = selectedStaff ? `${selectedStaff.first_name} ${selectedStaff.last_name}` : ''
 
   const signedDate = formsSignedAt
     ? new Date(formsSignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
 
-  // 8 items flip green when the PDFfiller onboarding package is signed
+  const formattedLastLogin = lastLogin
+    ? new Date(lastLogin).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+    : 'Never'
+
   const onboardItems = [
-    { done: true,                                           label: 'DSP application submitted'   },
-    { done: formsSigned, warn: !formsSigned,                label: 'W4 completed'                },
-    { done: formsSigned, warn: !formsSigned,                label: 'Form I-9 submitted'          },
-    { done: true,                                           label: "Driver's license uploaded"   },
-    { done: true,                                           label: 'CPR certificate uploaded'    },
-    { done: formsSigned, warn: !formsSigned,                label: 'CRO consent signed'          },
-    { done: formsSigned, warn: !formsSigned,                label: 'Direct deposit form'         },
-    { done: formsSigned, warn: !formsSigned,                label: 'NJ W4'                       },
-    { done: false,        miss: true,                       label: 'CARI clearance'              },
-    { done: formsSigned, warn: !formsSigned,                label: "Danielle's Law sign-off"     },
-    { done: formsSigned, warn: !formsSigned,                label: "Stephen Komnino's Law"       },
-    { done: formsSigned, warn: !formsSigned,                label: 'Appendix A'                  },
+    { done: true,                            label: 'DSP application submitted'    },
+    { done: formsSigned, warn: !formsSigned, label: 'W4 completed'                 },
+    { done: formsSigned, warn: !formsSigned, label: 'Form I-9 submitted'           },
+    { done: true,                            label: "Driver's license uploaded"    },
+    { done: true,                            label: 'CPR certificate uploaded'     },
+    { done: formsSigned, warn: !formsSigned, label: 'CRO consent signed'           },
+    { done: formsSigned, warn: !formsSigned, label: 'Direct deposit form'          },
+    { done: formsSigned, warn: !formsSigned, label: 'NJ W4'                        },
+    { done: false,        miss: true,        label: 'CARI clearance'               },
+    { done: formsSigned, warn: !formsSigned, label: "Danielle's Law sign-off"      },
+    { done: formsSigned, warn: !formsSigned, label: "Stephen Komnino's Law"        },
+    { done: formsSigned, warn: !formsSigned, label: 'Appendix A'                   },
+    { done: eadUploaded, warn: !eadUploaded, label: 'Work authorization uploaded'  },
   ]
 
   const completedCount = onboardItems.filter(i => i.done).length
   const obPct = Math.round((completedCount / onboardItems.length) * 100)
 
-  const complianceRows = [
-    { label: 'CRO check',      result: { text: 'Negative', good: true } },
-    { label: 'Drug testing',   result: { text: 'Negative', good: true } },
-    { label: 'CARI clearance', result: null },
-    { label: 'Fingerprinting', result: null },
-    { label: 'FARA check',     result: { text: 'Negative', good: true } },
-  ]
-
-  const sysRows = [
-    { label: 'CDS account created',                        note: 'Active since Apr 2026'    },
-    { label: "Manager's Zone access",                      note: 'Role: DSP Staff'          },
-    { label: 'Reliance Care Services portal access',       note: 'Last login: May 13, 2026' },
-  ]
-
-  const trainingRows = [
-    { label: 'Prior training',      due: 'Apr 1, 2026' },
-    { label: '60-day orientation',  due: 'May 1, 2026' },
-    { label: '90-day review',       due: 'Jun 1, 2026' },
-    { label: '120-day milestone',   due: 'Jul 1, 2026' },
-    { label: '180-day milestone',   due: 'Sep 1, 2026' },
-    { label: 'Internal training',   due: 'Ongoing'     },
-  ]
+  const complianceRowLabels = ['CRO check', 'Drug testing', 'CARI clearance', 'Fingerprinting', 'FARA check']
+  const trainingRowLabels   = ['Prior training', '60-day orientation', '90-day review', '120-day milestone', '180-day milestone', 'Internal training']
 
   const milestones = [
-    { label: 'Prior training', done: true,  current: false },
-    { label: '60 days',        done: true,  current: false },
-    { label: '90 days',        done: true,  current: false },
-    { label: '120 days',       done: false, current: true  },
-    { label: '180 days',       done: false, current: false },
+    { label: 'Prior training', done: training[0] === 'yes', current: training[0] !== 'yes' },
+    { label: '60 days',        done: training[1] === 'yes', current: training[0] === 'yes' && training[1] !== 'yes' },
+    { label: '90 days',        done: training[2] === 'yes', current: training[1] === 'yes' && training[2] !== 'yes' },
+    { label: '120 days',       done: training[3] === 'yes', current: training[2] === 'yes' && training[3] !== 'yes' },
+    { label: '180 days',       done: training[4] === 'yes', current: training[3] === 'yes' && training[4] !== 'yes' },
   ]
 
-  const sb: React.CSSProperties  = { background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', marginBottom: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }
-  const sh: React.CSSProperties  = { background: '#0d2d5e', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
-  const thStyle: React.CSSProperties = { padding: '9px 16px', fontSize: 10, fontWeight: 600, color: '#6b7280', textAlign: 'left', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', background: '#f9fafb' }
-  const tdStyle: React.CSSProperties = { padding: '10px 16px', fontSize: 13, borderBottom: '1px solid #f3f4f6', verticalAlign: 'middle', color: '#111' }
+  const trainingDoneCount = training.filter(t => t === 'yes').length
+
+  // ── Styles ────────────────────────────────────────────────────────────────────
+
+  const sb: React.CSSProperties = { background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', marginBottom: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }
+  const sh: React.CSSProperties = { background: '#0d2d5e', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
+  const thStyle: React.CSSProperties = { padding: '9px 16px', fontSize: 10, fontWeight: 600, color: '#6b7280', textAlign: 'left' as const, textTransform: 'uppercase' as const, letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', background: '#f9fafb' }
+  const tdStyle: React.CSSProperties = { padding: '10px 16px', fontSize: 13, borderBottom: '1px solid #f3f4f6', verticalAlign: 'middle' as const, color: '#111' }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: '#f4f5f7' }}>
@@ -172,7 +364,7 @@ export default function StaffProgressPage() {
 
       <div style={{ padding: '18px 22px' }}>
 
-        {/* DSP selector */}
+        {/* DSP Staff selector */}
         <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '14px 18px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
           <span style={{ fontSize: 13, fontWeight: 500, color: '#374151', whiteSpace: 'nowrap' }}>Select DSP staff</span>
           <div style={{ position: 'relative', flex: 1 }}>
@@ -182,7 +374,7 @@ export default function StaffProgressPage() {
               disabled={loadingStaff}
               style={{ width: '100%', fontSize: 13, padding: '9px 36px 9px 12px', border: '1px solid #d1d5db', borderRadius: 8, background: 'white', color: '#111', outline: 'none', cursor: 'pointer', appearance: 'none', fontFamily: 'inherit' }}
             >
-              <option value="">— {loadingStaff ? 'Loading…' : 'Select staff member'} —</option>
+              <option value="">— {loadingStaff ? 'Loading…' : 'Select DSP staff member'} —</option>
               {staffList.map(s => (
                 <option key={s.id} value={s.id}>{s.first_name} {s.last_name}</option>
               ))}
@@ -194,7 +386,7 @@ export default function StaffProgressPage() {
         {!selectedId ? (
           <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '48px 0', textAlign: 'center', color: '#9ca3af', fontSize: 14, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <i className="ti ti-user-search" style={{ fontSize: 32, display: 'block', marginBottom: 10, color: '#d1d5db' }} />
-            Select a staff member to view their progress report.
+            Select a DSP staff member to view their progress report.
           </div>
         ) : loadingStatus ? (
           <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: '48px 0', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
@@ -205,10 +397,10 @@ export default function StaffProgressPage() {
             {/* Summary cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 14 }}>
               {[
-                { val: completedCount, lbl: 'Checks complete',      pill: 'On track',      pillBg: 'rgba(48,176,96,0.1)',   pillColor: '#30B060' },
-                { val: onboardItems.length - completedCount, lbl: 'Pending items', pill: 'Action needed', pillBg: 'rgba(186,117,23,0.1)', pillColor: '#BA7517' },
-                { val: `${obPct}%`,    lbl: 'Onboarding complete',  pill: 'In progress',   pillBg: 'rgba(0,128,128,0.1)',   pillColor: '#008080' },
-                { val: '3/5',          lbl: 'Training milestones',  pill: '60 days done',  pillBg: 'rgba(48,176,96,0.1)',   pillColor: '#30B060' },
+                { val: completedCount,                          lbl: 'Checks complete',     pill: 'On track',     pillBg: 'rgba(48,176,96,0.1)',   pillColor: '#30B060' },
+                { val: onboardItems.length - completedCount,   lbl: 'Pending items',       pill: 'Action needed', pillBg: 'rgba(186,117,23,0.1)', pillColor: '#BA7517' },
+                { val: `${obPct}%`,                             lbl: 'Onboarding complete', pill: 'In progress',  pillBg: 'rgba(0,128,128,0.1)',   pillColor: '#008080' },
+                { val: `${trainingDoneCount}/${trainingRowLabels.length}`, lbl: 'Training milestones', pill: 'In progress', pillBg: 'rgba(48,176,96,0.1)', pillColor: '#30B060' },
               ].map((c, i) => (
                 <div key={i} style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 10, padding: 15, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                   <div style={{ fontSize: 24, fontWeight: 600, color: '#111' }}>{c.val}</div>
@@ -218,7 +410,7 @@ export default function StaffProgressPage() {
               ))}
             </div>
 
-            {/* Onboarding success */}
+            {/* ── Onboarding success ──────────────────────────────────────────── */}
             <div style={sb}>
               <div style={sh}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Onboarding success</span>
@@ -239,9 +431,9 @@ export default function StaffProgressPage() {
                 <div style={{ height: 9, background: '#f3f4f6', borderRadius: 5, overflow: 'hidden', marginBottom: 14 }}>
                   <div style={{ height: '100%', background: 'linear-gradient(90deg,#008080,#30B060)', borderRadius: 5, width: `${obPct}%`, transition: 'width 0.4s' }} />
                 </div>
-
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
                   {onboardItems.map((item, i) => {
+                    const miss      = 'miss' in item && item.miss
                     const iconBg    = item.done ? 'rgba(48,176,96,0.1)'  : item.warn ? 'rgba(186,117,23,0.1)' : 'rgba(226,75,74,0.1)'
                     const iconColor = item.done ? '#30B060'              : item.warn ? '#BA7517'              : '#E24B4A'
                     const icon      = item.done ? 'ti-check'             : item.warn ? 'ti-clock'             : 'ti-x'
@@ -258,52 +450,84 @@ export default function StaffProgressPage() {
               </div>
             </div>
 
-            {/* Compliance checks */}
+            {/* ── Compliance checks ───────────────────────────────────────────── */}
             <div style={sb}>
               <div style={sh}><span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Compliance checks</span></div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><th style={thStyle}>Check</th><th style={thStyle}>Scheduled</th><th style={thStyle}>Completed</th><th style={thStyle}>Result</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Check</th>
+                    <th style={thStyle}>Scheduled</th>
+                    <th style={thStyle}>Completed</th>
+                    <th style={thStyle}>Result</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {complianceRows.map((row, i) => (
+                  {complianceRowLabels.map((label, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ ...tdStyle, fontWeight: 500 }}>{row.label}</td>
+                      <td style={{ ...tdStyle, fontWeight: 500 }}>{label}</td>
                       <td style={tdStyle}><CompliancePill state={compliance[i][0]} onChange={() => cycleCompliance(i, 0)} /></td>
                       <td style={tdStyle}><CompliancePill state={compliance[i][1]} onChange={() => cycleCompliance(i, 1)} /></td>
-                      <td style={tdStyle}>
-                        {row.result
-                          ? <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 8, fontWeight: 500, background: row.result.good ? 'rgba(48,176,96,0.1)' : 'rgba(226,75,74,0.1)', color: row.result.good ? '#30B060' : '#E24B4A' }}>{row.result.text}</span>
-                          : <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>}
-                      </td>
+                      <td style={tdStyle}><ResultPill state={complianceResults[i]} onChange={() => cycleResult(i)} /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            {/* System access */}
+            {/* ── System access ────────────────────────────────────────────────── */}
             <div style={sb}>
               <div style={sh}><span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>System access</span></div>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><th style={thStyle}>Item</th><th style={thStyle}>Status</th><th style={thStyle}>Notes</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Item</th>
+                    <th style={thStyle}>Status</th>
+                    <th style={thStyle}>Notes</th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {sysRows.map((row, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                      <td style={{ ...tdStyle, fontWeight: 500 }}>{row.label}</td>
-                      <td style={tdStyle}><CompliancePill state={sysAccess[i]} onChange={() => setSysAccess(prev => prev.map((v, idx) => idx === i ? PILL_CYCLE[(PILL_CYCLE.indexOf(v)+1)%PILL_CYCLE.length] : v))} /></td>
-                      <td style={{ ...tdStyle, fontSize: 12, color: '#6b7280' }}>{row.note}</td>
-                    </tr>
-                  ))}
+                  {/* CDS account */}
+                  <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>CDS account created</td>
+                    <td style={tdStyle}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <BinPill state={cdsAccess} onChange={toggleCds} disabled={managerAccess === 'yes'} />
+                        {managerAccess === 'yes' && (
+                          <span style={{ fontSize: 10, color: '#9ca3af', fontStyle: 'italic' }}>Locked — Manager's Zone active</span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ ...tdStyle, fontSize: 12, color: '#6b7280' }}>Active since Apr 2026</td>
+                  </tr>
+                  {/* Manager's Zone */}
+                  <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>Manager's Zone access</td>
+                    <td style={tdStyle}><BinPill state={managerAccess} onChange={toggleManager} /></td>
+                    <td style={{ ...tdStyle, fontSize: 12, color: '#6b7280' }}>Role: DSP Staff</td>
+                  </tr>
+                  {/* Portal access */}
+                  <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>Reliance Care Services portal access</td>
+                    <td style={tdStyle}>
+                      <BinPill state={portalAccess} onChange={() => setPortalAccess(p => p === 'yes' ? 'no' : 'yes')} />
+                    </td>
+                    <td style={{ ...tdStyle, fontSize: 12, color: lastLogin ? '#374151' : '#9ca3af' }}>
+                      Last login: {formattedLastLogin}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
 
-            {/* Training milestones */}
+            {/* ── Training milestones ─────────────────────────────────────────── */}
             <div style={sb}>
               <div style={sh}>
                 <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Training milestones</span>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>3 of 5 completed</span>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{trainingDoneCount} of {trainingRowLabels.length} completed</span>
               </div>
               <div style={{ padding: '16px 18px' }}>
+                {/* Visual timeline */}
                 <div style={{ display: 'flex', alignItems: 'center' }}>
                   {milestones.map((m, i) => (
                     <>
@@ -321,14 +545,40 @@ export default function StaffProgressPage() {
                     <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10, color: m.current ? '#30B060' : '#6b7280', fontWeight: m.current ? 600 : 400 }}>{m.label}</div>
                   ))}
                 </div>
+
+                {/* Training table */}
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 14 }}>
-                  <thead><tr><th style={thStyle}>Training item</th><th style={thStyle}>Due date</th><th style={thStyle}>Status</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Training item</th>
+                      <th style={thStyle}>Due date</th>
+                      <th style={thStyle}>Status</th>
+                    </tr>
+                  </thead>
                   <tbody>
-                    {trainingRows.map((row, i) => (
+                    {trainingRowLabels.map((label, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                        <td style={{ ...tdStyle, fontWeight: 500 }}>{row.label}</td>
-                        <td style={{ ...tdStyle, fontSize: 12, color: '#6b7280' }}>{row.due}</td>
-                        <td style={tdStyle}><CompliancePill state={training[i]} onChange={() => setTraining(prev => prev.map((v, idx) => idx === i ? PILL_CYCLE[(PILL_CYCLE.indexOf(v)+1)%PILL_CYCLE.length] : v))} /></td>
+                        <td style={{ ...tdStyle, fontWeight: 500 }}>{label}</td>
+                        <td style={tdStyle}>
+                          {i < trainingRowLabels.length - 1 ? (
+                            <input
+                              type="date"
+                              value={trainingDates[i]}
+                              onChange={e => setTrainingDates(prev => prev.map((d, idx) => idx === i ? e.target.value : d))}
+                              style={{ fontSize: 12, padding: '4px 8px', border: '1px solid #e5e7eb', borderRadius: 6, background: '#f9fafb', color: '#374151', fontFamily: 'inherit', outline: 'none', cursor: 'pointer' }}
+                            />
+                          ) : (
+                            <span style={{ fontSize: 12, color: '#6b7280', fontStyle: 'italic' }}>Ongoing</span>
+                          )}
+                        </td>
+                        <td style={tdStyle}>
+                          <CompliancePill
+                            state={training[i]}
+                            onChange={() => setTraining(prev => prev.map((v, idx) =>
+                              idx === i ? PILL_CYCLE[(PILL_CYCLE.indexOf(v) + 1) % PILL_CYCLE.length] : v
+                            ))}
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -336,25 +586,34 @@ export default function StaffProgressPage() {
               </div>
             </div>
 
-            {/* Admin sign-off */}
+            {/* ── Admin sign-off ──────────────────────────────────────────────── */}
             <div style={sb}>
               <div style={sh}><span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Admin sign-off</span></div>
-              <div style={{ padding: '16px 18px', borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'flex-end', gap: 14 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Admin name</div>
-                  <input readOnly value="Jane Doe" style={{ width: '100%', fontSize: 13, padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 8, background: '#f9fafb', color: '#555', outline: 'none', fontFamily: 'inherit' }} />
+              <div style={{ padding: '16px 18px', display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 16, alignItems: 'start' }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Admin name</div>
+                  <input
+                    readOnly
+                    value={adminName || 'Loading…'}
+                    style={{ width: '100%', fontSize: 13, padding: '9px 11px', border: '1px solid #d1d5db', borderRadius: 8, background: '#f9fafb', color: '#374151', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' as const }}
+                  />
+                  <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 4 }}>Auto-filled from your account</div>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 5 }}>Signature</div>
-                  <div onClick={() => { setAdminSigned(true); showToast('Report signed') }} style={{ border: `1px solid ${adminSigned ? 'rgba(48,176,96,0.4)' : '#d1d5db'}`, borderRadius: 8, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: adminSigned ? 'rgba(48,176,96,0.05)' : '#f9fafb' }}>
-                    {adminSigned
-                      ? <span style={{ fontSize: 18, color: '#30B060', fontStyle: 'italic' }}>Jane Doe</span>
-                      : <span style={{ fontSize: 12, color: '#9ca3af', display: 'flex', alignItems: 'center', gap: 6 }}><i className="ti ti-writing" /> Click to sign</span>}
-                  </div>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Signature</div>
+                  <SignaturePad value={adminSignature} onChange={setAdminSignature} />
                 </div>
-                <button onClick={() => showToast('Report saved successfully')} style={{ fontSize: 13, padding: '11px 22px', borderRadius: 8, border: 'none', background: '#008080', color: 'white', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                  Save report
-                </button>
+                <div style={{ paddingTop: 24 }}>
+                  <button
+                    onClick={() => {
+                      if (!adminSignature) { showToast('Please sign before saving'); return }
+                      showToast('Report saved successfully')
+                    }}
+                    style={{ fontSize: 13, padding: '11px 22px', borderRadius: 8, border: 'none', background: '#008080', color: 'white', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                  >
+                    Save report
+                  </button>
+                </div>
               </div>
             </div>
           </>
