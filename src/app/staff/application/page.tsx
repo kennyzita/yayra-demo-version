@@ -28,7 +28,7 @@ export interface AppFormState {
   docDLBack: string; docSSN: string
   docEADFront: string; eadExpiry: string; docEADBack: string
   docCPR: string; cprExpiry: string
-  signatureName: string; signatureDate: string
+  signatureName: string; signatureDate: string; signatureData: string
 }
 
 const BLANK_SCHOOL:    SchoolEntry   = { name: '', from: '', to: '', graduated: '', diploma: '', degree: '' }
@@ -54,7 +54,7 @@ const INIT_FORM: AppFormState = {
   docDLBack: '', docSSN: '',
   docEADFront: '', eadExpiry: '', docEADBack: '',
   docCPR: '', cprExpiry: '',
-  signatureName: '', signatureDate: '',
+  signatureName: '', signatureDate: '', signatureData: '',
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -267,6 +267,161 @@ function DocUpload({
   )
 }
 
+// ── Signature pad ─────────────────────────────────────────────────────────────
+
+function SignaturePad({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const drawing   = useRef(false)
+
+  useEffect(() => {
+    if (!value || !canvasRef.current) return
+    const ctx = canvasRef.current.getContext('2d')
+    if (!ctx) return
+    const img = new window.Image()
+    img.onload = () => ctx.drawImage(img, 0, 0)
+    img.src = value
+  }, []) // restore on mount only
+
+  function pos(canvas: HTMLCanvasElement, e: React.MouseEvent | React.TouchEvent) {
+    const r = canvas.getBoundingClientRect()
+    const sx = canvas.width / r.width
+    const sy = canvas.height / r.height
+    if ('touches' in e) {
+      const t = e.touches[0]
+      return { x: (t.clientX - r.left) * sx, y: (t.clientY - r.top) * sy }
+    }
+    return { x: ((e as React.MouseEvent).clientX - r.left) * sx, y: ((e as React.MouseEvent).clientY - r.top) * sy }
+  }
+
+  function start(e: React.MouseEvent | React.TouchEvent) {
+    const canvas = canvasRef.current; if (!canvas) return
+    e.preventDefault()
+    drawing.current = true
+    const ctx = canvas.getContext('2d')!
+    const p = pos(canvas, e)
+    ctx.beginPath(); ctx.moveTo(p.x, p.y)
+  }
+
+  function move(e: React.MouseEvent | React.TouchEvent) {
+    if (!drawing.current) return
+    const canvas = canvasRef.current; if (!canvas) return
+    e.preventDefault()
+    const ctx = canvas.getContext('2d')!
+    const p = pos(canvas, e)
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#111'
+    ctx.lineTo(p.x, p.y); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(p.x, p.y)
+  }
+
+  function end() {
+    if (!drawing.current) return
+    drawing.current = false
+    const canvas = canvasRef.current; if (!canvas) return
+    onChange(canvas.toDataURL('image/png'))
+  }
+
+  function clear() {
+    const canvas = canvasRef.current; if (!canvas) return
+    canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
+    onChange('')
+  }
+
+  return (
+    <div>
+      <div style={{ position: 'relative', border: `1px solid ${value ? '#008080' : '#d1d5db'}`, borderRadius: 8, background: '#f9fafb', overflow: 'hidden' }}>
+        <canvas
+          ref={canvasRef} width={600} height={150}
+          style={{ display: 'block', width: '100%', height: 150, cursor: 'crosshair', touchAction: 'none' }}
+          onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
+          onTouchStart={start} onTouchMove={move} onTouchEnd={end}
+        />
+        {!value && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
+            <span style={{ fontSize: 12, color: '#d1d5db', display: 'flex', alignItems: 'center', gap: 6 }}><i className="ti ti-writing" /> Draw your signature here</span>
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+        <span style={{ fontSize: 11, color: value ? '#008080' : '#9ca3af' }}>{value ? 'Signature captured ✓' : 'Use mouse or touchscreen to draw'}</span>
+        {value && (
+          <button onClick={clear} style={{ fontSize: 11, color: '#6b7280', cursor: 'pointer', background: 'none', border: '1px solid #d1d5db', borderRadius: 5, padding: '2px 10px', fontFamily: 'inherit' }}>
+            Clear
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Download application ───────────────────────────────────────────────────────
+
+function downloadApplication(form: AppFormState) {
+  const esc = (s: string | undefined) => (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const row = (label: string, value: string | undefined) =>
+    `<div class="row"><span class="label">${esc(label)}</span><span class="value">${esc(value) || '—'}</span></div>`
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>DSP Application — ${esc(form.firstName)} ${esc(form.lastName)}</title>
+<style>
+  body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:24px;max-width:800px}
+  h1{font-size:20px;margin-bottom:2px}
+  h2{font-size:12px;font-weight:700;border-bottom:1px solid #ccc;padding-bottom:4px;margin-top:20px;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;color:#374151}
+  .row{display:flex;padding:4px 0;border-bottom:1px solid #f3f4f6}
+  .label{width:150px;color:#6b7280;font-size:11px;font-weight:600;flex-shrink:0;padding-right:8px}
+  .value{flex:1}
+  .card{border:1px solid #e5e7eb;border-radius:6px;padding:8px 12px;margin-bottom:8px}
+  .sig img{border:1px solid #d1d5db;border-radius:4px;max-width:300px;margin-top:6px}
+  @media print{body{margin:10px}}
+</style></head><body>
+<h1>DSP Employment Application</h1>
+<p style="color:#6b7280;font-size:11px;margin-bottom:20px">Reliance Care Services · Submitted ${esc(form.signatureDate) || new Date().toLocaleDateString()}</p>
+
+<h2>Personal Information</h2>
+${row('Full Name', [form.firstName, form.middleName, form.lastName].filter(Boolean).join(' '))}
+${row('Email', form.email)}${row('Phone', form.phone)}${row('Date of Birth', form.dob)}
+${row('SSN', form.ssnProvided ? 'Provided ✓' : 'Not provided')}
+${row('Address', [form.address1, form.address2, form.city, form.state, form.zip].filter(Boolean).join(', '))}
+
+<h2>Availability</h2>
+${row('Allergies', form.allergies?.join(', '))}${row('Work Holidays', form.canWorkHolidays)}
+${row('Days Available', form.daysAvailable?.join(', '))}${row('Preferred Shifts', form.preferredShifts?.join(', '))}
+${row('Start Date', form.dateAvailable)}${row('Heard About Us', form.heardAbout)}
+${row('Position', form.positionApplying)}${row('Assignment Type', form.assignmentType?.join(', '))}
+
+<h2>Eligibility</h2>
+${row('US Citizen', form.isCitizen)}
+${form.isCitizen === 'No' ? row('Authorized to Work', form.isAuthorizedWork) : ''}
+${row('Worked Here Before', form.workedBefore)}
+${form.workedBefore === 'Yes' ? row('When', form.workedBeforeWhen) : ''}
+${row('BG Check Consent', form.bgCheck)}
+${form.bgCheckExplain ? row('BG Explanation', form.bgCheckExplain) : ''}
+${row('Malpractice Ins.', form.malpractice)}
+${form.malpracticeCarrier ? row('Carrier', form.malpracticeCarrier) : ''}
+
+${form.schools?.filter(s => s.name).length > 0 ? `<h2>Education History</h2>${form.schools.filter(s => s.name).map(s => `<div class="card">${row('School', s.name)}${row('Period', `${s.from || '?'} – ${s.to || '?'}`)}${row('Graduated', s.graduated)}${row('Diploma/GED', s.diploma)}${row('Degree', s.degree)}</div>`).join('')}` : ''}
+
+${form.employers?.filter(e => e.company).length > 0 ? `<h2>Employment History</h2>${form.employers.filter(e => e.company).map(e => `<div class="card">${row('Company', e.company)}${row('Title', e.title)}${row('Supervisor', e.supervisor)}${row('Responsibilities', e.responsibilities)}${row('Reason Left', e.reasonLeaving)}${row('Can Contact', e.canContact)}</div>`).join('')}` : ''}
+
+${form.references?.filter(r => r.name).length > 0 ? `<h2>References</h2>${form.references.filter(r => r.name).map((r, i) => row(`Ref ${i + 1}`, `${r.name} · ${r.years}`)).join('')}` : ''}
+
+<h2>Emergency Contact</h2>
+${row('Name', form.emergencyName)}${row('Relationship', form.emergencyRelationship)}${row('Phone', form.emergencyPhone)}
+
+<h2>Document Expiry Dates</h2>
+${row('DL Expiry', form.dlExpiry)}${row('EAD Expiry', form.eadExpiry)}${row('CPR Expiry', form.cprExpiry)}
+
+<h2>Signature</h2>
+${row('Signed Name', form.signatureName)}${row('Date', form.signatureDate)}
+${form.signatureData ? `<div class="sig"><img src="${form.signatureData}" alt="Signature" /></div>` : ''}
+</body></html>`
+
+  const w = window.open('', '_blank')
+  if (!w) return
+  w.document.write(html)
+  w.document.close()
+  setTimeout(() => { w.focus(); w.print() }, 400)
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ApplicationPage() {
@@ -277,10 +432,34 @@ export default function ApplicationPage() {
   const [submitting, setSubmitting] = useState(false)
   const [toast,    setToast]     = useState<string | null>(null)
   const [userId,   setUserId]    = useState<string | null>(null) // used for submit only
-  const [form,     setForm]      = useState<AppFormState>(INIT_FORM)
+  const [form,      setForm]      = useState<AppFormState>(INIT_FORM)
+  const [stepError, setStepError] = useState<string | null>(null)
 
   const sf = <K extends keyof AppFormState>(k: K, v: AppFormState[K]) =>
     setForm(p => ({ ...p, [k]: v }))
+
+  function validateDocStep(): string | null {
+    const missing: string[] = []
+    if (!form.docResume)  missing.push('Resume')
+    if (!form.docDLFront) missing.push("Driver's License (front)")
+    else if (!form.dlExpiry) missing.push("Driver's License expiry date")
+    if (!form.docDLBack)  missing.push("Driver's License (back)")
+    if (!form.docSSN)     missing.push('SSN card')
+    if (!form.docCPR)     missing.push('CPR / First Aid certificate')
+    else if (!form.cprExpiry) missing.push('CPR expiry date')
+    return missing.length > 0
+      ? `Please upload the following required items before continuing: ${missing.join(', ')}.`
+      : null
+  }
+
+  function goNext() {
+    if (step === 5) {
+      const err = validateDocStep()
+      if (err) { setStepError(err); return }
+    }
+    setStepError(null)
+    setStep(s => s + 1)
+  }
 
   useEffect(() => {
     async function init() {
@@ -560,10 +739,7 @@ export default function ApplicationPage() {
           </div>
           <div>
             <label style={fLabel}>Signature{req}</label>
-            <div style={{ border: '1px solid #d1d5db', borderRadius: 8, height: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', cursor: 'pointer' }}>
-              <span style={{ fontSize: 12, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}><i className="ti ti-writing" /> Click to sign</span>
-            </div>
-            <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 4, display: 'block' }}>Use your mouse or touchscreen to draw your signature</span>
+            <SignaturePad value={form.signatureData} onChange={v => sf('signatureData', v)} />
           </div>
         </div>
       )
@@ -592,7 +768,7 @@ export default function ApplicationPage() {
         <span style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>DSP job application</span>
         <div style={{ flex: 1 }} />
         <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>Save draft</button>
-        <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #008080', background: 'transparent', color: '#008080', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
+        <button onClick={() => downloadApplication(form)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #008080', background: 'transparent', color: '#008080', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
           <i className="ti ti-download" /> Download PDF
         </button>
         {submitted ? (
@@ -614,7 +790,7 @@ export default function ApplicationPage() {
         <div style={{ width: 210, minWidth: 210, background: '#fff', borderRight: '0.5px solid #e5e7eb', padding: '20px 0', overflowY: 'auto', flexShrink: 0 }}>
           {STEP_META.map((s, i) => (
             <div key={i}>
-              <div onClick={() => setStep(i)} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 16px', cursor: 'pointer', background: i === step ? 'rgba(0,128,128,0.06)' : 'transparent' }}>
+              <div onClick={() => { setStep(i); setStepError(null) }} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 16px', cursor: 'pointer', background: i === step ? 'rgba(0,128,128,0.06)' : 'transparent' }}>
                 <div style={{
                   width: 24, height: 24, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 11, fontWeight: 600, flexShrink: 0, marginTop: 1,
@@ -640,7 +816,10 @@ export default function ApplicationPage() {
             {submitted && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#059669' }}>
                 <i className="ti ti-circle-check" style={{ fontSize: 16, flexShrink: 0 }} />
-                <span>Your application has been submitted and is under review. You can browse but cannot re-submit.</span>
+                <span style={{ flex: 1 }}>Your application has been submitted and is under review. You can browse but cannot re-submit.</span>
+                <button onClick={() => downloadApplication(form)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', color: '#059669', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <i className="ti ti-download" style={{ fontSize: 13 }} /> Download
+                </button>
               </div>
             )}
             <div style={{ height: 3, background: '#f3f4f6', borderRadius: 2, marginBottom: 24, overflow: 'hidden' }}>
@@ -652,16 +831,23 @@ export default function ApplicationPage() {
           </div>
 
           {/* Footer nav */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 28px', borderTop: '0.5px solid #e5e7eb', background: '#fff', flexShrink: 0 }}>
+          <div style={{ borderTop: '0.5px solid #e5e7eb', background: '#fff', flexShrink: 0 }}>
+            {stepError && (
+              <div style={{ padding: '8px 28px', background: 'rgba(220,38,38,0.06)', borderBottom: '1px solid rgba(220,38,38,0.2)', fontSize: 12, color: '#dc2626', display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                <i className="ti ti-alert-circle" style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }} />
+                <span>{stepError}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 28px' }}>
             <span style={{ fontSize: 12, color: '#6b7280' }}>Step {step + 1} of {total}</span>
             <div style={{ display: 'flex', gap: 8 }}>
               {step > 0 && (
-                <button onClick={() => setStep(s => s - 1)} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
+                <button onClick={() => { setStep(s => s - 1); setStepError(null) }} style={{ fontSize: 13, padding: '7px 16px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
                   <i className="ti ti-arrow-left" /> Previous
                 </button>
               )}
               {step < total - 1 ? (
-                <button onClick={() => setStep(s => s + 1)} style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', background: '#004050', color: 'white', cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
+                <button onClick={goNext} style={{ fontSize: 13, padding: '7px 18px', borderRadius: 6, border: 'none', background: '#004050', color: 'white', cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
                   Next <i className="ti ti-arrow-right" />
                 </button>
               ) : submitted ? (
@@ -674,6 +860,7 @@ export default function ApplicationPage() {
                   {submitting ? 'Submitting…' : 'Submit application'} <i className="ti ti-send" />
                 </button>
               )}
+            </div>
             </div>
           </div>
         </div>

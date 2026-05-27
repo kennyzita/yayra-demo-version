@@ -107,7 +107,7 @@ export default function HiringPage() {
           submittedAt: data.application_submitted_at ?? '',
           status: data.application_status ?? 'pending',
           createdAt,
-          formData: (data.form as AppFormState | null) ?? null,
+          formData: (data.form as unknown as AppFormState | null) ?? null,
         }
       })
 
@@ -652,6 +652,16 @@ export default function HiringPage() {
                       <Card>
                         <Row label="Signed name" value={fd.signatureName} />
                         <Row label="Date signed" value={fd.signatureDate} />
+                        {fd.signatureData && (
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, marginBottom: 4 }}>DRAWN SIGNATURE</div>
+                            <img
+                              src={fd.signatureData}
+                              alt="Applicant signature"
+                              style={{ maxWidth: '100%', border: '1px solid #e5e7eb', borderRadius: 6, background: '#f9fafb', display: 'block' }}
+                            />
+                          </div>
+                        )}
                       </Card>
 
                       <Section title="Timeline" />
