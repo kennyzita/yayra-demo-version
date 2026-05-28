@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PUBLIC_PATHS = ['/login', '/auth/callback']
+const PUBLIC_PATHS = ['/login', '/auth/callback', '/training', '/reset-password']
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes
 
 export async function middleware(request: NextRequest) {
