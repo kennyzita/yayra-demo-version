@@ -5,7 +5,7 @@ import { useState } from 'react'
 type Tab = 'all' | 'assess' | 'certs'
 
 const trainings = [
-  { icon: 'ti-clipboard-text', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080', name: 'DSP Final Assessment', meta: 'Reliance Care Services · Required · Embedded in portal', pct: 30, barColor: '#008080', status: 'In progress', statusBg: 'rgba(0,128,128,0.1)', statusColor: '#008080', tab: 'assess' as const },
+  { icon: 'ti-clipboard-text', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080', name: 'DSP Final Assessment', meta: 'Reliance Care Services · Required · Embedded in portal', pct: 30, barColor: '#008080', status: 'In progress', statusBg: 'rgba(0,128,128,0.1)', statusColor: '#008080', tab: null, href: 'https://id-preview--0aa69dd9-78c7-4a8a-b23f-9d4a9ffbf4c2.lovable.app/embed' },
   { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: 'CPR / First Aid / BLS', meta: 'Completed May 2025 · Expires Apr 30, 2027', pct: 100, barColor: '#30B060', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', tab: null },
   { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: 'CDS training', meta: 'Completed Apr 2026 · No expiry', pct: 100, barColor: '#30B060', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', tab: null },
   { icon: 'ti-alert-triangle', iconBg: 'rgba(186,117,23,0.1)', iconColor: '#BA7517', name: "Danielle's Law compliance", meta: 'Required · Due May 20, 2026 · Mandatory annual', pct: 30, barColor: '#BA7517', status: 'Due soon', statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517', tab: null },
@@ -88,7 +88,14 @@ export default function TrainingPage() {
                     <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, textAlign: 'right' }}>{t.pct}%</div>
                   </div>
                   <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, fontWeight: 500, whiteSpace: 'nowrap', background: t.statusBg, color: t.statusColor }}>{t.status}</span>
-                  <button onClick={() => t.tab ? setTab(t.tab) : showToast('Opening...')} style={{ fontSize: 11, padding: '5px 12px', borderRadius: 6, border: '0.5px solid #008080', background: t.pct === 100 ? 'transparent' : 'rgba(0,128,128,0.06)', color: t.pct === 100 ? '#6b7280' : '#008080', cursor: 'pointer', borderColor: t.pct === 100 ? '#d1d5db' : '#008080', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  <button
+                    onClick={() => {
+                      if ((t as { href?: string }).href) { window.open((t as { href?: string }).href, '_blank'); return }
+                      if (t.tab) { setTab(t.tab); return }
+                      showToast('Opening...')
+                    }}
+                    style={{ fontSize: 11, padding: '5px 12px', borderRadius: 6, border: '0.5px solid #008080', background: t.pct === 100 ? 'transparent' : 'rgba(0,128,128,0.06)', color: t.pct === 100 ? '#6b7280' : '#008080', cursor: 'pointer', borderColor: t.pct === 100 ? '#d1d5db' : '#008080', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                  >
                     {t.pct === 100 ? 'View cert' : t.pct > 0 ? 'Continue →' : 'Start →'}
                   </button>
                 </div>
