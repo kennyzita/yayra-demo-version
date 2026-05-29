@@ -3,8 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-const BUCKET = 'staff-documents'
-
 const DOCUMENT_TYPES = [
   'W4',
   'NJ W4',
@@ -79,35 +77,13 @@ export default function StaffDocumentsPage() {
 
   async function loadDocs(id: string) {
     setLoadingDocs(true)
-    const collected: { folder: string; name: string; path: string; size: number; createdAt: string; signedUrl: string }[] = []
-
-    await Promise.all(
-      DOCUMENT_TYPES.map(async (dt) => {
-        const { data } = await supabase.storage
-          .from(BUCKET)
-          .list(`${id}/${dt}`, { sortBy: { column: 'created_at', order: 'desc' } })
-        ;(data ?? [])
-          .filter(f => f.name !== '.emptyFolderPlaceholder')
-          .forEach(f => collected.push({
-            folder: dt,
-            name: f.name,
-            path: `${id}/${dt}/${f.name}`,
-            size: (f.metadata as any)?.size ?? 0,
-            createdAt: f.created_at ?? '',
-            signedUrl: '',
-          }))
-      })
-    )
-
-    if (collected.length > 0) {
-      const { data: signed } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrls(collected.map(f => f.path), 3600)
-      const signedMap = new Map((signed ?? []).map(s => [s.path, s.signedUrl ?? '']))
-      collected.forEach(f => { f.signedUrl = signedMap.get(f.path) ?? '' })
+    try {
+      const res = await fetch(`/api/list-staff-documents?staffId=${encodeURIComponent(id)}`)
+      const json = await res.json()
+      setFiles(json.files ?? [])
+    } catch {
+      setFiles([])
     }
-
-    setFiles(collected)
     setLoadingDocs(false)
   }
 
