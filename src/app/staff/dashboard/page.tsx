@@ -95,6 +95,10 @@ export default function StaffDashboardPage() {
   const clientCount = assignedClients.length
   const hoursDisplay = hoursThisWeek === null ? '—' : hoursThisWeek % 1 === 0 ? String(hoursThisWeek) : hoursThisWeek.toFixed(1)
 
+  const trainings = getVisibleTrainings(userRole ?? '')
+  const trainingCompleted = trainings.filter(t => t.status === 'Complete').length
+  const trainingDueSoon   = trainings.filter(t => t.status === 'Due soon').length
+
   const metrics = [
     {
       icon: 'ti-users', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080',
@@ -120,10 +124,6 @@ export default function StaffDashboardPage() {
       label: 'Trainings completed',
     },
   ]
-
-  const trainings = getVisibleTrainings(userRole ?? '')
-  const trainingCompleted = trainings.filter(t => t.status === 'Complete').length
-  const trainingDueSoon   = trainings.filter(t => t.status === 'Due soon').length
 
   const avatarColors = ['#008080','#378ADD','#BA7517','#7F77DD','#30B060']
   function initials(name: string) {
