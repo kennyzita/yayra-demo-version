@@ -51,7 +51,7 @@ export default function TrainingPage() {
           </div>
           <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
             <iframe
-              src="https://project--0aa69dd9-78c7-4a8a-b23f-9d4a9ffbf4c2.lovable.app/embed"
+              src="https://id-preview--0aa69dd9-78c7-4a8a-b23f-9d4a9ffbf4c2.lovable.app/embed"
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
               allow="camera; microphone; clipboard-write"
               title="DSP Final Assessment"
