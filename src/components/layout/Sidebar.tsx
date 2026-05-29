@@ -17,6 +17,7 @@ interface NavItem {
   icon: string
   badge?: number
   warnBadge?: number
+  externalUrl?: string
 }
 
 interface NavSection {
@@ -71,6 +72,18 @@ const adminSections: NavSection[] = [
     items: [
       { href: '/admin/users', label: 'User Accounts', icon: 'ti-users-group' },
       { href: '/admin/roles', label: 'Role Management', icon: 'ti-shield-half' },
+    ],
+  },
+  {
+    label: 'Quick Links',
+    items: [
+      { href: '#', externalUrl: 'https://accessnj.com/index.php/login-2/', label: 'AccessNJ', icon: 'ti-building-community' },
+      { href: '#', externalUrl: 'https://uenroll.identogo.com/status-check', label: 'IdentoGO', icon: 'ti-fingerprint' },
+      { href: '#', externalUrl: 'https://www.i3screen.net/login/', label: 'MRO Check', icon: 'ti-clipboard-heart' },
+      { href: '#', externalUrl: 'https://fara.dhs.state.nj.us/', label: 'FARA Check', icon: 'ti-shield-check' },
+      { href: '#', externalUrl: 'https://my.nj.gov/aui/Login', label: 'CARI', icon: 'ti-certificate' },
+      { href: '#', externalUrl: 'https://app.hhaexchange.com/identity/account/login', label: 'HHxchange', icon: 'ti-arrows-exchange' },
+      { href: '#', externalUrl: 'https://idp.uscis.gov/', label: 'Everify', icon: 'ti-user-check' },
     ],
   },
 ]
@@ -180,32 +193,44 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
             {section.label}
           </div>
           {section.items.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            const isActive = !item.externalUrl && (pathname === item.href || pathname.startsWith(item.href + '/'))
+            const linkStyle: React.CSSProperties = {
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 10px', fontSize: 13, borderRadius: 8,
+              color: isActive ? 'white' : '#a8c8cc',
+              background: isActive ? '#008080' : 'transparent',
+              textDecoration: 'none', transition: 'background 0.15s',
+            }
+            const inner = (
+              <>
+                <i className={`ti ${item.icon}`} style={{ fontSize: 16, width: 18, flexShrink: 0 }} />
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {item.externalUrl && (
+                  <i className="ti ti-external-link" style={{ fontSize: 12, opacity: 0.5, flexShrink: 0 }} />
+                )}
+                {item.badge != null && (
+                  <span style={{ background: '#f97316', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>
+                    {item.badge}
+                  </span>
+                )}
+                {item.warnBadge != null && (
+                  <span style={{ background: '#f97316', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>
+                    {item.warnBadge}
+                  </span>
+                )}
+              </>
+            )
             return (
-              <div key={item.href} style={{ padding: '2px 8px' }}>
-                <Link
-                  href={item.href}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '8px 10px', fontSize: 13, borderRadius: 8,
-                    color: isActive ? 'white' : '#a8c8cc',
-                    background: isActive ? '#008080' : 'transparent',
-                    textDecoration: 'none', transition: 'background 0.15s',
-                  }}
-                >
-                  <i className={`ti ${item.icon}`} style={{ fontSize: 16, width: 18, flexShrink: 0 }} />
-                  <span style={{ flex: 1 }}>{item.label}</span>
-                  {item.badge != null && (
-                    <span style={{ background: '#f97316', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>
-                      {item.badge}
-                    </span>
-                  )}
-                  {item.warnBadge != null && (
-                    <span style={{ background: '#f97316', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>
-                      {item.warnBadge}
-                    </span>
-                  )}
-                </Link>
+              <div key={item.externalUrl ?? item.href} style={{ padding: '2px 8px' }}>
+                {item.externalUrl ? (
+                  <a href={item.externalUrl} target="_blank" rel="noreferrer" style={linkStyle}>
+                    {inner}
+                  </a>
+                ) : (
+                  <Link href={item.href} style={linkStyle}>
+                    {inner}
+                  </Link>
+                )}
               </div>
             )
           })}
