@@ -109,12 +109,21 @@ const staffSections: NavSection[] = [
 
 function getStaffSections(userRole: string): NavSection[] {
   if (userRole === 'DSP') {
-    return staffSections
-      .filter(s => s.label === 'Main' || s.label === 'Applications')
-      .map(s => s.label === 'Main'
-        ? { ...s, items: s.items.filter(item => item.label !== 'My overview') }
-        : s
-      )
+    const trainingSection: NavSection = {
+      label: 'Resources',
+      items: staffSections
+        .find(s => s.label === 'Resources')!
+        .items.filter(item => item.href === '/staff/training'),
+    }
+    return [
+      ...staffSections
+        .filter(s => s.label === 'Main' || s.label === 'Applications')
+        .map(s => s.label === 'Main'
+          ? { ...s, items: s.items.filter(item => item.label !== 'My overview') }
+          : s
+        ),
+      trainingSection,
+    ]
   }
   if (userRole === 'DSP Staff') {
     return staffSections.filter(s => s.label === 'Main' || s.label === 'Work' || s.label === 'Resources')
