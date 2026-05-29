@@ -125,12 +125,33 @@ export default function CaseNotesPage() {
   const [expandedId, setExpandedId]           = useState<string | null>(null)
   const [deletingId, setDeletingId]           = useState<string | null>(null)
 
+  // Autosave entries to localStorage whenever they change
+  useEffect(() => {
+    if (!userId) return
+    const timer = setTimeout(() => {
+      localStorage.setItem(`case_note_draft_${userId}`, JSON.stringify({ entries }))
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [entries, userId])
+
   useEffect(() => { loadProfile() }, [])
 
   async function loadProfile() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
     setUserId(user.id)
+
+    // Restore autosaved draft
+    try {
+      const saved = localStorage.getItem(`case_note_draft_${user.id}`)
+      if (saved) {
+        const { entries: savedEntries } = JSON.parse(saved)
+        if (Array.isArray(savedEntries) && savedEntries.length > 0) {
+          setEntries(savedEntries)
+          nextIdRef.current = Math.max(...savedEntries.map((e: any) => e.id ?? 1)) + 1
+        }
+      }
+    } catch {}
 
     const [{ data: profile }, { data: assignments }] = await Promise.all([
       supabase.from('users').select('first_name, last_name').eq('id', user.id).single(),
@@ -268,11 +289,19 @@ export default function CaseNotesPage() {
     setClientId(''); setChecked(new Array(STRATEGIES.length).fill(false))
     setEntries([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
     nextIdRef.current = 2; setWeek(WEEKS[0])
+    if (userId) localStorage.removeItem(`case_note_draft_${userId}`)
   }
 
   function clearForm() { resetForm(); setEditingNoteId(null); showToast('Form cleared') }
 
   const selectedClient = assignedClients.find(c => c.id === clientId) ?? null
+
+  const totalHours = entries.reduce((sum, e) => {
+    if (!e.start || !e.end) return sum
+    const [sh, sm] = e.start.split(':').map(Number)
+    const [eh, em] = e.end.split(':').map(Number)
+    return sum + ((eh * 60 + em) - (sh * 60 + sm)) / 60
+  }, 0)
 
   const sectionStyle: React.CSSProperties = { border: '1px solid #d8dde6', borderRadius: 10, overflow: 'hidden', marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
   const sectionHead: React.CSSProperties = { background: '#004050', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
@@ -507,7 +536,12 @@ export default function CaseNotesPage() {
             <div style={sectionStyle}>
               <div style={sectionHead}>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>Daily Activity Log</span>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Each entry = exactly 1 hour</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Each entry = exactly 1 hour</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'white', background: 'rgba(255,255,255,0.18)', padding: '2px 12px', borderRadius: 20 }}>
+                    {totalHours} {totalHours === 1 ? 'hr' : 'hrs'}
+                  </span>
+                </div>
               </div>
               <div style={{ ...sectionBody, padding: 16 }}>
                 {entries.map((entry, i) => (
