@@ -54,18 +54,30 @@ export default function RoleManagementPage() {
 
   async function handleRoleChange(u: UserRow, newRoleId: string) {
     if (!newRoleId) return
-    setSaving(s => ({ ...s, [u.id]: true }))
     const newRole = roles.find(r => r.id === newRoleId) ?? null
+    if (!newRole) return
+
+    setSaving(s => ({ ...s, [u.id]: true }))
+    // Optimistic update
     setUsers(prev => prev.map(row =>
       row.id === u.id ? { ...row, role_id: newRoleId, role: newRole } : row
     ))
-    const { error: err } = await supabase
-      .from('users')
-      .update({ role_id: newRoleId })
-      .eq('id', u.id)
+
+    // Update users.role_id (used by middleware / layout role checks)
+    // and user_roles.role (used by billing / real-time role checks)
+    const [{ error: err1 }, { error: err2 }] = await Promise.all([
+      supabase.from('users').update({ role_id: newRoleId }).eq('id', u.id),
+      supabase.from('user_roles')
+        .upsert({ user_id: u.id, role: newRole.name }, { onConflict: 'user_id' }),
+    ])
+
     setSaving(s => ({ ...s, [u.id]: false }))
-    if (err) {
-      setError(`Failed to update role for ${u.first_name}: ${err.message}`)
+    if (err1 || err2) {
+      setError(`Failed to update role for ${u.first_name}: ${(err1 ?? err2)?.message}`)
+      // Revert optimistic update
+      setUsers(prev => prev.map(row =>
+        row.id === u.id ? { ...row, role_id: u.role_id, role: u.role } : row
+      ))
       return
     }
     setSaved(s => ({ ...s, [u.id]: true }))
