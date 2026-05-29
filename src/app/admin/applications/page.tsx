@@ -70,9 +70,10 @@ export default function HiringPage() {
   const [docsViewingId,  setDocsViewingId]  = useState<string | null>(null)
   const [docFiles,       setDocFiles]       = useState<StaffDocFile[]>([])
   const [docsLoading,    setDocsLoading]    = useState(false)
-  const [progressId,     setProgressId]     = useState<string | null>(null)
-  const [progressData,   setProgressData]   = useState<{ formsSigned: boolean; formsSignedAt: string | null; eadUploaded: boolean } | null>(null)
-  const [progressLoading, setProgressLoading] = useState(false)
+  const [progressId,       setProgressId]       = useState<string | null>(null)
+  const [progressData,     setProgressData]     = useState<{ formsSigned: boolean; formsSignedAt: string | null; eadUploaded: boolean } | null>(null)
+  const [progressLoading,  setProgressLoading]  = useState(false)
+  const [sendingReminder,  setSendingReminder]  = useState(false)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -167,6 +168,40 @@ export default function HiringPage() {
         setProgressLoading(false)
       })
   }, [progressId])
+
+  async function sendReminder(name: string, email: string) {
+    setSendingReminder(true)
+    const html = `
+      <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#111">
+        <div style="background:#004050;padding:24px 28px;border-radius:8px 8px 0 0">
+          <h2 style="color:white;margin:0;font-size:18px">Reliance Care Services</h2>
+          <p style="color:rgba(255,255,255,0.7);margin:4px 0 0;font-size:13px">Action Required</p>
+        </div>
+        <div style="border:1px solid #e5e7eb;border-top:none;padding:28px;border-radius:0 0 8px 8px;background:#fff">
+          <p style="margin:0 0 16px;font-size:15px">Hi <strong>${name}</strong>,</p>
+          <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.7">
+            This is a friendly reminder that your onboarding process with Reliance Care Services is not yet complete.
+            Please log in to the portal and complete your outstanding items as soon as possible.
+          </p>
+          <a href="${typeof window !== 'undefined' ? window.location.origin : ''}/staff/onboarding"
+             style="display:inline-block;padding:12px 24px;background:#008080;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-bottom:20px">
+            Complete Onboarding
+          </a>
+          <p style="margin:0;font-size:13px;color:#9ca3af">
+            If you have any questions, reply to this email or contact us at
+            <a href="mailto:admin@reliancecareservicesllc.com" style="color:#008080">admin@reliancecareservicesllc.com</a>.
+          </p>
+        </div>
+      </div>`
+    const res = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: email, subject: 'Action Required: Complete Your Onboarding — Reliance Care Services', html }),
+    })
+    if (res.ok) showToast(`Reminder sent to ${name}`)
+    else showToast('Failed to send reminder email')
+    setSendingReminder(false)
+  }
 
   async function updateStatus(staffId: string, newStatus: string) {
     const { data: existing } = await supabase
@@ -328,18 +363,6 @@ export default function HiringPage() {
                           <button onClick={() => setProgressId(r.staffId)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #0d9488', background: 'transparent', color: '#0d9488', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
                             <i className="ti ti-chart-bar" style={{ fontSize: 13 }} /> View Progress
                           </button>
-                          {effectiveStatus === 'pending' && (
-                            <>
-                              <button onClick={() => updateStatus(r.staffId, 'approved')} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #10b981', background: 'transparent', color: '#059669', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Approve</button>
-                              <button onClick={() => updateStatus(r.staffId, 'rejected')} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #ef4444', background: 'transparent', color: '#dc2626', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Reject</button>
-                            </>
-                          )}
-                          {effectiveStatus === 'approved' && (
-                            <button onClick={() => updateStatus(r.staffId, 'pending')} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Revoke</button>
-                          )}
-                          {effectiveStatus === 'rejected' && (
-                            <button onClick={() => updateStatus(r.staffId, 'approved')} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #10b981', background: 'transparent', color: '#059669', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Approve</button>
-                          )}
                         </div>
                       </td>
                     </tr>
@@ -514,6 +537,8 @@ export default function HiringPage() {
         const completedCount = onboardItems.filter(i => i.done).length
         const obPct = Math.round((completedCount / onboardItems.length) * 100)
 
+        const effectiveStatus = statusMap[r.staffId] ?? r.status
+
         return (
           <>
             <div onClick={() => setProgressId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 40 }} />
@@ -581,8 +606,33 @@ export default function HiringPage() {
               </div>
 
               {/* Footer */}
-              <div style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={() => setProgressId(null)} style={{ padding: '7px 20px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', fontSize: 13, color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <div style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {(effectiveStatus === 'pending' || effectiveStatus === 'rejected') && (
+                  <button
+                    onClick={() => { updateStatus(r.staffId, 'approved'); setProgressId(null) }}
+                    style={{ padding: '8px 16px', borderRadius: 7, border: 'none', background: '#059669', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}
+                  >
+                    <i className="ti ti-check" /> Approve
+                  </button>
+                )}
+                {effectiveStatus === 'approved' && (
+                  <button
+                    onClick={() => { updateStatus(r.staffId, 'pending'); setProgressId(null) }}
+                    style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Revoke
+                  </button>
+                )}
+                <button
+                  onClick={() => sendReminder(r.name, r.email)}
+                  disabled={sendingReminder}
+                  style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #3b82f6', background: 'transparent', color: '#2563eb', fontSize: 13, fontWeight: 500, cursor: sendingReminder ? 'wait' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, opacity: sendingReminder ? 0.7 : 1 }}
+                >
+                  <i className={`ti ${sendingReminder ? 'ti-loader-2' : 'ti-mail'}`} />
+                  {sendingReminder ? 'Sending…' : 'Send Reminder Email'}
+                </button>
+                <div style={{ flex: 1 }} />
+                <button onClick={() => setProgressId(null)} style={{ padding: '7px 16px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', fontSize: 13, color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
                   Close
                 </button>
               </div>
