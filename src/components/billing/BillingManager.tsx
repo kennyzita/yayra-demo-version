@@ -216,45 +216,43 @@ async function loadBillingClients(){
 }
 
 async function loadBillingStaff(){
-  const { data: roles, error: e1 } = await supabase
-    .from("user_roles").select("user_id, role")
-    .in("role",["dsp","supervisor","behaviour_support"]);
+  // Query yayracare users table — only DSP and DSP Staff roles
+  const { data: usersData, error: e1 } = await supabase
+    .from("users")
+    .select("id, first_name, last_name, role:roles(name)");
   if(e1) throw e1;
-  const ids = [...new Set((roles||[]).map(r=>r.user_id))];
+  const dspUsers = (usersData||[]).filter(u=>{
+    const rn = Array.isArray(u.role) ? u.role[0]?.name : u.role?.name;
+    return rn === "DSP" || rn === "DSP Staff";
+  });
+  const ids = dspUsers.map(u=>u.id);
   if(!ids.length) return [];
-  const [{ data: profiles, error: e2 }, { data: bd, error: e3 }, { data: asg, error: e4 }] = await Promise.all([
-    supabase.from("profiles").select("id, full_name").in("id",ids),
+  const [{ data: bd, error: e3 }, { data: asg, error: e4 }] = await Promise.all([
     supabase.from("billing_staff_data").select("staff_id, data, archived").in("staff_id",ids),
     supabase.from("assignments").select("dsp_id, client_id").in("dsp_id",ids),
   ]);
-  if(e2) throw e2; if(e3) throw e3; if(e4) throw e4;
-  const roleByUser = new Map();
-  (roles||[]).forEach(r=>{
-    const cur = roleByUser.get(r.user_id);
-    // prefer non-dsp specific role if user has multiple
-    if(!cur || (cur==="dsp" && r.role!=="dsp")) roleByUser.set(r.user_id, r.role);
-  });
+  if(e3) throw e3; if(e4) throw e4;
   const billingById = new Map((bd||[]).map(r=>[r.staff_id,r]));
-  // Source of truth for assignments = Staff Connect's assignments table
   const assignByUser = new Map();
   (asg||[]).forEach(a=>{
     const arr = assignByUser.get(a.dsp_id) || [];
     arr.push(a.client_id);
     assignByUser.set(a.dsp_id, arr);
   });
-  return (profiles||[]).map(p=>{
-    const row = billingById.get(p.id);
+  return dspUsers.map(u=>{
+    const row = billingById.get(u.id);
     const b = (row?.data) || {};
-    const dbRoleLabel = STAFF_ROLE_TO_LABEL[roleByUser.get(p.id)] || "DSP";
-    const base = mkStaff(p.id);
+    const roleName = Array.isArray(u.role) ? u.role[0]?.name : u.role?.name;
+    const fullName = [u.first_name, u.last_name].filter(Boolean).join(" ");
+    const base = mkStaff(u.id);
     return {
       ...base,
       ...b,
-      id: p.id,
-      name: b.name || p.full_name || "",
-      role: b.role || dbRoleLabel,
+      id: u.id,
+      name: b.name || fullName || "",
+      role: b.role || roleName || "DSP",
       archived: row?.archived ?? !!b.archived,
-      assignedClientIds: assignByUser.get(p.id) || [],
+      assignedClientIds: assignByUser.get(u.id) || [],
     };
   });
 }
@@ -1758,8 +1756,7 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
     // Realtime: refresh when clients / profiles change in Staff Connect
     const ch = supabase.channel("billing-sync")
       .on("postgres_changes",{event:"*",schema:"public",table:"clients"},()=>refreshAll())
-      .on("postgres_changes",{event:"*",schema:"public",table:"profiles"},()=>refreshAll())
-      .on("postgres_changes",{event:"*",schema:"public",table:"user_roles"},()=>refreshAll())
+      .on("postgres_changes",{event:"*",schema:"public",table:"users"},()=>refreshAll())
       .on("postgres_changes",{event:"*",schema:"public",table:"assignments"},()=>refreshAll())
       .subscribe();
     return ()=>{ supabase.removeChannel(ch); };
