@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import type { StaffDocFile } from '@/app/api/list-staff-documents/route'
+
+const BUCKET = 'staff-documents'
 
 const DOCUMENT_TYPES = [
   'W4',
@@ -56,7 +57,7 @@ export default function StaffDocumentsPage() {
   const [uploading,     setUploading]     = useState(false)
   const [uploadError,   setUploadError]   = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
-  const [files,         setFiles]         = useState<StaffDocFile[]>([])
+  const [files,         setFiles]         = useState<{ folder: string; name: string; path: string; size: number; createdAt: string; signedUrl: string }[]>([])
   const [loadingDocs,   setLoadingDocs]   = useState(false)
   const [dragOver,      setDragOver]      = useState(false)
   const [toast,         setToast]         = useState<string | null>(null)
@@ -78,9 +79,35 @@ export default function StaffDocumentsPage() {
 
   async function loadDocs(id: string) {
     setLoadingDocs(true)
-    const res = await fetch(`/api/list-staff-documents?staffId=${id}`)
-    const json = await res.json()
-    setFiles((json.files ?? []).filter((f: StaffDocFile) => f.folder !== 'application'))
+    const collected: { folder: string; name: string; path: string; size: number; createdAt: string; signedUrl: string }[] = []
+
+    await Promise.all(
+      DOCUMENT_TYPES.map(async (dt) => {
+        const { data } = await supabase.storage
+          .from(BUCKET)
+          .list(`${id}/${dt}`, { sortBy: { column: 'created_at', order: 'desc' } })
+        ;(data ?? [])
+          .filter(f => f.name !== '.emptyFolderPlaceholder')
+          .forEach(f => collected.push({
+            folder: dt,
+            name: f.name,
+            path: `${id}/${dt}/${f.name}`,
+            size: (f.metadata as any)?.size ?? 0,
+            createdAt: f.created_at ?? '',
+            signedUrl: '',
+          }))
+      })
+    )
+
+    if (collected.length > 0) {
+      const { data: signed } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUrls(collected.map(f => f.path), 3600)
+      const signedMap = new Map((signed ?? []).map(s => [s.path, s.signedUrl ?? '']))
+      collected.forEach(f => { f.signedUrl = signedMap.get(f.path) ?? '' })
+    }
+
+    setFiles(collected)
     setLoadingDocs(false)
   }
 
@@ -109,7 +136,7 @@ export default function StaffDocumentsPage() {
   }
 
   // Group files by folder/docType
-  const grouped = files.reduce<Record<string, StaffDocFile[]>>((acc, f) => {
+  const grouped = files.reduce<Record<string, typeof files>>((acc, f) => {
     ;(acc[f.folder] ??= []).push(f)
     return acc
   }, {})
