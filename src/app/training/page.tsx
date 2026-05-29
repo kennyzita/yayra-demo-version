@@ -5,7 +5,7 @@ export default function PublicTrainingPage() {
         <span style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>DSP Final Assessment — Reliance Care Services</span>
       </div>
       <iframe
-        src="https://id-preview--0aa69dd9-78c7-4a8a-b23f-9d4a9ffbf4c2.lovable.app/embed"
+        src="https://dsp-buddy-train.lovable.app/embed"
         style={{ flex: 1, border: 'none', display: 'block', width: '100%' }}
         allow="camera; microphone; clipboard-write"
         title="DSP Final Assessment"
