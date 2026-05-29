@@ -1,28 +1,97 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 
 type Tab = 'all' | 'assess' | 'certs'
 
-const trainings = [
-  { icon: 'ti-clipboard-text', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080', name: 'DSP Final Assessment', meta: 'Reliance Care Services · Required · Embedded in portal', pct: 30, barColor: '#008080', status: 'In progress', statusBg: 'rgba(0,128,128,0.1)', statusColor: '#008080', tab: 'assess' as const },
-  { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: 'CPR / First Aid / BLS', meta: 'Completed May 2025 · Expires Apr 30, 2027', pct: 100, barColor: '#30B060', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', tab: null },
-  { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: 'CDS training', meta: 'Completed Apr 2026 · No expiry', pct: 100, barColor: '#30B060', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', tab: null },
-  { icon: 'ti-alert-triangle', iconBg: 'rgba(186,117,23,0.1)', iconColor: '#BA7517', name: "Danielle's Law compliance", meta: 'Required · Due May 20, 2026 · Mandatory annual', pct: 30, barColor: '#BA7517', status: 'Due soon', statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517', tab: null },
-  { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: '60-day orientation', meta: 'Completed May 1, 2026 · Milestone achieved', pct: 100, barColor: '#30B060', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', tab: null },
-  { icon: 'ti-calendar', iconBg: 'rgba(55,138,221,0.1)', iconColor: '#378ADD', name: '90-day review', meta: 'Due Jun 1, 2026 · Scheduled with supervisor', pct: 0, barColor: '#378ADD', status: 'Upcoming', statusBg: '#f3f4f6', statusColor: '#6b7280', tab: null },
-  { icon: 'ti-calendar', iconBg: 'rgba(55,138,221,0.1)', iconColor: '#378ADD', name: '120-day milestone', meta: 'Due Jul 1, 2026', pct: 0, barColor: '#378ADD', status: 'Upcoming', statusBg: '#f3f4f6', statusColor: '#6b7280', tab: null },
-  { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: 'Internal training', meta: 'Completed Apr 15, 2026 · Agency orientation', pct: 100, barColor: '#30B060', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', tab: null },
+interface Training {
+  icon: string; iconBg: string; iconColor: string
+  name: string; meta: string; pct: number; barColor: string
+  status: string; statusBg: string; statusColor: string
+  tab: 'assess' | null
+  externalUrl?: string
+  dspStaffOnly?: boolean
+}
+
+const CDS_URL = 'https://login.elsevierperformancemanager.com/systemlogin.aspx?virtualname=EMBCenter'
+
+const ALL_TRAININGS: Training[] = [
+  {
+    icon: 'ti-clipboard-text', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080',
+    name: 'DSP Training Academy', meta: 'Reliance Care Services · Required · Embedded in portal',
+    pct: 30, barColor: '#008080', status: 'In progress',
+    statusBg: 'rgba(0,128,128,0.1)', statusColor: '#008080',
+    tab: 'assess', dspStaffOnly: true,
+  },
+  {
+    icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060',
+    name: 'CDS training', meta: 'Completed Apr 2026 · No expiry',
+    pct: 100, barColor: '#30B060', status: 'Complete',
+    statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060',
+    tab: null, externalUrl: CDS_URL,
+  },
+  {
+    icon: 'ti-alert-triangle', iconBg: 'rgba(186,117,23,0.1)', iconColor: '#BA7517',
+    name: "Danielle's Law compliance", meta: 'Required · Due May 20, 2026 · Mandatory annual',
+    pct: 30, barColor: '#BA7517', status: 'Due soon',
+    statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517',
+    tab: null,
+  },
+  {
+    icon: 'ti-calendar', iconBg: 'rgba(55,138,221,0.1)', iconColor: '#378ADD',
+    name: '120-day milestone', meta: 'Due Jul 1, 2026',
+    pct: 0, barColor: '#378ADD', status: 'Upcoming',
+    statusBg: '#f3f4f6', statusColor: '#6b7280',
+    tab: null,
+  },
+  {
+    icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060',
+    name: 'Internal training', meta: 'Completed Apr 15, 2026 · Agency orientation',
+    pct: 100, barColor: '#30B060', status: 'Complete',
+    statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060',
+    tab: null,
+  },
 ]
 
 export default function TrainingPage() {
-  const [tab, setTab] = useState<Tab>('all')
-  const [toast, setToast] = useState('')
+  const [tab,      setTab]      = useState<Tab>('all')
+  const [toast,    setToast]    = useState('')
+  const [userRole, setUserRole] = useState<string | null>(null)
 
-  function showToast(msg: string) {
-    setToast(msg)
-    setTimeout(() => setToast(''), 2500)
-  }
+  useEffect(() => {
+    async function loadRole() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setUserRole(''); return }
+      const { data } = await supabase.from('users').select('role:roles(name)').eq('id', user.id).single()
+      setUserRole((data?.role as any)?.name ?? '')
+    }
+    loadRole()
+  }, [])
+
+  function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
+
+  const isDspStaff = userRole === 'DSP Staff'
+  const trainings  = userRole === null
+    ? []
+    : ALL_TRAININGS.filter(t => !t.dspStaffOnly || isDspStaff)
+
+  const completed  = trainings.filter(t => t.status === 'Complete').length
+  const inProgress = trainings.filter(t => t.status === 'In progress').length
+  const dueSoon    = trainings.filter(t => t.status === 'Due soon').length
+  const upcoming   = trainings.filter(t => t.status === 'Upcoming').length
+
+  const tabItems: [Tab, string][] = [
+    ['all', 'All training'],
+    ...(isDspStaff ? [['assess', 'DSP Training Academy'] as [Tab, string]] : []),
+    ['certs', 'My certificates'],
+  ]
+
+  const certCards = [
+    ...(isDspStaff ? [{ name: 'DSP Training Academy', exp: 'In progress · Certificate issued on completion', status: 'Pending', statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517', disabled: true }] : []),
+    { name: 'CDS training certificate', exp: 'Issued: Apr 2026 · No expiry', status: 'Valid', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', disabled: false },
+  ]
 
   const panel: React.CSSProperties = { background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }
 
@@ -37,15 +106,15 @@ export default function TrainingPage() {
         </button>
       </div>
 
-      {/* Assessment embed — full height, no padding */}
-      {tab === 'assess' && (
+      {/* DSP Training Academy embed — full height, DSP Staff only */}
+      {tab === 'assess' && isDspStaff && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
           <div style={{ background: '#004050', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
             <button onClick={() => setTab('all')} style={{ fontSize: 12, padding: '5px 11px', borderRadius: 6, border: '0.5px solid rgba(255,255,255,0.25)', background: 'transparent', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', flexShrink: 0 }}>
               <i className="ti ti-arrow-left" style={{ fontSize: 13 }} /> Modules
             </button>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>DSP Final Assessment</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>DSP Training Academy</div>
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Reliance Care Services · Required for all DSP staff</div>
             </div>
           </div>
@@ -54,7 +123,7 @@ export default function TrainingPage() {
               src="https://dsp-buddy-train.lovable.app/embed"
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
               allow="camera; microphone; clipboard-write"
-              title="DSP Final Assessment"
+              title="DSP Training Academy"
             />
           </div>
         </div>
@@ -62,16 +131,16 @@ export default function TrainingPage() {
 
       <div style={{ padding: tab === 'assess' ? 0 : '20px 24px', display: tab === 'assess' ? 'none' : 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: tab === 'assess' ? undefined : 1 }}>
 
-        {/* Summary */}
+        {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
           {[
-            { val: '4', lbl: 'Completed', pill: 'Done', pillBg: 'rgba(48,176,96,0.1)', pillColor: '#30B060' },
-            { val: '1', lbl: 'In progress', pill: 'Active', pillBg: 'rgba(0,128,128,0.1)', pillColor: '#008080' },
-            { val: '1', lbl: 'Due soon', pill: 'Action needed', pillBg: 'rgba(186,117,23,0.1)', pillColor: '#BA7517' },
-            { val: '2', lbl: 'Upcoming', pill: 'Scheduled', pillBg: 'rgba(0,128,128,0.1)', pillColor: '#008080' },
+            { val: String(completed),  lbl: 'Completed',   pill: 'Done',          pillBg: 'rgba(48,176,96,0.1)',  pillColor: '#30B060' },
+            { val: String(inProgress), lbl: 'In progress', pill: 'Active',         pillBg: 'rgba(0,128,128,0.1)',  pillColor: '#008080' },
+            { val: String(dueSoon),    lbl: 'Due soon',    pill: 'Action needed',  pillBg: 'rgba(186,117,23,0.1)', pillColor: '#BA7517' },
+            { val: String(upcoming),   lbl: 'Upcoming',    pill: 'Scheduled',      pillBg: 'rgba(0,128,128,0.1)',  pillColor: '#008080' },
           ].map((s, i) => (
             <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: 16 }}>
-              <div style={{ fontSize: 24, fontWeight: 500, color: '#111', letterSpacing: -0.5 }}>{s.val}</div>
+              <div style={{ fontSize: 24, fontWeight: 500, color: '#111', letterSpacing: -0.5 }}>{userRole === null ? '—' : s.val}</div>
               <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{s.lbl}</div>
               <div style={{ display: 'inline-block', marginTop: 8, fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 500, background: s.pillBg, color: s.pillColor }}>{s.pill}</div>
             </div>
@@ -80,22 +149,24 @@ export default function TrainingPage() {
 
         {/* Tab bar */}
         <div style={{ display: 'flex', gap: 2, background: '#f3f4f6', borderRadius: 8, padding: 3, alignSelf: 'flex-start' }}>
-          {([['all','All training'],['assess','DSP final assessment'],['certs','My certificates']] as [Tab,string][]).map(([key, label]) => (
+          {tabItems.map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)} style={{ fontSize: 12, padding: '5px 16px', borderRadius: 6, cursor: 'pointer', border: 'none', fontFamily: 'inherit', fontWeight: 500, transition: 'all 0.15s', background: tab === key ? '#fff' : 'transparent', color: tab === key ? '#111' : '#6b7280', boxShadow: tab === key ? '0 0 0 0.5px #e5e7eb' : 'none' }}>
               {label}
             </button>
           ))}
         </div>
 
-        {/* All training */}
+        {/* All training modules */}
         {tab === 'all' && (
           <div style={panel}>
             <div style={{ background: '#004050', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Training modules</span>
               <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Reliance Care Services</span>
             </div>
-            {trainings.map((t, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < trainings.length - 1 ? '0.5px solid #e5e7eb' : 'none', cursor: 'pointer' }}>
+            {userRole === null ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Loading…</div>
+            ) : trainings.map((t, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 18px', borderBottom: i < trainings.length - 1 ? '0.5px solid #e5e7eb' : 'none' }}>
                 <div style={{ width: 40, height: 40, borderRadius: 8, background: t.iconBg, color: t.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
                   <i className={`ti ${t.icon}`} />
                 </div>
@@ -111,25 +182,33 @@ export default function TrainingPage() {
                     <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, textAlign: 'right' }}>{t.pct}%</div>
                   </div>
                   <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, fontWeight: 500, whiteSpace: 'nowrap', background: t.statusBg, color: t.statusColor }}>{t.status}</span>
-                  <button onClick={() => t.tab ? setTab(t.tab) : showToast('Opening...')} style={{ fontSize: 11, padding: '5px 12px', borderRadius: 6, border: '0.5px solid #008080', background: t.pct === 100 ? 'transparent' : 'rgba(0,128,128,0.06)', color: t.pct === 100 ? '#6b7280' : '#008080', cursor: 'pointer', borderColor: t.pct === 100 ? '#d1d5db' : '#008080', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                    {t.pct === 100 ? 'View cert' : t.pct > 0 ? 'Continue →' : 'Start →'}
-                  </button>
+                  {t.externalUrl ? (
+                    <a
+                      href={t.externalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 11, padding: '5px 12px', borderRadius: 6, border: '0.5px solid #008080', background: 'rgba(0,128,128,0.06)', color: '#008080', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                    >
+                      Continue
+                    </a>
+                  ) : (
+                    <button
+                      onClick={() => t.tab ? setTab(t.tab) : showToast('Opening...')}
+                      style={{ fontSize: 11, padding: '5px 12px', borderRadius: 6, border: `0.5px solid ${t.pct === 100 ? '#d1d5db' : '#008080'}`, background: t.pct === 100 ? 'transparent' : 'rgba(0,128,128,0.06)', color: t.pct === 100 ? '#6b7280' : '#008080', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                    >
+                      {t.pct === 100 ? 'View cert' : t.pct > 0 ? 'Continue →' : 'Start →'}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
 
-
         {/* Certificates */}
         {tab === 'certs' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12 }}>
-            {[
-              { name: 'CPR / First Aid / BLS', exp: 'Issued: May 2025 · Expires: Apr 30, 2027', status: 'Valid', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', disabled: false },
-              { name: 'CDS training certificate', exp: 'Issued: Apr 2026 · No expiry', status: 'Valid', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', disabled: false },
-              { name: '60-day orientation completion', exp: 'Issued: May 1, 2026 · Reliance Care Services', status: 'Complete', statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060', disabled: false },
-              { name: 'DSP final assessment', exp: 'In progress · Certificate issued on completion', status: 'Pending', statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517', disabled: true },
-            ].map((c, i) => (
+            {certCards.map((c, i) => (
               <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <div style={{ width: 40, height: 40, borderRadius: 8, background: 'rgba(48,176,96,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#30B060', flexShrink: 0 }}>
                   <i className="ti ti-certificate" />
@@ -137,7 +216,9 @@ export default function TrainingPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{c.name}</div>
                   <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{c.exp}</div>
-                  <div style={{ marginTop: 6 }}><span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 10, fontWeight: 500, background: c.statusBg, color: c.statusColor }}>{c.status}</span></div>
+                  <div style={{ marginTop: 6 }}>
+                    <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 10, fontWeight: 500, background: c.statusBg, color: c.statusColor }}>{c.status}</span>
+                  </div>
                 </div>
                 <button onClick={() => !c.disabled && showToast('Downloading certificate...')} style={{ fontSize: 12, padding: '6px 10px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: c.disabled ? 'not-allowed' : 'pointer', opacity: c.disabled ? 0.4 : 1, fontFamily: 'inherit' }}>
                   <i className="ti ti-download" />

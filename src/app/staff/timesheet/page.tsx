@@ -46,6 +46,7 @@ export default function TimesheetPage() {
   const editModeRef = useRef(false)
 
   const [profile, setProfile]               = useState<{ firstName: string; lastName: string; role: string } | null>(null)
+  const [staffId, setStaffId]               = useState('—')
   const [assignedClients, setAssignedClients] = useState<AssignedClient[]>([])
   const [loadingClients, setLoadingClients] = useState(true)
 
@@ -77,11 +78,22 @@ export default function TimesheetPage() {
       setLoadingClients(true)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const [{ data: prof }, { data: asgData }] = await Promise.all([
+      const [{ data: prof }, { data: asgData }, { data: allUsersData }] = await Promise.all([
         supabase.from('users').select('first_name, last_name, role:roles(name)').eq('id', user.id).single(),
         supabase.from('assignments').select('client_id, clients(id, full_name)').eq('dsp_id', user.id),
+        supabase.from('users').select('id, first_name, last_name').order('created_at', { ascending: true }),
       ])
-      if (prof) setProfile({ firstName: prof.first_name, lastName: prof.last_name, role: (prof.role as any)?.name ?? 'DSP' })
+      if (prof) {
+        setProfile({ firstName: prof.first_name, lastName: prof.last_name, role: (prof.role as any)?.name ?? 'DSP' })
+        const fullName = `${prof.first_name} ${prof.last_name}`.trim()
+        if (fullName === 'Rasheed Yekini') {
+          setStaffId('RCS-001')
+        } else {
+          const others = (allUsersData ?? []).filter((u: any) => `${u.first_name} ${u.last_name}`.trim() !== 'Rasheed Yekini')
+          const pos = others.findIndex((u: any) => u.id === user.id)
+          setStaffId(pos >= 0 ? `RCS-${String(pos + 2).padStart(3, '0')}` : 'RCS-002')
+        }
+      }
       const clients: AssignedClient[] = (asgData || []).map((a: any) => a.clients).filter(Boolean)
         .sort((a: any, b: any) => a.full_name.localeCompare(b.full_name))
       setAssignedClients(clients)
@@ -431,7 +443,7 @@ export default function TimesheetPage() {
           <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: '24px 28px 32px' }}>
             {/* Employee strip */}
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 36, marginBottom: 20, paddingBottom: 18, borderBottom: '1px solid #e8e8e8' }}>
-              {[{ lbl: 'Employee name', val: staffName }, { lbl: 'Position / Role', val: profile?.role ?? '—' }, { lbl: 'Staff ID', val: 'AUTO' }].map(f => (
+              {[{ lbl: 'Employee name', val: staffName }, { lbl: 'Position / Role', val: profile?.role ?? '—' }, { lbl: 'Staff ID', val: staffId }].map(f => (
                 <div key={f.lbl}>
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#666', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {f.lbl} <span style={{ fontSize: 9, background: '#004050', color: '#fff', padding: '1px 6px', borderRadius: 3, fontWeight: 700 }}>AUTO</span>
