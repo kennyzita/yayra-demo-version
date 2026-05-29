@@ -1,11 +1,11 @@
 // @ts-nocheck
 'use client'
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
-const supabase = createClient();
+const supabase = createClient()
 
 const NJ_COUNTIES = ["Atlantic","Bergen","Burlington","Camden","Cape May","Cumberland","Essex","Gloucester","Hudson","Hunterdon","Mercer","Middlesex","Monmouth","Morris","Ocean","Passaic","Salem","Somerset","Sussex","Union","Warren"];
 const PROC_CODES = ["H2016HI","H2021HI","H2021HI22","H2016HI22","H2016","H2021","T2016","T1019","S5125","S5130","H0043","H2015"];
@@ -13,7 +13,19 @@ const SERVICE_TYPES = ["Community-Based Services","Community-Based Services Acui
 const SERVICE_PROC_MAP = {"Community-Based Services":"H2021HI","Community-Based Services Acuity":"H2021HI22","Individual Support":"H2016HI","Individual Support Acuity":"H2016HI22"};
 const SERVICE_RATE_MAP = {"Community-Based Services":9.77,"Community-Based Services Acuity":9.77,"Individual Support":9.85,"Individual Support Acuity":9.85};
 const STORAGE_KEY = "billing_mgr_v1";
+const BILLING_NAV_STATE_KEY = "billing_mgr_nav_state_v1";
 const DEFAULT_PIN = "1234";
+
+function readBillingNavState(){
+  if(typeof window==="undefined")return {};
+  try{return JSON.parse(sessionStorage.getItem(BILLING_NAV_STATE_KEY)||"{}");}
+  catch{return {};}
+}
+
+function saveBillingNavState(state){
+  if(typeof window==="undefined")return;
+  sessionStorage.setItem(BILLING_NAV_STATE_KEY,JSON.stringify(state));
+}
 
 const SC_AGENCIES = [
   {company:"1 Able Community LLC",email:"support@1ablecommunity.com"},
@@ -143,6 +155,7 @@ function calcAge(dob){
   return isNaN(age)?"":age;
 }
 function fmtD(d){return`${d.getUTCMonth()+1}/${d.getUTCDate()}/${d.getUTCFullYear()}`;}
+function fmtWeekRange(startStr){const[m,d,y]=startStr.split("/").map(Number);const s=new Date(Date.UTC(y,m-1,d));const e=new Date(s);e.setUTCDate(e.getUTCDate()+6);return`${fmtD(s)} – ${fmtD(e)}`;}
 function nowStr(){return new Date().toLocaleString();}
 const UUID_RE=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function isDbUuid(id){return typeof id==="string"&&UUID_RE.test(id);}
@@ -302,7 +315,9 @@ async function deleteBillingStaffRow(id){
 
 async function pdfFileToText(file){
   const pdfjs=await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc=`https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+  // @ts-ignore worker bundled by Vite
+  const worker=await import("pdfjs-dist/build/pdf.worker.mjs?url");
+  pdfjs.GlobalWorkerOptions.workerSrc=worker.default;
   const buf=await file.arrayBuffer();
   const doc=await pdfjs.getDocument({data:buf}).promise;
   let out="";
@@ -336,9 +351,9 @@ function mkStaff(id){return{id,name:"",role:"DSP",hireDate:"",status:"Active",
   hoursLog:{} // {clientId: [{week:'YYYY-MM-DD', hours, billable}]}
 };}
 
-function calcStaffWeek(s){
-  const rate=parseFloat(s.payRate)||0;
-  const hrs=parseFloat(s.weeklyHours)||0;
+function calcStaffWeek(s,hrsOverride,rateOverride){
+  const rate=rateOverride!=null?(parseFloat(rateOverride)||0):(parseFloat(s.payRate)||0);
+  const hrs=hrsOverride!=null?(parseFloat(hrsOverride)||0):(parseFloat(s.weeklyHours)||0);
   const gross=rate*hrs;
   const fica=gross*FICA_RATE;
   const futa=gross*FUTA_RATE;
@@ -346,27 +361,80 @@ function calcStaffWeek(s){
   const expenses=(s.expenses||[]).reduce((a,e)=>a+(parseFloat(e.amount)||0),0);
   const totalTax=fica+futa+sui;
   const totalCost=gross+totalTax+expenses;
-  return{gross,fica,futa,sui,totalTax,expenses,totalCost};
+  return{gross,fica,futa,sui,totalTax,expenses,totalCost,hrs,rate};
 }
-// Allocate weekly cost across assigned clients by hours logged this week (or evenly if none).
-function allocStaffCostByClient(s,weekKey){
-  const w=calcStaffWeek(s);
-  const ids=s.assignedClientIds||[];
-  if(!ids.length)return{};
-  const log=s.hoursLog||{};
-  const hrsByClient={};let totalHrs=0;
-  ids.forEach(cid=>{
-    const entry=(log[cid]||[]).find(e=>e.week===weekKey);
-    const h=entry?(parseFloat(entry.hours)||0):0;
-    hrsByClient[cid]=h;totalHrs+=h;
+function paWeekTotals(client,week){
+  let units=0,hours=0,revenue=0,cost=0;
+  (client?.services||[]).forEach(pa=>{
+    const wk=(pa.weeks||[]).find(x=>x.s===week);
+    if(!wk||!wk.billed)return;
+    const u=parseFloat(wk.u)||0,uph=parseFloat(pa.uph)||1,rate=parseFloat(pa.rate)||0;
+    units+=u;hours+=uph>0?u/uph:0;cost+=u*rate;
+    if(wk.approved===true)revenue+=u*rate;
   });
-  const out={};
-  if(totalHrs>0){
-    ids.forEach(cid=>{out[cid]=w.totalCost*(hrsByClient[cid]/totalHrs);});
-  }else{
-    ids.forEach(cid=>{out[cid]=w.totalCost/ids.length;});
-  }
-  return out;
+  return{units,hours,revenue,cost};
+}
+function paActualTotalCostForClients(ids,clients){
+  return (ids||[]).reduce((sum,cid)=>{
+    const c=clients.find(x=>x.id===cid);if(!c)return sum;
+    return sum+(c.services||[]).reduce((a,pa)=>a+(pa.weeks||[]).reduce((x,wk)=>x+((parseFloat(wk.u)||0)*(parseFloat(pa.rate)||0)),0),0);
+  },0);
+}
+function staffLogEntry(s,cid,week){return ((s?.hoursLog||{})[cid]||[]).find(e=>e.week===week);}
+function assignedActiveStaffForClient(allStaff,cid){return (allStaff||[]).filter(s=>!s.archived&&(s.assignedClientIds||[]).includes(cid));}
+function clientWeekStaffAllocation(client,week,allStaff){
+  const pa=paWeekTotals(client,week),assigned=assignedActiveStaffForClient(allStaff,client?.id);
+  const allocations={};
+  assigned.forEach(s=>{
+    const entry=staffLogEntry(s,client.id,week);
+    const manual=!!entry;
+    const hours=manual?(parseFloat(entry.hours)||0):0;
+    const billable=manual?(parseFloat(entry.billable)||0):0;
+    const rate=(entry&&entry.rate!=null&&entry.rate!=="")?(parseFloat(entry.rate)||0):(parseFloat(s.payRate)||0);
+    const revenue=pa.units>0?pa.revenue*(billable/pa.units):0;
+    allocations[s.id]={hours,billable,revenue,manual,rate};
+  });
+  const totalHours=Object.values(allocations).reduce((a,x)=>a+(parseFloat(x.hours)||0),0);
+  return{...pa,allocations,totalHours,over:totalHours>pa.hours+0.01,overBy:Math.max(0,totalHours-pa.hours),staffCount:assigned.length};
+}
+function staffWeekClientRows(s,clients,allStaff,week){
+  const ids=s.assignedClientIds||[];
+  const rows=ids.map(cid=>{
+    const c=clients.find(x=>x.id===cid);if(!c)return null;
+    const wk=clientWeekStaffAllocation(c,week,allStaff),a=wk.allocations[s.id]||{hours:0,billable:0,revenue:0,manual:false,rate:parseFloat(s.payRate)||0};
+    return{wk:week,cid,c,hrs:a.hours,billable:a.billable,revenue:a.revenue,manual:a.manual,rate:a.rate,paHours:wk.hours,totalClientHours:wk.totalHours,over:wk.over,overBy:wk.overBy,staffCount:wk.staffCount};
+  }).filter(Boolean);
+  const weekHrs=rows.reduce((a,r)=>a+r.hrs,0);
+  const totalExpenses=parseFloat((s.weeklyExpenses||{})[week])||0;
+  // Per-row: actual hours × that row's rate + employer tax + prorated weekly expenses
+  return rows.map(r=>{
+    const gross=(r.hrs||0)*(r.rate||0);
+    const tax=gross*(FICA_RATE+FUTA_RATE+NJ_SUI_RATE);
+    const expShare=weekHrs>0?totalExpenses*((r.hrs||0)/weekHrs):0;
+    const cost=gross+tax+expShare;
+    return{...r,gross,tax,expShare,cost,margin:(r.revenue||0)-cost};
+  });
+}
+function staffAllLogRows(s,clients,allStaff){
+  const weeks=new Set();
+  (s.assignedClientIds||[]).forEach(cid=>{
+    const c=(clients||[]).find(x=>x.id===cid);if(!c)return;
+    (c.services||[]).forEach(pa=>(pa.weeks||[]).forEach(wk=>weeks.add(wk.s)));
+  });
+  return [...weeks].flatMap(wk=>staffWeekClientRows(s,clients||[],allStaff||[],wk));
+}
+function staffTaxTotals(s,clients,allStaff){
+  const rows=staffAllLogRows(s,clients,allStaff);
+  const gross=rows.reduce((a,r)=>a+(r.gross||0),0);
+  const fica=gross*FICA_RATE,futa=gross*FUTA_RATE,sui=gross*NJ_SUI_RATE;
+  const activeWeeks=new Set(rows.filter(r=>(r.hrs||0)>0).map(r=>r.wk)).size;
+  const totalHrs=rows.reduce((a,r)=>a+(r.hrs||0),0);
+  return{gross,fica,futa,sui,totalTax:fica+futa+sui,activeWeeks,totalHrs,avgWeeklyHrs:activeWeeks>0?totalHrs/activeWeeks:0,avgWeeklyGross:activeWeeks>0?gross/activeWeeks:0};
+}
+function totalCumulativeEmployerCostForClients(ids,clients,allStaff){
+  const weeks=[...new Set((ids||[]).flatMap(cid=>(clients.find(c=>c.id===cid)?.services||[]).flatMap(pa=>(pa.weeks||[]).map(w=>w.s))))];
+  const staff=(allStaff||[]).filter(s=>!s.archived&&(s.assignedClientIds||[]).some(cid=>(ids||[]).includes(cid)));
+  return staff.reduce((sum,s)=>sum+weeks.reduce((a,wk)=>a+staffWeekClientRows(s,clients,allStaff,wk).filter(r=>(ids||[]).includes(r.cid)).reduce((x,r)=>x+r.cost,0),0),0);
 }
 
 // ── UI Primitives ─────────────────────────────────────────────────────────────
@@ -393,11 +461,15 @@ function Card({title,icon,accent=navy,children,action}){
     </div>
     <div style={{padding:14}}>{children}</div>
   </div>;}
-function Metric({label,val,color=navy,bg=gray1,sub}){
+function Metric({label,val,color=navy,bg=gray1,sub,labelColor,subColor}){
+  // Auto-pick high-contrast label/sub colors when the value text is white (dark bg)
+  const autoLight=color===white;
+  const lc=labelColor||(autoLight?"rgba(255,255,255,0.95)":gray7);
+  const sc=subColor||(autoLight?"rgba(255,255,255,0.85)":gray5);
   return <div style={{background:bg,border:`1.5px solid ${gray2}`,borderRadius:8,padding:"10px 12px"}}>
-    <div style={{fontSize:10,fontWeight:800,color:gray5,textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label}</div>
+    <div style={{fontSize:10,fontWeight:800,color:lc,textTransform:"uppercase",letterSpacing:".06em",marginBottom:3}}>{label}</div>
     <div style={{fontSize:20,fontWeight:900,color}}>{val}</div>
-    {sub&&<div style={{fontSize:10,color:gray5,marginTop:2}}>{sub}</div>}
+    {sub&&<div style={{fontSize:10,color:sc,marginTop:2,fontWeight:600}}>{sub}</div>}
   </div>;}
 function Btn({onClick,children,bg=white,color=gray7,border=gray2,disabled,full,style}){
   return <button onClick={onClick} disabled={disabled}
@@ -604,7 +676,7 @@ function PrintView({cl,onClose}){
           </div>;
         })}
         <div style={{marginTop:24,paddingTop:12,borderTop:`1px solid ${gray2}`,fontSize:10,color:gray5,textAlign:"center"}}>
-          Billing Management · Confidential · Generated {new Date().toLocaleString()}
+          RCS Billing Management · Confidential · Generated {new Date().toLocaleString()}
         </div>
       </div>
     </div>
@@ -1299,9 +1371,11 @@ function StaffForm({st,upd,onDel,clients,allStaff}){
   const [tab,setTab]=useState("info");
   const [del,setDel]=useState(false);
   const [showPin,setShowPin]=useState(false);
-  const w=calcStaffWeek(st);
+  const taxTotals=staffTaxTotals(st,clients,allStaff);
   const numClients=(st.assignedClientIds||[]).length;
-  const perClient=numClients>0?w.totalCost/numClients:0;
+  const wEst=calcStaffWeek(st,taxTotals.avgWeeklyHrs);
+  const perClient=numClients>0?wEst.totalCost/numClients:0;
+
 
   function addExpense(){upd({expenses:[...(st.expenses||[]),{id:Date.now(),label:"",amount:0}]});}
   function updExpense(id,p){upd({expenses:(st.expenses||[]).map(e=>e.id===id?{...e,...p}:e)});}
@@ -1331,6 +1405,24 @@ function StaffForm({st,upd,onDel,clients,allStaff}){
     if(idx>=0)arr[idx]={...arr[idx],...patch};
     else arr.push({week,hours:0,billable:0,...patch});
     log[cid]=arr;upd({hoursLog:log});
+    const client=clients.find(x=>x.id===cid);
+    if(client){
+      const previewStaff={...st,hoursLog:log};
+      const previewAll=(allStaff||[]).map(s=>s.id===st.id?previewStaff:s);
+      const wk=clientWeekStaffAllocation(client,week,previewAll);
+      if(wk.over)toast.warning(`${client.name||"Client"} ${week}: assigned staff hours exceed PA weekly hours by ${fmtHrs(wk.overBy)} hrs.`);
+    }
+  }
+  function setWeeklyExpense(week,amount){
+    const map={...(st.weeklyExpenses||{})};
+    if(amount===""||amount==null||isNaN(parseFloat(amount)))delete map[week];
+    else map[week]=parseFloat(amount)||0;
+    upd({weeklyExpenses:map});
+  }
+  function clearLog(cid,week){
+    const log={...(st.hoursLog||{})};
+    log[cid]=[...(log[cid]||[])].filter(e=>e.week!==week);
+    upd({hoursLog:log});
   }
 
   const statusColor=st.status==="Active"?green:st.status==="On Leave"?yellow:gray5;
@@ -1408,104 +1500,151 @@ function StaffForm({st,upd,onDel,clients,allStaff}){
     </Card>}
 
     {tab==="pay"&&<>
-      <Card title="Pay Rate & Hours" icon="💵" accent={purple}>
+      <Card title="Default Pay Rate" icon="💵" accent={purple}>
         <Row cols={3} gap={8}>
           <Fld label="Pay rate ($/hr)"><Inp type="number" step="0.01" min="0" value={st.payRate} onChange={e=>upd({payRate:e.target.value})}/></Fld>
-          <Fld label="Standard weekly hours"><Inp type="number" step="0.25" min="0" value={st.weeklyHours} onChange={e=>upd({weeklyHours:e.target.value})}/></Fld>
-          <Fld label="Gross weekly pay"><Inp value={fmtUSD(w.gross)} readOnly/></Fld>
+          <Fld label="Total logged hours (from log)"><Inp value={`${fmtHrs(taxTotals.totalHrs)} hrs · ${taxTotals.activeWeeks} wk`} readOnly/></Fld>
+          <Fld label="Total gross (from log)"><Inp value={fmtUSD(taxTotals.gross)} readOnly/></Fld>
         </Row>
+        <div style={{fontSize:10,color:gray5,fontStyle:"italic",marginTop:6}}>Per-week rate can be overridden in the Hours Log. Tax burden below is computed from actual logged hours × the rate on each log row.</div>
       </Card>
 
-      <Card title="Employer Tax Burden (auto-calculated)" icon="🏛" accent={navy}>
+      <Card title="Employer Tax Burden (auto-calculated from Hours Log)" icon="🏛" accent={navy}>
         <Row cols={4} gap={8}>
-          <Metric label="FICA (7.65%)" val={fmtUSD(w.fica)} color={navy} bg={blueL} sub="SS 6.2% + Medicare 1.45%"/>
-          <Metric label="FUTA (0.6%)" val={fmtUSD(w.futa)} color={navy} bg={blueL} sub="Federal unemployment"/>
-          <Metric label="NJ SUI (0.4%)" val={fmtUSD(w.sui)} color={navy} bg={blueL} sub="State unemployment"/>
-          <Metric label="Total tax" val={fmtUSD(w.totalTax)} color={white} bg={navy}/>
+          <Metric label="FICA (7.65%)" val={fmtUSD(taxTotals.fica)} color={navy} bg={blueL} sub={`SS 6.2% + Medicare 1.45% · ${taxTotals.activeWeeks} wk`}/>
+          <Metric label="FUTA (0.6%)" val={fmtUSD(taxTotals.futa)} color={navy} bg={blueL} sub="Federal unemployment"/>
+          <Metric label="NJ SUI (0.4%)" val={fmtUSD(taxTotals.sui)} color={navy} bg={blueL} sub="State unemployment"/>
+          <Metric label="Total tax" val={fmtUSD(taxTotals.totalTax)} color={white} bg={navy} sub={`Gross ${fmtUSD(taxTotals.gross)} · ${fmtHrs(taxTotals.totalHrs)} hrs total`}/>
         </Row>
       </Card>
 
-      <Card title="Expense Deductions" icon="🧾" accent={yellow}
-        action={<Btn onClick={addExpense} bg={white} color={yellow} border={white}>+ Add line item</Btn>}>
-        {(st.expenses||[]).length===0
-          ?<div style={{fontSize:12,color:gray5,fontStyle:"italic",padding:8}}>No expenses. Add line items like mileage, phone, equipment.</div>
-          :<div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {st.expenses.map(e=>(
-              <div key={e.id} style={{display:"grid",gridTemplateColumns:"2fr 1fr auto",gap:8,alignItems:"center"}}>
-                <Inp value={e.label} onChange={ev=>updExpense(e.id,{label:ev.target.value})} placeholder="Expense label (mileage, phone, etc.)"/>
-                <Inp type="number" step="0.01" min="0" value={e.amount} onChange={ev=>updExpense(e.id,{amount:ev.target.value})}/>
-                <button onClick={()=>delExpense(e.id)} style={{fontSize:11,color:red,background:"none",border:"none",cursor:"pointer",padding:"4px 8px"}}>✕</button>
-              </div>
-            ))}
-          </div>}
+
+      <Card title="Cumulative Expenses (from Hours Log)" icon="🧾" accent={yellow}>
+        {(()=>{
+          const ids=(st.assignedClientIds||[]);
+          const assignedStaffExp=(allStaff||[]).filter(s=>!s.archived&&(s.assignedClientIds||[]).some(cid=>ids.includes(cid)));
+          const cumNetExpense=assignedStaffExp.reduce((tot,sm)=>tot+Object.values(sm.weeklyExpenses||{}).reduce((a,v)=>a+(parseFloat(v)||0),0),0);
+          const myCum=Object.values(st.weeklyExpenses||{}).reduce((a,v)=>a+(parseFloat(v)||0),0);
+          const myWeeks=Object.keys(st.weeklyExpenses||{}).filter(w=>(parseFloat(st.weeklyExpenses[w])||0)>0).length;
+          return <Row cols={2} gap={8}>
+            <Metric label={`${st.name||"This staff"} · Cumulative Expenses`} val={fmtUSD(myCum)} color={yellow} bg={yellowL||"#fef3c7"} sub={`Entered weekly in the Hours Log · ${myWeeks} wk`}/>
+            <Metric label={`All assigned staff · Cumulative Net Expense`} val={fmtUSD(cumNetExpense)} color={white} bg={yellow} sub={`Auto across ${assignedStaffExp.length} assigned staff`}/>
+          </Row>;
+        })()}
       </Card>
 
-      <Card title="Total Employer Cost" icon="📊" accent={teal}>
-        <Row cols={3} gap={8}>
-          <Metric label="Gross + Taxes + Expenses" val={fmtUSD(w.totalCost)} color={white} bg={teal} sub="Per week"/>
-          <Metric label="Per assigned client" val={numClients?fmtUSD(perClient):"—"} color={teal} bg={tealL} sub={`${numClients} client${numClients!==1?"s":""} (even split fallback)`}/>
-          <Metric label="Annualized cost" val={fmtUSD(w.totalCost*52)} color={gray9} bg={gray1} sub="× 52 weeks"/>
-        </Row>
-      </Card>
+      {(()=>{
+        const ids=(st.assignedClientIds||[]);
+        const billedWeeks=weekList.filter(wk=>staffWeekClientRows(st,clients,allStaff,wk).some(r=>r.hrs>0||r.billable>0)).length;
+        const totalWeeks=weekList.length;
+        const cumCost=weekList.reduce((sum,wk)=>sum+staffWeekClientRows(st,clients,allStaff,wk).reduce((a,r)=>a+r.cost,0),0);
+        const assignedStaffAll=(allStaff||[]).filter(s=>!s.archived&&(s.assignedClientIds||[]).some(cid=>ids.includes(cid)));
+        const cumNetMargin=assignedStaffAll.reduce((tot,sm)=>tot+weekList.reduce((sum,wk)=>sum+staffWeekClientRows(sm,clients,allStaff,wk).filter(r=>ids.includes(r.cid)).reduce((a,r)=>a+(r.margin||0),0),0),0);
+        const marginColor=cumNetMargin>=0?green:red;
+        const marginBg=cumNetMargin>=0?greenL:redL;
+        const paTotalCost=paActualTotalCostForClients(ids,clients);
+        const assignedStaff=(allStaff||[]).filter(s=>!s.archived&&(s.assignedClientIds||[]).some(cid=>ids.includes(cid)));
+        const totalCumCost=totalCumulativeEmployerCostForClients(ids,clients,allStaff);
+        const projectedProfit=paTotalCost-totalCumCost;
+        const profitColor=projectedProfit>=0?green:red;
+        return <Card title="Total Employer Cost" icon="📊" accent={teal}>
+          <Row cols={3} gap={8}>
+            <Metric label="Gross + Taxes + Expenses" val={fmtUSD(cumCost)} color={white} bg={teal}
+              sub={`Billed to date · ${billedWeeks}/${totalWeeks||0} wk with assigned hours`}/>
+            <Metric label="Cumulative weekly Net Margin" val={fmtUSD(cumNetMargin)} color={marginColor} bg={marginBg} sub={`Auto: Σ (Client revenue − DSP cost) across ${assignedStaffAll.length} staff · ${billedWeeks}/${totalWeeks||0} wk`}/>
+            <Metric label="Projected profit" val={fmtUSD(projectedProfit)} color={profitColor} bg={gray1} sub={`PA total ${fmtUSD(paTotalCost)} − Total cum. cost ${fmtUSD(totalCumCost)} (${assignedStaff.length} staff)`}/>
+          </Row>
+        </Card>;
+      })()}
     </>}
 
-    {tab==="hours"&&<Card title="Weekly Hours Log" icon="⏱" accent={purple}>
-      {(st.assignedClientIds||[]).length===0
-        ?<div style={{fontSize:12,color:gray5,fontStyle:"italic",padding:8}}>No clients assigned. Use the Client Assignments tab.</div>
-        :weekList.length===0
-          ?<div style={{fontSize:12,color:gray5,fontStyle:"italic",padding:8}}>Assigned clients have no PA weeks set up yet.</div>
-          :<div style={{overflowX:"auto"}}>
-            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
-              <thead>
-                <tr style={{background:gray1}}>
-                  <th style={{padding:"6px 8px",textAlign:"left",fontSize:10,fontWeight:800,color:gray7,textTransform:"uppercase"}}>Week</th>
-                  <th style={{padding:"6px 8px",textAlign:"left",fontSize:10,fontWeight:800,color:gray7,textTransform:"uppercase"}}>Client</th>
-                  <th style={{padding:"6px 8px",textAlign:"right",fontSize:10,fontWeight:800,color:gray7,textTransform:"uppercase"}}>Hours</th>
-                  <th style={{padding:"6px 8px",textAlign:"right",fontSize:10,fontWeight:800,color:gray7,textTransform:"uppercase"}}>Billable units</th>
-                  <th style={{padding:"6px 8px",textAlign:"right",fontSize:10,fontWeight:800,color:gray7,textTransform:"uppercase"}}>DSP cost</th>
-                  <th style={{padding:"6px 8px",textAlign:"right",fontSize:10,fontWeight:800,color:gray7,textTransform:"uppercase"}}>Client revenue</th>
-                  <th style={{padding:"6px 8px",textAlign:"right",fontSize:10,fontWeight:800,color:gray7,textTransform:"uppercase"}}>Net margin</th>
-                </tr>
-              </thead>
-              <tbody>
-                {weekList.map(wk=>{
-                  const alloc=allocStaffCostByClient(st,wk);
-                  return (st.assignedClientIds||[]).map(cid=>{
-                    const c=clients.find(x=>x.id===cid);if(!c)return null;
-                    const log=getLog(cid,wk);
-                    const hrs=log?(parseFloat(log.hours)||0):0;
-                    const billable=log?(parseFloat(log.billable)||0):0;
-                    // Find client revenue for this week from any matching PA week
-                    let revenue=0;
-                    c.services.forEach(pa=>{
-                      const pw=pa.weeks.find(x=>x.s===wk);
-                      if(pw&&pw.approved===true)revenue+=pw.u*(parseFloat(pa.rate)||0);
-                    });
-                    const cost=alloc[cid]||0;
-                    const margin=revenue-cost;
-                    return <tr key={`${wk}-${cid}`} style={{borderBottom:`1px solid ${gray2}`}}>
-                      <td style={{padding:"5px 8px",fontSize:11,color:gray9}}>{wk}</td>
-                      <td style={{padding:"5px 8px",fontSize:11,color:gray9,fontWeight:600}}>{c.name||"Unnamed"}</td>
-                      <td style={{padding:"3px 8px"}}>
-                        <input type="number" step="0.25" min="0" value={hrs}
-                          onChange={e=>setLog(cid,wk,{hours:e.target.value})}
-                          style={{...iBase,fontSize:11,padding:"3px 6px",textAlign:"right"}}/>
-                      </td>
-                      <td style={{padding:"3px 8px"}}>
-                        <input type="number" step="1" min="0" value={billable}
-                          onChange={e=>setLog(cid,wk,{billable:e.target.value})}
-                          style={{...iBase,fontSize:11,padding:"3px 6px",textAlign:"right"}}/>
-                      </td>
-                      <td style={{padding:"5px 8px",textAlign:"right",fontSize:11,color:red,fontWeight:600}}>{fmtUSD(cost)}</td>
-                      <td style={{padding:"5px 8px",textAlign:"right",fontSize:11,color:green,fontWeight:600}}>{fmtUSD(revenue)}</td>
-                      <td style={{padding:"5px 8px",textAlign:"right",fontSize:11,fontWeight:800,color:margin>=0?green:red}}>{fmtUSD(margin)}</td>
-                    </tr>;
-                  });
-                })}
-              </tbody>
-            </table>
-          </div>}
-    </Card>}
+
+
+    {tab==="hours"&&(()=>{
+      // Precompute rows + per-week allocations based on each client's billed PA weekly hours shared across assigned staff
+      const rows=[];
+      let totalCost=0,totalRev=0,totalMargin=0,cumCost=0;
+      weekList.forEach(wk=>{
+        const weekRows=staffWeekClientRows(st,clients,allStaff,wk);
+        const weekCostUsed=weekRows.reduce((a,r)=>a+r.cost,0);
+        weekRows.forEach(r=>{totalCost+=r.cost;totalRev+=r.revenue;totalMargin+=r.margin;rows.push({...r,cum:0});});
+        cumCost+=weekCostUsed;
+        // assign cumulative to all rows of this week (same value)
+        if(weekRows.length)rows.slice(-weekRows.length).forEach(r=>{r.cum=cumCost;});
+      });
+      const overWarnings=rows.filter(r=>r.over).filter((r,i,a)=>a.findIndex(x=>x.wk===r.wk&&x.cid===r.cid)===i);
+
+      return <Card title="Weekly Hours Log" icon="⏱" accent={purple}>
+        {(st.assignedClientIds||[]).length===0
+          ?<div style={{fontSize:12,color:gray5,fontStyle:"italic",padding:8}}>No clients assigned. Use the Client Assignments tab.</div>
+          :weekList.length===0
+            ?<div style={{fontSize:12,color:gray5,fontStyle:"italic",padding:8}}>Assigned clients have no PA weeks set up yet.</div>
+            :<>
+              <div style={{fontSize:11,color:gray5,fontStyle:"italic",marginBottom:6,padding:"6px 10px",background:tealL,borderRadius:6,border:`1px solid ${teal}`}}>
+                ⚡ Hours and Billable units auto-fill from each billed client PA week and are shared across assigned staff. Edit a staff row when hours need to be split differently.
+              </div>
+              {overWarnings.length>0&&<div style={{fontSize:11,color:red,marginBottom:6,padding:"7px 10px",background:redL,borderRadius:6,border:`1.5px solid ${red}`,fontWeight:800}}>
+                ⚠ Weekly PA hour limit exceeded: {overWarnings.map(w=>`${w.c.name||"Client"} ${w.wk} is over by ${fmtHrs(w.overBy)} hrs`).join(" · ")}
+              </div>}
+              <div style={{overflowX:"hidden",border:`1px solid ${gray2}`,borderRadius:10,background:white,boxShadow:"0 1px 3px rgba(0,0,0,0.04)"}}>
+                <table style={{width:"100%",tableLayout:"fixed",borderCollapse:"collapse",borderSpacing:0,fontSize:10,fontVariantNumeric:"tabular-nums"}}>
+                  <colgroup>
+                    <col style={{width:"14%"}}/>
+                    <col style={{width:"11%"}}/>
+                    <col style={{width:"7%"}}/>
+                    <col style={{width:"7%"}}/>
+                    <col style={{width:"9%"}}/>
+                    <col style={{width:"9%"}}/>
+                    <col style={{width:"9%"}}/>
+                    <col style={{width:"9%"}}/>
+                    <col style={{width:"13%"}}/>
+                    <col style={{width:"12%"}}/>
+                  </colgroup>
+                  <thead>
+                    <tr style={{background:gray7}}>
+                      {["Week","Hours","Rate","Gross","Tax","Expenses","Billable","DSP cost","Revenue","Margin"].map((h,i)=>
+                        <th key={h} style={{padding:"8px 6px",textAlign:i===0?"left":"right",fontSize:9,fontWeight:700,color:"rgba(255,255,255,.85)",textTransform:"uppercase",letterSpacing:"0.03em",borderBottom:"none",whiteSpace:"normal",lineHeight:1.2,overflowWrap:"anywhere"}}>{h}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r,idx)=>{
+                      if(!r.c)return null;
+                      const prev=idx>0?rows[idx-1]:null;
+                      const showWk=!prev||prev.wk!==r.wk;
+                      const zebra=idx%2===1?"#f8fafc":white;
+                      const cellBase={padding:"7px 6px",textAlign:"right",fontSize:10,borderBottom:`1px solid ${gray2}`,background:zebra,verticalAlign:"middle",overflow:"hidden",transition:"background .15s ease"};
+                      const bigCell={...cellBase,fontSize:11};
+                      return <tr key={`${r.wk}-${r.cid}`} style={{cursor:"default"}} onMouseEnter={e=>{e.currentTarget.style.background="#eef2ff";}} onMouseLeave={e=>{e.currentTarget.style.background=zebra;}}>
+                        <td style={{...cellBase,textAlign:"left",color:gray9,fontWeight:700,borderLeft:showWk?`3px solid ${purple}`:`3px solid transparent`,paddingLeft:showWk?10:6}}>{showWk?fmtWeekRange(r.wk).replace(/\/20/g,"/"):""}{r.over&&<div style={{fontSize:8,color:red,fontWeight:700,marginTop:3}}>⚠ {fmtHrs(r.totalClientHours)} / {fmtHrs(r.paHours)} hrs</div>}</td>
+                        <td style={cellBase}><Inp type="number" step="0.25" min="0" value={fmtHrs(r.hrs)} onChange={e=>setLog(r.cid,r.wk,{hours:parseFloat(e.target.value)||0})} style={{width:"100%",textAlign:"right",fontSize:12,fontWeight:700,color:r.over?red:gray9,padding:"5px 6px",minWidth:0,borderRadius:4,border:`1px solid ${gray2}`}}/></td>
+                        <td style={cellBase}><Inp type="number" step="0.01" min="0" value={Math.round((parseFloat(r.rate)||0)*100)/100} onChange={e=>setLog(r.cid,r.wk,{rate:parseFloat(e.target.value)||0})} style={{width:"100%",textAlign:"right",fontSize:10,fontWeight:600,color:gray9,padding:"5px 4px",minWidth:0,borderRadius:4,border:`1px solid ${gray2}`}}/></td>
+                        <td style={{...cellBase,color:gray9,fontWeight:700}}>{fmtUSD(r.gross)}</td>
+                        <td style={{...bigCell,color:navy,fontWeight:600}}>{fmtUSD(r.tax)}</td>
+                        <td style={{...bigCell,color:yellow,fontWeight:600}}>{showWk?<Inp type="number" step="0.01" min="0" value={(st.weeklyExpenses||{})[r.wk]??""} onChange={e=>setWeeklyExpense(r.wk,e.target.value)} placeholder="0.00" style={{width:"100%",textAlign:"right",fontSize:10,fontWeight:600,color:yellow,padding:"5px 4px",minWidth:0,borderRadius:4,border:`1px solid ${gray2}`}}/>:<span style={{fontSize:9,color:gray5,fontStyle:"italic"}}>{fmtUSD(r.expShare||0)}</span>}</td>
+                        <td style={bigCell}><div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:3}}><Inp type="number" step="1" min="0" value={Math.round((parseFloat(r.billable)||0)*100)/100} onChange={e=>setLog(r.cid,r.wk,{billable:parseFloat(e.target.value)||0})} style={{width:"100%",textAlign:"right",fontSize:10,fontWeight:700,color:blue,padding:"5px 4px",minWidth:0,borderRadius:4,border:`1px solid ${gray2}`}}/>{r.manual&&<button onClick={()=>clearLog(r.cid,r.wk)} title="Return to auto split" style={{border:"none",background:"transparent",color:purple,cursor:"pointer",fontSize:10,fontWeight:700,padding:0,lineHeight:1}}>↺</button>}</div></td>
+                        <td style={{...bigCell,color:red,fontWeight:600}}>{fmtUSD(r.cost)}</td>
+                        <td style={{...bigCell,color:green,fontWeight:600}}>{fmtUSD(r.revenue)}</td>
+                        <td style={{...bigCell,fontWeight:700,color:r.margin>=0?green:red}}>{fmtUSD(r.margin)}</td>
+                      </tr>;
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{background:navy,color:white,fontWeight:700}}>
+                      <td colSpan={3} style={{padding:"9px 6px",fontSize:9,textTransform:"uppercase",letterSpacing:"0.03em",fontWeight:700}}>Totals</td>
+                      <td style={{padding:"9px 6px",textAlign:"right",fontSize:10}}>{fmtUSD(rows.reduce((a,r)=>a+(r.gross||0),0))}</td>
+                      <td style={{padding:"9px 6px",textAlign:"right",fontSize:11}}>{fmtUSD(rows.reduce((a,r)=>a+(r.tax||0),0))}</td>
+                      <td style={{padding:"9px 6px",textAlign:"right",fontSize:11,color:"#fde68a"}}>{fmtUSD(rows.reduce((a,r)=>a+(r.expShare||0),0))}</td>
+                      <td style={{padding:"9px 6px"}}></td>
+                      <td style={{padding:"9px 6px",textAlign:"right",fontSize:11}}>{fmtUSD(totalCost)}</td>
+                      <td style={{padding:"9px 6px",textAlign:"right",fontSize:11}}>{fmtUSD(totalRev)}</td>
+                      <td style={{padding:"9px 6px",textAlign:"right",fontSize:11,color:totalMargin>=0?"#86efac":"#fca5a5"}}>{fmtUSD(totalMargin)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </>}
+      </Card>;
+    })()}
 
     {tab==="assign"&&<Card title="Client Assignments" icon="🔗" accent={purple}>
       {clients.length===0
@@ -1541,14 +1680,17 @@ function AssignedStaffSection({clientId,allStaff,onToggle,onOpenStaff}){
       :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:8}}>
         {assigned.map(s=>{
           const numClients=(s.assignedClientIds||[]).length;
-          const w=calcStaffWeek(s);
-          const perClientCost=numClients>0?w.totalCost/numClients:0;
+          const logEntries=((s.hoursLog||{})[clientId])||[];
+          const activeEntries=logEntries.filter(e=>(parseFloat(e.hours)||0)>0);
+          const totalHrs=activeEntries.reduce((a,e)=>a+(parseFloat(e.hours)||0),0);
+          const weeklyCost=activeEntries.reduce((a,e)=>a+calcStaffWeek(s,parseFloat(e.hours)||0,e.rate).totalCost,0);
+          const perClientCost=numClients>0?weeklyCost/numClients:0;
           return <div key={s.id} style={{padding:"10px 12px",borderRadius:8,border:`1.5px solid ${purple}`,background:purpleL}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
               <button onClick={()=>onOpenStaff(s.id)} style={{fontSize:13,fontWeight:800,color:purple,background:"none",border:"none",cursor:"pointer",padding:0,textAlign:"left"}}>{s.name||"Unnamed"}</button>
             </div>
-            <div style={{fontSize:10,color:gray5,marginBottom:4}}>{s.role} · {fmtUSD(s.payRate)}/hr · {s.weeklyHours||0} hrs/wk</div>
-            <div style={{fontSize:10,color:gray7}}>Est. weekly cost to this client: <b style={{color:red}}>{fmtUSD(perClientCost)}</b></div>
+            <div style={{fontSize:10,color:gray5,marginBottom:4}}>{s.role} · {fmtUSD(s.payRate)}/hr · {fmtHrs(totalHrs)} hrs logged ({activeEntries.length} wk)</div>
+            <div style={{fontSize:10,color:gray7}}>Total cost to this client: <b style={{color:red}}>{fmtUSD(perClientCost)}</b></div>
           </div>;
         })}
       </div>}
@@ -1556,13 +1698,14 @@ function AssignedStaffSection({clientId,allStaff,onToggle,onOpenStaff}){
 }
 
 // ── App Root ──────────────────────────────────────────────────────────────────
-export default function BillingManager(){
+export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode } = {}){
+  const restoredNavState = readBillingNavState();
   const [clients,setClients]=useState([]);
   const [staff,setStaff]=useState([]);
-  const [aid,setAid]=useState(null);
-  const [sid,setSid]=useState(null);
-  const [view,setView]=useState("dash"); // dash | form | staff
-  const [mode,setMode]=useState("clients"); // clients | staff (sidebar list)
+  const [aid,setAid]=useState(restoredNavState.aid||null);
+  const [sid,setSid]=useState(restoredNavState.sid||null);
+  const [view,setView]=useState(restoredNavState.view||"dash"); // dash | form | staff
+  const [mode,setMode]=useState(restoredNavState.mode||"clients"); // clients | staff (sidebar list)
   const [ready,setReady]=useState(false);
   const [navOpen,setNavOpen]=useState(false);
   const [isMobile,setIsMobile]=useState(false);
@@ -1570,15 +1713,16 @@ export default function BillingManager(){
     if(typeof window==="undefined")return "light";
     return localStorage.getItem("billing-theme")||(window.matchMedia?.("(prefers-color-scheme: dark)").matches?"dark":"light");
   });
+  const [search,setSearch]=useState("");
+  const [showArchived,setShowArchived]=useState(!!restoredNavState.showArchived);
   useEffect(()=>{localStorage.setItem("billing-theme",theme);},[theme]);
+  useEffect(()=>{saveBillingNavState({view,mode,aid,sid,showArchived});},[view,mode,aid,sid,showArchived]);
   useEffect(()=>{
     const mq=window.matchMedia("(max-width: 767px)");
     const on=()=>setIsMobile(mq.matches);
     on(); mq.addEventListener("change",on);
     return ()=>mq.removeEventListener("change",on);
   },[]);
-  const [search,setSearch]=useState("");
-  const [showArchived,setShowArchived]=useState(false);
   const [iState,setIS]=useState(null);
   const [iData,setID]=useState(null);
   const [iErr,setIE]=useState("");
@@ -1681,7 +1825,8 @@ export default function BillingManager(){
   const activeStaff=staff.find(s=>s.id===sid);
 
   function addC(){
-    router.push('/admin/clients/new');
+    toast.info("Add new clients in Admin → Clients. They'll appear here automatically.");
+    router.push("/admin/clients");
   }
   function updC(id,p){setClients(prev=>prev.map(c=>c.id===id?{...c,...p}:c));}
   // Soft-archive only: data preserved for audit. The form sets archived flag via upd().
@@ -1691,7 +1836,7 @@ export default function BillingManager(){
 
   function addStaff(){
     toast.info("Add new staff in Admin → Staff. DSPs, Supervisors and Behaviour Support staff will appear here automatically.");
-    router.push('/admin/staff');
+    router.push("/admin/staff");
   }
   function updStaff(id,p){setStaff(prev=>prev.map(s=>s.id===id?{...s,...p}:s));}
   function delStaff(id){
@@ -1747,7 +1892,7 @@ export default function BillingManager(){
   function exportToDrive(){
     // Browsers can't push directly to Drive without OAuth, so we download a JSON
     // snapshot and open Drive so the user can drop it in. One click, no auth setup.
-    const payload={exportedAt:new Date().toISOString(),app:"Billing Management",clients,staff};
+    const payload={exportedAt:new Date().toISOString(),app:"RCS Billing Management",clients,staff};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
@@ -1815,15 +1960,15 @@ export default function BillingManager(){
   const selectStaff=(id)=>{setSid(id);setView("staff");if(isMobile)setNavOpen(false);};
   const goDash=()=>{setView("dash");if(isMobile)setNavOpen(false);};
 
-  return <div style={{filter:theme==="dark"?"invert(1) hue-rotate(180deg)":"none",background:theme==="dark"?"#0f172a":"transparent",height:"100%"}}>
-  <div style={{display:"flex",height:"100%",fontFamily:"system-ui,sans-serif",fontSize:13,color:gray9,position:"relative"}}>
+  return <div style={{filter:theme==="dark"?"invert(1) hue-rotate(180deg)":"none",background:theme==="dark"?"#0f172a":"transparent",minHeight:"100vh"}}>
+  <div style={{display:"flex",height:"100vh",fontFamily:"system-ui,sans-serif",fontSize:13,color:gray9,position:"relative"}}>
     {/* Mobile top bar */}
     {isMobile && <div style={{position:"fixed",top:0,left:0,right:0,zIndex:40,display:"flex",alignItems:"center",gap:10,
       padding:"10px 12px",background:navy,color:white,borderBottom:"1px solid rgba(255,255,255,.08)"}}>
       <button onClick={()=>setNavOpen(true)} aria-label="Open menu"
         style={{background:"rgba(255,255,255,.12)",border:"none",color:white,
           borderRadius:8,padding:"7px 10px",fontSize:16,cursor:"pointer",lineHeight:1}}>☰</button>
-      <div style={{fontWeight:800,fontSize:14}}>Billing Management</div>
+      <div style={{fontWeight:800,fontSize:14}}>RCS Billing Management</div>
       <div style={{marginLeft:"auto",fontSize:11,opacity:.6}}>{view==="dash"?"Dashboard":mode==="staff"?"Staff":"Client"}</div>
     </div>}
 
@@ -1834,7 +1979,7 @@ export default function BillingManager(){
     <div style={sidebarStyle}>
       <div style={{padding:"16px 12px 8px"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:1,gap:6}}>
-          <div style={{fontWeight:900,fontSize:16,color:white}}>Billing Management</div>
+          <div style={{fontWeight:900,fontSize:16,color:white}}>RCS Billing Management</div>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <button onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label="Toggle theme" title="Toggle theme"
               style={{background:"rgba(255,255,255,.12)",border:"none",color:white,borderRadius:99,width:28,height:28,cursor:"pointer",fontSize:13,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -1864,6 +2009,7 @@ export default function BillingManager(){
           🗄 {showArchived?"Hide":"Show"} archived ({mode==="clients"?archivedClientCount:archivedStaffCount})
         </button>}
       </div>
+      {sidebarExtra ? <div style={{padding:"0 7px 7px"}}>{sidebarExtra}</div> : null}
       <div style={{padding:"3px 7px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
         <button onClick={goDash} style={{width:"100%",textAlign:"left",padding:"8px 9px",borderRadius:7,border:"none",
           background:view==="dash"?"rgba(255,255,255,.15)":"transparent",color:white,cursor:"pointer",fontSize:12,fontWeight:700}}>
