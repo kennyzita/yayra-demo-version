@@ -10,7 +10,7 @@ const SUBFOLDERS = [
   'W4', 'NJ W4', 'Form I-9', 'Direct Deposit Form', 'CRO Consent',
   "Driver's License", 'EAD / Green card', 'CPR Certificate', "Danielle's Law Sign-off",
   "Stephen Komnino's Law", 'Appendix A', 'CARI Clearance',
-  'Background Check', 'Reference Letter', 'Other',
+  'Background Check', 'IdentoGO', 'Reference Letter', 'Other',
 ]
 
 export interface StaffDocFile {

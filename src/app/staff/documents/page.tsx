@@ -18,6 +18,7 @@ const DOCUMENT_TYPES = [
   'Appendix A',
   'CARI Clearance',
   'Background Check',
+  'IdentoGO',
   'Reference Letter',
   'Other',
 ]
