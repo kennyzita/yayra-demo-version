@@ -70,6 +70,9 @@ export default function HiringPage() {
   const [docsViewingId,  setDocsViewingId]  = useState<string | null>(null)
   const [docFiles,       setDocFiles]       = useState<StaffDocFile[]>([])
   const [docsLoading,    setDocsLoading]    = useState(false)
+  const [progressId,     setProgressId]     = useState<string | null>(null)
+  const [progressData,   setProgressData]   = useState<{ formsSigned: boolean; formsSignedAt: string | null; eadUploaded: boolean } | null>(null)
+  const [progressLoading, setProgressLoading] = useState(false)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -147,6 +150,23 @@ export default function HiringPage() {
       .then(json => { setDocFiles(json.files ?? []); setDocsLoading(false) })
       .catch(() => setDocsLoading(false))
   }, [docsViewingId])
+
+  useEffect(() => {
+    if (!progressId) { setProgressData(null); return }
+    setProgressLoading(true)
+    supabase.from('billing_staff_data').select('data').eq('staff_id', progressId).maybeSingle()
+      .then(({ data }) => {
+        const extra = (data?.data ?? {}) as Record<string, unknown>
+        const signed = extra.onboarding_forms_signed === 'true'
+        const formData = extra.form as AppFormState | undefined
+        setProgressData({
+          formsSigned: signed,
+          formsSignedAt: signed ? ((extra.onboarding_forms_signed_at as string) ?? null) : null,
+          eadUploaded: !!(formData?.docEADFront),
+        })
+        setProgressLoading(false)
+      })
+  }, [progressId])
 
   async function updateStatus(staffId: string, newStatus: string) {
     const { data: existing } = await supabase
@@ -305,6 +325,9 @@ export default function HiringPage() {
                           <button onClick={() => setDocsViewingId(r.staffId)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #6366f1', background: 'transparent', color: '#6366f1', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
                             <i className="ti ti-folder-open" style={{ fontSize: 13 }} /> View Docs
                           </button>
+                          <button onClick={() => setProgressId(r.staffId)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #0d9488', background: 'transparent', color: '#0d9488', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <i className="ti ti-chart-bar" style={{ fontSize: 13 }} /> View Progress
+                          </button>
                           {effectiveStatus === 'pending' && (
                             <>
                               <button onClick={() => updateStatus(r.staffId, 'approved')} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #10b981', background: 'transparent', color: '#059669', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit' }}>Approve</button>
@@ -454,6 +477,116 @@ export default function HiringPage() {
               </div>
             </div>
             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          </>
+        )
+      })()}
+
+      {/* Onboarding Progress drawer */}
+      {progressId && (() => {
+        const r = records.find(x => x.staffId === progressId)
+        if (!r) return null
+
+        const pd = progressData
+        const formsSigned  = pd?.formsSigned  ?? false
+        const formsSignedAt = pd?.formsSignedAt ?? null
+        const eadUploaded  = pd?.eadUploaded  ?? false
+
+        const signedDate = formsSignedAt
+          ? new Date(formsSignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : null
+
+        const onboardItems = [
+          { done: true,                              label: 'DSP application submitted'   },
+          { done: formsSigned, warn: !formsSigned,   label: 'W4 completed'                },
+          { done: formsSigned, warn: !formsSigned,   label: 'Form I-9 submitted'          },
+          { done: true,                              label: "Driver's license uploaded"   },
+          { done: true,                              label: 'CPR certificate uploaded'    },
+          { done: formsSigned, warn: !formsSigned,   label: 'CRO consent signed'          },
+          { done: formsSigned, warn: !formsSigned,   label: 'Direct deposit form'         },
+          { done: formsSigned, warn: !formsSigned,   label: 'NJ W4'                       },
+          { done: false,        miss: true,           label: 'CARI clearance'              },
+          { done: formsSigned, warn: !formsSigned,   label: "Danielle's Law sign-off"     },
+          { done: formsSigned, warn: !formsSigned,   label: "Stephen Komnino's Law"       },
+          { done: formsSigned, warn: !formsSigned,   label: 'Appendix A'                  },
+          { done: eadUploaded, warn: !eadUploaded,   label: 'Work authorization uploaded' },
+        ]
+
+        const completedCount = onboardItems.filter(i => i.done).length
+        const obPct = Math.round((completedCount / onboardItems.length) * 100)
+
+        return (
+          <>
+            <div onClick={() => setProgressId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 40 }} />
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 500, background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+              {/* Header */}
+              <div style={{ background: '#0d2d5e', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'white' }}>Onboarding Progress</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>{r.name}</div>
+                </div>
+                {formsSigned && signedDate && (
+                  <span style={{ fontSize: 11, padding: '2px 10px', borderRadius: 10, background: 'rgba(48,176,96,0.25)', color: '#4ade80', fontWeight: 600 }}>
+                    Forms signed {signedDate}
+                  </span>
+                )}
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>{obPct}%</span>
+                <button onClick={() => setProgressId(null)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16, color: 'rgba(255,255,255,0.7)' }}>
+                  <i className="ti ti-x" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
+                {progressLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 64, color: '#9ca3af', fontSize: 14, gap: 10 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 11-18 0" strokeOpacity="0.25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
+                    Loading progress…
+                  </div>
+                ) : (
+                  <>
+                    {/* Progress bar */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#374151' }}>Overall progress</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#008080' }}>{obPct}%</span>
+                      </div>
+                      <div style={{ height: 9, background: '#f3f4f6', borderRadius: 5, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', background: 'linear-gradient(90deg,#008080,#30B060)', borderRadius: 5, width: `${obPct}%`, transition: 'width 0.4s' }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                        <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 10, background: 'rgba(48,176,96,0.1)', color: '#30B060', fontWeight: 500 }}>{completedCount} completed</span>
+                        <span style={{ fontSize: 12, padding: '3px 10px', borderRadius: 10, background: 'rgba(186,117,23,0.1)', color: '#BA7517', fontWeight: 500 }}>{onboardItems.length - completedCount} pending</span>
+                      </div>
+                    </div>
+
+                    {/* Checklist */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+                      {onboardItems.map((item, i) => {
+                        const iconBg    = item.done ? 'rgba(48,176,96,0.1)'  : 'miss' in item && item.miss ? 'rgba(226,75,74,0.1)'  : 'rgba(186,117,23,0.1)'
+                        const iconColor = item.done ? '#30B060'              : 'miss' in item && item.miss ? '#E24B4A'              : '#BA7517'
+                        const icon      = item.done ? 'ti-check'             : 'miss' in item && item.miss ? 'ti-x'                 : 'ti-clock'
+                        return (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px', border: `1px solid ${item.done ? 'rgba(48,176,96,0.2)' : '#e5e7eb'}`, borderRadius: 8, background: item.done ? 'rgba(48,176,96,0.04)' : '#fff' }}>
+                            <div style={{ width: 21, height: 21, borderRadius: '50%', background: iconBg, color: iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, flexShrink: 0 }}>
+                              <i className={`ti ${icon}`} />
+                            </div>
+                            <span style={{ fontSize: 12, fontWeight: 500, color: item.done ? '#15803d' : '#111' }}>{item.label}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', justifyContent: 'flex-end' }}>
+                <button onClick={() => setProgressId(null)} style={{ padding: '7px 20px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', fontSize: 13, color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Close
+                </button>
+              </div>
+            </div>
           </>
         )
       })()}
