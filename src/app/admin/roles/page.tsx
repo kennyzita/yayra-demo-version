@@ -36,7 +36,12 @@ export default function RoleManagementPage() {
           .order('first_name'),
         supabase.from('roles').select('id, name').order('name'),
       ])
-      setUsers((userRows ?? []) as UserRow[])
+      // Supabase returns joined rows as arrays; normalize to single object or null
+      const normalised: UserRow[] = (userRows ?? []).map((u: any) => ({
+        ...u,
+        role: Array.isArray(u.role) ? (u.role[0] ?? null) : (u.role ?? null),
+      }))
+      setUsers(normalised)
       setRoles(roleRows ?? [])
       setLoading(false)
     }
@@ -44,7 +49,7 @@ export default function RoleManagementPage() {
   }, [])
 
   function getRoleId(u: UserRow): string {
-    return (u.role as unknown as { id: string } | null)?.id ?? u.role_id ?? ''
+    return u.role?.id ?? u.role_id ?? ''
   }
 
   async function handleRoleChange(u: UserRow, newRoleId: string) {
@@ -116,7 +121,7 @@ export default function RoleManagementPage() {
             </thead>
             <tbody>
               {users.map(u => {
-                const currentRoleName = (u.role as unknown as { name: string } | null)?.name
+                const currentRoleName = u.role?.name
                 const selectedId = getRoleId(u)
                 const isSaving = saving[u.id]
                 const justSaved = saved[u.id]
