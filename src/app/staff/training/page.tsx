@@ -2,57 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { ALL_TRAININGS, CDS_URL, getVisibleTrainings } from '@/lib/training-modules'
 
 type Tab = 'all' | 'assess' | 'certs'
-
-interface Training {
-  icon: string; iconBg: string; iconColor: string
-  name: string; meta: string; pct: number; barColor: string
-  status: string; statusBg: string; statusColor: string
-  tab: 'assess' | null
-  externalUrl?: string
-  dspStaffOnly?: boolean
-}
-
-const CDS_URL = 'https://login.elsevierperformancemanager.com/systemlogin.aspx?virtualname=EMBCenter'
-
-const ALL_TRAININGS: Training[] = [
-  {
-    icon: 'ti-clipboard-text', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080',
-    name: 'DSP Training Academy', meta: 'Reliance Care Services · Required · Embedded in portal',
-    pct: 30, barColor: '#008080', status: 'In progress',
-    statusBg: 'rgba(0,128,128,0.1)', statusColor: '#008080',
-    tab: 'assess', dspStaffOnly: true,
-  },
-  {
-    icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060',
-    name: 'CDS training', meta: 'Completed Apr 2026 · No expiry',
-    pct: 100, barColor: '#30B060', status: 'Complete',
-    statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060',
-    tab: null, externalUrl: CDS_URL,
-  },
-  {
-    icon: 'ti-alert-triangle', iconBg: 'rgba(186,117,23,0.1)', iconColor: '#BA7517',
-    name: "Danielle's Law compliance", meta: 'Required · Due May 20, 2026 · Mandatory annual',
-    pct: 30, barColor: '#BA7517', status: 'Due soon',
-    statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517',
-    tab: null,
-  },
-  {
-    icon: 'ti-calendar', iconBg: 'rgba(55,138,221,0.1)', iconColor: '#378ADD',
-    name: '120-day milestone', meta: 'Due Jul 1, 2026',
-    pct: 0, barColor: '#378ADD', status: 'Upcoming',
-    statusBg: '#f3f4f6', statusColor: '#6b7280',
-    tab: null,
-  },
-  {
-    icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060',
-    name: 'Internal training', meta: 'Completed Apr 15, 2026 · Agency orientation',
-    pct: 100, barColor: '#30B060', status: 'Complete',
-    statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060',
-    tab: null,
-  },
-]
 
 export default function TrainingPage() {
   const [tab,      setTab]      = useState<Tab>('all')
@@ -73,9 +25,7 @@ export default function TrainingPage() {
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(''), 2500) }
 
   const isDspStaff = userRole === 'DSP Staff'
-  const trainings  = userRole === null
-    ? []
-    : ALL_TRAININGS.filter(t => !t.dspStaffOnly || isDspStaff)
+  const trainings  = userRole === null ? [] : getVisibleTrainings(userRole)
 
   const completed  = trainings.filter(t => t.status === 'Complete').length
   const inProgress = trainings.filter(t => t.status === 'In progress').length
@@ -106,7 +56,7 @@ export default function TrainingPage() {
         </button>
       </div>
 
-      {/* DSP Training Academy embed — full height, DSP Staff only */}
+      {/* DSP Training Academy embed — DSP Staff only */}
       {tab === 'assess' && isDspStaff && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
           <div style={{ background: '#004050', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>

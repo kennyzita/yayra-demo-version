@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { getVisibleTrainings } from '@/lib/training-modules'
 
 const CERT_CONFIG: Record<string, number> = {
   'CPR Certificate': 730,
@@ -31,6 +32,7 @@ export default function StaffDashboardPage() {
   const [caseNotesMonth,  setCaseNotesMonth]  = useState<number | null>(null)
   const [pendingNotes,    setPendingNotes]    = useState<number | null>(null)
   const [loading,         setLoading]         = useState(true)
+  const [userRole,        setUserRole]        = useState<string | null>(null)
   const [expiringCerts,   setExpiringCerts]   = useState<ExpiringCert[]>([])
 
   useEffect(() => {
@@ -42,7 +44,7 @@ export default function StaffDashboardPage() {
       const mStart = monthStart()
 
       const [profileRes, assignmentRes, timesheetRes, caseNoteCountRes, draftNoteRes, docsJson] = await Promise.all([
-        supabase.from('users').select('first_name').eq('id', user.id).single(),
+        supabase.from('users').select('first_name, role:roles(name)').eq('id', user.id).single(),
         supabase.from('assignments').select('client_id').eq('dsp_id', user.id),
         // Fetch timesheets where today falls within [week_start, week_end] —
         // works regardless of whether weeks start on Sunday or Monday.
@@ -55,7 +57,10 @@ export default function StaffDashboardPage() {
         fetch(`/api/list-staff-documents?staffId=${user.id}`).then(r => r.json()).catch(() => ({ files: [] })),
       ])
 
-      if (profileRes.data) setFirstName(profileRes.data.first_name)
+      if (profileRes.data) {
+        setFirstName((profileRes.data as any).first_name)
+        setUserRole((profileRes.data as any).role?.name ?? '')
+      }
 
       if (assignmentRes.data && assignmentRes.data.length > 0) {
         const ids = assignmentRes.data.map(a => a.client_id)
@@ -108,23 +113,23 @@ export default function StaffDashboardPage() {
     },
     {
       icon: 'ti-certificate', iconBg: 'rgba(127,119,221,0.1)', iconColor: '#7F77DD',
-      badge: '1 due soon', badgeBg: 'rgba(186,117,23,0.12)', badgeColor: '#BA7517',
-      value: '4/5', label: 'Trainings completed',
+      badge: trainingDueSoon > 0 ? `${trainingDueSoon} due soon` : 'all current',
+      badgeBg: trainingDueSoon > 0 ? 'rgba(186,117,23,0.12)' : 'rgba(48,176,96,0.1)',
+      badgeColor: trainingDueSoon > 0 ? '#BA7517' : '#30B060',
+      value: userRole === null ? '—' : `${trainingCompleted}/${trainings.length}`,
+      label: 'Trainings completed',
     },
   ]
+
+  const trainings = getVisibleTrainings(userRole ?? '')
+  const trainingCompleted = trainings.filter(t => t.status === 'Complete').length
+  const trainingDueSoon   = trainings.filter(t => t.status === 'Due soon').length
 
   const avatarColors = ['#008080','#378ADD','#BA7517','#7F77DD','#30B060']
   function initials(name: string) {
     const parts = name.trim().split(' ')
     return parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : name.slice(0, 2)
   }
-
-  const trainings = [
-    { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: 'CDS training', due: 'Completed · May 2026', pct: 100, barColor: '#30B060' },
-    { icon: 'ti-certificate', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060', name: 'CPR / First Aid / BLS', due: 'Completed · Expires Apr 2027', pct: 100, barColor: '#30B060' },
-    { icon: 'ti-book', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080', name: '60-day orientation', due: 'In progress · Due Jun 12, 2026', pct: 72, barColor: '#008080' },
-    { icon: 'ti-alert-triangle', iconBg: 'rgba(186,117,23,0.1)', iconColor: '#BA7517', name: "Danielle's Law compliance", due: 'Due soon · Due May 20, 2026', pct: 30, barColor: '#BA7517' },
-  ]
 
   const panel: React.CSSProperties = { background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }
   const panelHeader: React.CSSProperties = { padding: '14px 16px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 }
@@ -255,16 +260,18 @@ export default function StaffDashboardPage() {
             <div style={panel}>
               <div style={panelHeader}>
                 <span style={{ fontSize: 14, fontWeight: 500, color: '#111', flex: 1 }}>My training</span>
-                <span style={{ fontSize: 12, color: '#008080', cursor: 'pointer', fontWeight: 500 }}>View all</span>
+                <a href="/staff/training" style={{ fontSize: 12, color: '#008080', cursor: 'pointer', fontWeight: 500, textDecoration: 'none' }}>View all</a>
               </div>
-              {trainings.map((t, i) => (
+              {userRole === null ? (
+                <div style={{ padding: '20px 16px', color: '#9ca3af', fontSize: 13 }}>Loading…</div>
+              ) : trainings.map((t, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: i < trainings.length - 1 ? '0.5px solid #e5e7eb' : 'none' }}>
                   <div style={{ width: 32, height: 32, borderRadius: 6, background: t.iconBg, color: t.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
                     <i className={`ti ${t.icon}`} />
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, color: '#111', fontWeight: 500 }}>{t.name}</div>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{t.due}</div>
+                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{t.meta}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
                       <div style={{ flex: 1, height: 4, background: '#f3f4f6', borderRadius: 2, overflow: 'hidden' }}>
                         <div style={{ height: '100%', borderRadius: 2, background: t.barColor, width: `${t.pct}%` }} />

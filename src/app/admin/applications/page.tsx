@@ -155,18 +155,21 @@ export default function HiringPage() {
   useEffect(() => {
     if (!progressId) { setProgressData(null); return }
     setProgressLoading(true)
-    supabase.from('billing_staff_data').select('data').eq('staff_id', progressId).maybeSingle()
-      .then(({ data }) => {
-        const extra = (data?.data ?? {}) as Record<string, unknown>
-        const signed = extra.onboarding_forms_signed === 'true'
-        const formData = extra.form as AppFormState | undefined
-        setProgressData({
-          formsSigned: signed,
-          formsSignedAt: signed ? ((extra.onboarding_forms_signed_at as string) ?? null) : null,
-          eadUploaded: !!(formData?.docEADFront),
-        })
-        setProgressLoading(false)
+    Promise.all([
+      supabase.from('billing_staff_data').select('data').eq('staff_id', progressId).maybeSingle(),
+      fetch(`/api/list-staff-documents?staffId=${progressId}`).then(r => r.json()).catch(() => ({ files: [] })),
+    ]).then(([{ data }, docsJson]) => {
+      const extra = (data?.data ?? {}) as Record<string, unknown>
+      const signed = extra.onboarding_forms_signed === 'true'
+      const formData = extra.form as AppFormState | undefined
+      const allFiles: { folder: string }[] = (docsJson as any).files ?? []
+      setProgressData({
+        formsSigned: signed,
+        formsSignedAt: signed ? ((extra.onboarding_forms_signed_at as string) ?? null) : null,
+        eadUploaded: !!(formData?.docEADFront) || allFiles.some(f => f.folder === 'EAD / Green card'),
       })
+      setProgressLoading(false)
+    })
   }, [progressId])
 
   async function sendReminder(name: string, email: string) {
@@ -355,7 +358,7 @@ export default function HiringPage() {
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           <button onClick={() => setViewingId(r.staffId)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #008080', background: 'transparent', color: '#008080', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <i className="ti ti-eye" style={{ fontSize: 13 }} /> View
+                            <i className="ti ti-eye" style={{ fontSize: 13 }} /> View application
                           </button>
                           <button onClick={() => setDocsViewingId(r.staffId)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #6366f1', background: 'transparent', color: '#6366f1', cursor: 'pointer', fontWeight: 500, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>
                             <i className="ti ti-folder-open" style={{ fontSize: 13 }} /> View Docs

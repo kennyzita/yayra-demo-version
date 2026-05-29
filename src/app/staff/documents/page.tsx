@@ -11,6 +11,7 @@ const DOCUMENT_TYPES = [
   'Direct Deposit Form',
   'CRO Consent',
   "Driver's License",
+  'EAD / Green card',
   'CPR Certificate',
   "Danielle's Law Sign-off",
   "Stephen Komnino's Law",

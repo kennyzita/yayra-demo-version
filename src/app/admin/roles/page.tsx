@@ -24,7 +24,6 @@ export default function RoleManagementPage() {
   const [roles, setRoles]     = useState<Role[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState<Record<string, boolean>>({})
-  const [pending, setPending] = useState<Record<string, string>>({})
   const [saved, setSaved]     = useState<Record<string, boolean>>({})
   const [error, setError]     = useState<string | null>(null)
 
@@ -45,13 +44,16 @@ export default function RoleManagementPage() {
   }, [])
 
   function getRoleId(u: UserRow): string {
-    return pending[u.id] ?? (u.role as unknown as { id: string } | null)?.id ?? u.role_id ?? ''
+    return (u.role as unknown as { id: string } | null)?.id ?? u.role_id ?? ''
   }
 
-  async function saveRole(u: UserRow) {
-    const newRoleId = pending[u.id]
+  async function handleRoleChange(u: UserRow, newRoleId: string) {
     if (!newRoleId) return
     setSaving(s => ({ ...s, [u.id]: true }))
+    const newRole = roles.find(r => r.id === newRoleId) ?? null
+    setUsers(prev => prev.map(row =>
+      row.id === u.id ? { ...row, role_id: newRoleId, role: newRole } : row
+    ))
     const { error: err } = await supabase
       .from('users')
       .update({ role_id: newRoleId })
@@ -61,11 +63,6 @@ export default function RoleManagementPage() {
       setError(`Failed to update role for ${u.first_name}: ${err.message}`)
       return
     }
-    const newRole = roles.find(r => r.id === newRoleId) ?? null
-    setUsers(prev => prev.map(row =>
-      row.id === u.id ? { ...row, role_id: newRoleId, role: newRole } : row
-    ))
-    setPending(p => { const next = { ...p }; delete next[u.id]; return next })
     setSaved(s => ({ ...s, [u.id]: true }))
     setTimeout(() => setSaved(s => { const next = { ...s }; delete next[u.id]; return next }), 2000)
   }
@@ -114,18 +111,17 @@ export default function RoleManagementPage() {
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Current Role</th>
                 <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Change Role</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}></th>
+                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</th>
               </tr>
             </thead>
             <tbody>
               {users.map(u => {
                 const currentRoleName = (u.role as unknown as { name: string } | null)?.name
                 const selectedId = getRoleId(u)
-                const isDirty = pending[u.id] != null
                 const isSaving = saving[u.id]
                 const justSaved = saved[u.id]
                 return (
-                  <tr key={u.id} style={{ background: isDirty ? 'rgba(0,128,128,0.02)' : 'transparent' }}>
+                  <tr key={u.id} style={{ background: isSaving ? 'rgba(0,128,128,0.02)' : 'transparent' }}>
                     <td style={cell}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0 }}>
@@ -139,16 +135,9 @@ export default function RoleManagementPage() {
                     <td style={cell}>
                       <select
                         value={selectedId}
-                        onChange={e => {
-                          const val = e.target.value
-                          const currentId = (u.role as unknown as { id: string } | null)?.id ?? u.role_id ?? ''
-                          if (val === currentId) {
-                            setPending(p => { const next = { ...p }; delete next[u.id]; return next })
-                          } else {
-                            setPending(p => ({ ...p, [u.id]: val }))
-                          }
-                        }}
-                        style={{ padding: '7px 10px', borderRadius: 7, border: `1px solid ${isDirty ? '#008080' : '#d1d5db'}`, fontSize: 13, color: '#111', background: '#fff', outline: 'none', cursor: 'pointer', minWidth: 140 }}
+                        disabled={isSaving}
+                        onChange={e => { const val = e.target.value; if (val) handleRoleChange(u, val) }}
+                        style={{ padding: '7px 10px', borderRadius: 7, border: `1px solid ${isSaving ? '#008080' : '#d1d5db'}`, fontSize: 13, color: '#111', background: '#fff', outline: 'none', cursor: isSaving ? 'wait' : 'pointer', minWidth: 140, opacity: isSaving ? 0.7 : 1 }}
                       >
                         <option value="">— select role —</option>
                         {roles.map(r => (
@@ -157,26 +146,17 @@ export default function RoleManagementPage() {
                       </select>
                     </td>
                     <td style={{ ...cell, width: 120 }}>
-                      {justSaved ? (
+                      {isSaving ? (
+                        <span style={{ fontSize: 12, color: '#008080', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin 1s linear infinite' }}><path d="M21 12a9 9 0 11-18 0" strokeOpacity="0.25"/><path d="M21 12a9 9 0 00-9-9"/></svg>
+                          Saving…
+                        </span>
+                      ) : justSaved ? (
                         <span style={{ fontSize: 12, color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
                           Saved
                         </span>
-                      ) : (
-                        <button
-                          onClick={() => saveRole(u)}
-                          disabled={!isDirty || isSaving}
-                          style={{
-                            padding: '7px 16px', borderRadius: 7, border: 'none', fontSize: 13, fontWeight: 600, cursor: isDirty ? 'pointer' : 'default',
-                            background: isDirty ? '#008080' : '#f3f4f6',
-                            color: isDirty ? '#fff' : '#9ca3af',
-                            transition: 'background 0.15s',
-                            opacity: isSaving ? 0.7 : 1,
-                          }}
-                        >
-                          {isSaving ? 'Saving…' : 'Save'}
-                        </button>
-                      )}
+                      ) : null}
                     </td>
                   </tr>
                 )
@@ -185,6 +165,7 @@ export default function RoleManagementPage() {
           </table>
         )}
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

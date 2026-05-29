@@ -300,12 +300,12 @@ export default function StaffProgressPage() {
       setFormsSignedAt(signed ? ((extra.onboarding_forms_signed_at as string) ?? null) : null)
 
       const formData = extra.form as AppFormState | undefined
-      setEadUploaded(!!(formData?.docEADFront))
 
       setLastLogin((loginJson as { lastLogin: string | null }).lastLogin ?? null)
       setAdminSignature('')
 
       const allFiles: { folder: string; createdAt: string }[] = (docsJson as any).files ?? []
+      setEadUploaded(!!(formData?.docEADFront) || allFiles.some(f => f.folder === 'EAD / Green card'))
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
       for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
