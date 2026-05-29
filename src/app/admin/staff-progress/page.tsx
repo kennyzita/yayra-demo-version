@@ -4,6 +4,16 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppFormState } from '@/app/staff/application/page'
 
+// ── Cert expiry config ─────────────────────────────────────────────────────────
+
+const CERT_CONFIG: Record<string, number> = {
+  'CPR Certificate': 730,
+  'CARI Clearance': 1095,
+  'Background Check': 365,
+}
+
+interface ExpiringCert { type: string; daysLeft: number; expiryDate: Date }
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type PillState   = 'yes' | 'no' | 'pending'
@@ -172,6 +182,9 @@ export default function StaffProgressPage() {
   const [eadUploaded,   setEadUploaded]   = useState(false)
   const [lastLogin,     setLastLogin]     = useState<string | null>(null)
 
+  // Expiring certs
+  const [expiringCerts,  setExpiringCerts]  = useState<ExpiringCert[]>([])
+
   // Admin identity
   const [adminName,      setAdminName]      = useState('')
   const [adminSignature, setAdminSignature] = useState('')
@@ -270,13 +283,15 @@ export default function StaffProgressPage() {
     if (!selectedId) {
       setFormsSigned(false); setFormsSignedAt(null)
       setEadUploaded(false); setLastLogin(null)
+      setExpiringCerts([])
       return
     }
     setLoadingStatus(true)
     async function loadStatus() {
-      const [staffRes, loginJson] = await Promise.all([
+      const [staffRes, loginJson, docsJson] = await Promise.all([
         supabase.from('billing_staff_data').select('data').eq('staff_id', selectedId).maybeSingle(),
         fetch(`/api/get-user-last-login?userId=${selectedId}`).then(r => r.json()).catch(() => ({ lastLogin: null })),
+        fetch(`/api/list-staff-documents?staffId=${selectedId}`).then(r => r.json()).catch(() => ({ files: [] })),
       ])
 
       const extra = (staffRes.data?.data ?? {}) as Record<string, unknown>
@@ -289,6 +304,19 @@ export default function StaffProgressPage() {
 
       setLastLogin((loginJson as { lastLogin: string | null }).lastLogin ?? null)
       setAdminSignature('')
+
+      const allFiles: { folder: string; createdAt: string }[] = (docsJson as any).files ?? []
+      const nowMs = Date.now()
+      const expiring: ExpiringCert[] = []
+      for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
+        const certFiles = allFiles.filter(f => f.folder === certType)
+        if (certFiles.length === 0) continue
+        const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
+        const expiryMs = latestMs + validityDays * 86400000
+        const daysLeft = Math.floor((expiryMs - nowMs) / 86400000)
+        if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate: new Date(expiryMs) })
+      }
+      setExpiringCerts(expiring)
       setLoadingStatus(false)
     }
     loadStatus()
@@ -448,6 +476,52 @@ export default function StaffProgressPage() {
                   })}
                 </div>
               </div>
+            </div>
+
+            {/* ── Expiring certs ──────────────────────────────────────────────── */}
+            <div style={sb}>
+              <div style={{ ...sh, justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Expiring certs</span>
+                <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 10, fontWeight: 600, background: expiringCerts.length > 0 ? 'rgba(226,75,74,0.25)' : 'rgba(48,176,96,0.25)', color: expiringCerts.length > 0 ? '#fca5a5' : '#4ade80' }}>
+                  {expiringCerts.length > 0 ? `${expiringCerts.length} expiring` : 'All current'}
+                </span>
+              </div>
+              {expiringCerts.length === 0 ? (
+                <div style={{ padding: '18px 18px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <i className="ti ti-circle-check" style={{ fontSize: 16, color: '#30B060' }} />
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>All certificates are up to date</span>
+                </div>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr>
+                      <th style={thStyle}>Certificate</th>
+                      <th style={thStyle}>Expiry date</th>
+                      <th style={thStyle}>Days remaining</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expiringCerts.map((cert, i) => {
+                      const expired = cert.daysLeft <= 0
+                      const urgent  = cert.daysLeft > 0 && cert.daysLeft <= 14
+                      const color   = expired || urgent ? '#E24B4A' : cert.daysLeft <= 30 ? '#BA7517' : '#d97706'
+                      return (
+                        <tr key={i}>
+                          <td style={{ ...tdStyle, fontWeight: 500 }}>{cert.type}</td>
+                          <td style={tdStyle}>{cert.expiryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                          <td style={tdStyle}>
+                            <span style={{ fontSize: 12, padding: '3px 9px', borderRadius: 10, fontWeight: 600, background: `${color}18`, color }}>
+                              {expired
+                                ? `Expired ${Math.abs(cert.daysLeft)}d ago`
+                                : `${cert.daysLeft} days`}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             {/* ── Compliance checks ───────────────────────────────────────────── */}

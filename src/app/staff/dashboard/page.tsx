@@ -3,6 +3,13 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+const CERT_CONFIG: Record<string, number> = {
+  'CPR Certificate': 730,
+  'CARI Clearance': 1095,
+  'Background Check': 365,
+}
+
+interface ExpiringCert { type: string; daysLeft: number; expiryDate: Date }
 interface AssignedClient { id: string; full_name: string }
 
 function isoDate(d: Date) { return d.toISOString().split('T')[0] }
@@ -24,6 +31,7 @@ export default function StaffDashboardPage() {
   const [caseNotesMonth,  setCaseNotesMonth]  = useState<number | null>(null)
   const [pendingNotes,    setPendingNotes]    = useState<number | null>(null)
   const [loading,         setLoading]         = useState(true)
+  const [expiringCerts,   setExpiringCerts]   = useState<ExpiringCert[]>([])
 
   useEffect(() => {
     async function load() {
@@ -33,7 +41,7 @@ export default function StaffDashboardPage() {
       const today = todayIso()
       const mStart = monthStart()
 
-      const [profileRes, assignmentRes, timesheetRes, caseNoteCountRes, draftNoteRes] = await Promise.all([
+      const [profileRes, assignmentRes, timesheetRes, caseNoteCountRes, draftNoteRes, docsJson] = await Promise.all([
         supabase.from('users').select('first_name').eq('id', user.id).single(),
         supabase.from('assignments').select('client_id').eq('dsp_id', user.id),
         // Fetch timesheets where today falls within [week_start, week_end] —
@@ -44,6 +52,7 @@ export default function StaffDashboardPage() {
           .eq('status', 'submitted').gte('submitted_at', mStart),
         supabase.from('case_notes').select('id', { count: 'exact', head: true }).eq('dsp_id', user.id)
           .eq('status', 'draft'),
+        fetch(`/api/list-staff-documents?staffId=${user.id}`).then(r => r.json()).catch(() => ({ files: [] })),
       ])
 
       if (profileRes.data) setFirstName(profileRes.data.first_name)
@@ -60,6 +69,19 @@ export default function StaffDashboardPage() {
       setHoursThisWeek(hours)
       setCaseNotesMonth(caseNoteCountRes.count ?? 0)
       setPendingNotes(draftNoteRes.count ?? 0)
+
+      const allFiles: { folder: string; createdAt: string }[] = (docsJson as any).files ?? []
+      const nowMs = Date.now()
+      const expiring: ExpiringCert[] = []
+      for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
+        const certFiles = allFiles.filter(f => f.folder === certType)
+        if (certFiles.length === 0) continue
+        const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
+        const expiryMs = latestMs + validityDays * 86400000
+        const daysLeft = Math.floor((expiryMs - nowMs) / 86400000)
+        if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate: new Date(expiryMs) })
+      }
+      setExpiringCerts(expiring)
       setLoading(false)
     }
     load()
@@ -178,7 +200,7 @@ export default function StaffDashboardPage() {
             {[
               { icon: 'ti-clock',  label: 'Log hours',       bg: 'rgba(0,128,128,0.1)',   color: '#008080', sub: loading ? '' : `${hoursDisplay} hrs this week`, href: '/staff/timesheet' },
               { icon: 'ti-notes',  label: 'Add case note',   bg: 'rgba(48,176,96,0.12)',  color: '#30B060', sub: loading ? '' : `${caseNotesMonth ?? 0} submitted this month`, href: '/staff/case-notes' },
-              { icon: 'ti-upload', label: 'Upload document', bg: 'rgba(55,138,221,0.1)',  color: '#378ADD', sub: '', href: '#' },
+              { icon: 'ti-upload', label: 'Upload document', bg: 'rgba(55,138,221,0.1)',  color: '#378ADD', sub: '', href: '/staff/documents' },
             ].map((qa) => (
               <a key={qa.label} href={qa.href} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', textAlign: 'center', textDecoration: 'none' }}>
                 <div style={{ width: 38, height: 38, borderRadius: 8, background: qa.bg, color: qa.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
@@ -302,6 +324,63 @@ export default function StaffDashboardPage() {
                   <i className="ti ti-notes" style={{ fontSize: 13 }} /> Open case notes
                 </a>
               </div>
+            </div>
+
+            {/* Expiring certs */}
+            <div style={panel}>
+              <div style={{ ...panelHeader, gap: 8 }}>
+                <i className="ti ti-certificate" style={{ fontSize: 15, color: loading ? '#9ca3af' : expiringCerts.length > 0 ? '#E24B4A' : '#30B060' }} />
+                <span style={{ fontSize: 14, fontWeight: 500, color: '#111', flex: 1 }}>Expiring certs</span>
+                {!loading && (
+                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: expiringCerts.length > 0 ? 'rgba(226,75,74,0.1)' : 'rgba(48,176,96,0.1)', color: expiringCerts.length > 0 ? '#E24B4A' : '#30B060' }}>
+                    {expiringCerts.length > 0 ? expiringCerts.length : '✓'}
+                  </span>
+                )}
+              </div>
+              {loading ? (
+                <div style={{ padding: '14px 16px', color: '#9ca3af', fontSize: 13 }}>Loading…</div>
+              ) : expiringCerts.length === 0 ? (
+                <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <i className="ti ti-circle-check" style={{ fontSize: 15, color: '#30B060' }} />
+                  <span style={{ fontSize: 13, color: '#6b7280' }}>All certificates are current</span>
+                </div>
+              ) : (
+                <>
+                  {expiringCerts.map((cert, i) => {
+                    const expired = cert.daysLeft <= 0
+                    const urgent  = cert.daysLeft > 0 && cert.daysLeft <= 14
+                    const color   = expired || urgent ? '#E24B4A' : cert.daysLeft <= 30 ? '#BA7517' : '#d97706'
+                    return (
+                      <div key={i} style={{ padding: '11px 16px', borderBottom: i < expiringCerts.length - 1 ? '0.5px solid #f3f4f6' : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: 6, background: `${color}20`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
+                          <i className="ti ti-certificate" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{cert.type}</div>
+                          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>
+                            {expired
+                              ? `Expired ${Math.abs(cert.daysLeft)} day${Math.abs(cert.daysLeft) !== 1 ? 's' : ''} ago`
+                              : `Expires ${cert.expiryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontSize: 16, fontWeight: 700, color, lineHeight: 1 }}>
+                            {expired ? '!' : cert.daysLeft}
+                          </div>
+                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>
+                            {expired ? 'expired' : 'days left'}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div style={{ padding: '10px 16px', borderTop: '0.5px solid #e5e7eb' }}>
+                    <a href="/staff/documents" style={{ fontSize: 12, color: '#008080', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <i className="ti ti-upload" style={{ fontSize: 13 }} /> Upload updated certificate
+                    </a>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
