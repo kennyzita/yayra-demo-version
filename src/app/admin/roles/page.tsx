@@ -63,15 +63,17 @@ export default function RoleManagementPage() {
       row.id === u.id ? { ...row, role_id: newRoleId, role: newRole } : row
     ))
 
-    // user_roles is a view derived from users.role_id — updating users is sufficient
-    const { error: err } = await supabase
-      .from('users')
-      .update({ role_id: newRoleId })
-      .eq('id', u.id)
+    // Use server-side API to bypass RLS
+    const res = await fetch('/api/admin/update-user-role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: u.id, roleId: newRoleId }),
+    })
+    const json = await res.json().catch(() => ({}))
 
     setSaving(s => ({ ...s, [u.id]: false }))
-    if (err) {
-      setError(`Failed to update role for ${u.first_name}: ${err.message}`)
+    if (!res.ok) {
+      setError(`Failed to update role for ${u.first_name}: ${json.error ?? res.statusText}`)
       // Revert optimistic update
       setUsers(prev => prev.map(row =>
         row.id === u.id ? { ...row, role_id: u.role_id, role: u.role } : row
