@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ALL_TRAININGS, CDS_URL, getVisibleTrainings } from '@/lib/training-modules'
-import DSPTrainingAcademy from '@/components/training/DSPTrainingAcademy'
 
 type Tab = 'all' | 'assess' | 'pdf' | 'certs'
 
@@ -57,10 +56,26 @@ export default function TrainingPage() {
         </button>
       </div>
 
-      {/* DSP Training Academy — native integration, DSP Staff only */}
+      {/* DSP Training Academy embed — DSP Staff only */}
       {tab === 'assess' && isDspStaff && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
-          <DSPTrainingAcademy onBack={() => setTab('all')} />
+          <div style={{ background: '#004050', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            <button onClick={() => setTab('all')} style={{ fontSize: 12, padding: '5px 11px', borderRadius: 6, border: '0.5px solid rgba(255,255,255,0.25)', background: 'transparent', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', flexShrink: 0 }}>
+              <i className="ti ti-arrow-left" style={{ fontSize: 13 }} /> Modules
+            </button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>DSP Training Academy</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Reliance Care Services · Required for all DSP staff</div>
+            </div>
+          </div>
+          <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+            <iframe
+              src="https://dsp-buddy-train.lovable.app/embed"
+              style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+              allow="camera; microphone; clipboard-write"
+              title="DSP Training Academy"
+            />
+          </div>
         </div>
       )}
 
