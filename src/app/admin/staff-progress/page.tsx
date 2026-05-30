@@ -182,6 +182,8 @@ export default function StaffProgressPage() {
   const [formsSigned,   setFormsSigned]   = useState(false)
   const [eadUploaded,   setEadUploaded]   = useState(false)
   const [lastLogin,     setLastLogin]     = useState<string | null>(null)
+  const [revokeOnboarding, setRevokeOnboarding] = useState(false)
+  const [revoking,      setRevoking]      = useState(false)
 
   // Expiring certs
   const [expiringCerts,  setExpiringCerts]  = useState<ExpiringCert[]>([])
@@ -286,6 +288,7 @@ export default function StaffProgressPage() {
       setFormsSigned(false); setFormsSignedAt(null)
       setEadUploaded(false); setLastLogin(null)
       setExpiringCerts([])
+      setRevokeOnboarding(false)
       return
     }
     setLoadingStatus(true)
@@ -300,6 +303,7 @@ export default function StaffProgressPage() {
       const signed = extra.onboarding_forms_signed === 'true'
       setFormsSigned(signed)
       setFormsSignedAt(signed ? ((extra.onboarding_forms_signed_at as string) ?? null) : null)
+      setRevokeOnboarding(extra.onboarding_forms_revoked === 'true')
 
       const formData = extra.form as AppFormState | undefined
 
@@ -372,6 +376,28 @@ export default function StaffProgressPage() {
     setSaving(false)
     if (error) showToast('Error saving: ' + error.message)
     else showToast('Report saved successfully')
+  }
+
+  // ── Revoke onboarding (saves immediately) ────────────────────────────────────
+
+  async function toggleRevokeOnboarding() {
+    if (!selectedId) return
+    setRevoking(true)
+    const next = !revokeOnboarding
+    const { data: existing } = await supabase
+      .from('billing_staff_data').select('data').eq('staff_id', selectedId).maybeSingle()
+    const existingData = ((existing?.data ?? {}) as Record<string, unknown>)
+    const { error } = await supabase.from('billing_staff_data').upsert({
+      staff_id: selectedId,
+      data: { ...existingData, onboarding_forms_revoked: next ? 'true' : 'false' },
+    })
+    setRevoking(false)
+    if (error) {
+      showToast('Error saving: ' + error.message)
+    } else {
+      setRevokeOnboarding(next)
+      showToast(next ? 'Onboarding forms unlocked for re-completion' : 'Onboarding revoke removed')
+    }
   }
 
   // ── Derived values ────────────────────────────────────────────────────────────
@@ -526,6 +552,34 @@ export default function StaffProgressPage() {
                     )
                   })}
                 </div>
+              </div>
+
+              {/* Revoke onboarding toggle */}
+              <div style={{ padding: '12px 18px', borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Revoke Onboarding Forms Completed</div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                    {revokeOnboarding
+                      ? 'ON — DSP can re-complete onboarding forms'
+                      : 'OFF — Onboarding forms locked (completed state)'}
+                  </div>
+                </div>
+                <button
+                  onClick={toggleRevokeOnboarding}
+                  disabled={revoking}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
+                    padding: '8px 18px', borderRadius: 8, border: 'none', fontFamily: 'inherit',
+                    background: revokeOnboarding ? 'rgba(226,75,74,0.1)' : '#f3f4f6',
+                    color: revokeOnboarding ? '#E24B4A' : '#374151',
+                    cursor: revoking ? 'not-allowed' : 'pointer',
+                    fontSize: 13, fontWeight: 600, opacity: revoking ? 0.7 : 1,
+                    border: `1px solid ${revokeOnboarding ? 'rgba(226,75,74,0.3)' : '#e5e7eb'}` as any,
+                  }}
+                >
+                  <i className={`ti ${revokeOnboarding ? 'ti-lock-open' : 'ti-lock'}`} style={{ fontSize: 14 }} />
+                  {revoking ? 'Saving…' : revokeOnboarding ? 'Revoked (ON)' : 'Revoke (OFF)'}
+                </button>
               </div>
             </div>
 

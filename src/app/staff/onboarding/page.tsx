@@ -11,6 +11,7 @@ export default function OnboardingFormsPage() {
   const [loading,      setLoading]      = useState(true)
   const [completed,    setCompleted]    = useState(false)
   const [completedAt,  setCompletedAt]  = useState<string | null>(null)
+  const [revoked,      setRevoked]      = useState(false)
   const [saving,       setSaving]       = useState(false)
   const [toast,        setToast]        = useState<string | null>(null)
   const [appSubmitted, setAppSubmitted] = useState(false)
@@ -36,6 +37,7 @@ export default function OnboardingFormsPage() {
         setCompleted(true)
         setCompletedAt(extra.onboarding_forms_signed_at ?? null)
       }
+      if (extra.onboarding_forms_revoked === 'true') setRevoked(true)
       if (extra.application_submitted === 'true') setAppSubmitted(true)
       setLoading(false)
       setCheckingApp(false)
@@ -59,6 +61,7 @@ export default function OnboardingFormsPage() {
       ...((existing?.data as Record<string, string>) ?? {}),
       onboarding_forms_signed:    'true',
       onboarding_forms_signed_at: new Date().toISOString(),
+      onboarding_forms_revoked:   'false',
     }
 
     const { error } = await supabase
@@ -69,6 +72,7 @@ export default function OnboardingFormsPage() {
       showToast('Error saving status. Please try again.')
     } else {
       setCompleted(true)
+      setRevoked(false)
       setCompletedAt(new Date().toISOString())
       showToast('Onboarding forms marked as complete!')
     }
@@ -103,8 +107,8 @@ export default function OnboardingFormsPage() {
     </div>
   )
 
-  // ── Already completed ─────────────────────────────────────────────────────────
-  if (completed) return (
+  // ── Already completed (and not revoked by admin) ─────────────────────────────
+  if (completed && !revoked) return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f4f5f7' }}>
       {toast && (
         <div style={{ position: 'fixed', top: 20, left: '50%', transform: 'translateX(-50%)', background: '#111', color: '#fff', padding: '10px 20px', borderRadius: 10, fontSize: 13, zIndex: 9999, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.18)' }}>
@@ -175,6 +179,15 @@ export default function OnboardingFormsPage() {
           Complete all fields in the form below, then confirm and click <strong>"I've completed and signed all forms"</strong>.
         </span>
       </div>
+
+      {revoked && (
+        <div style={{ background: 'rgba(186,117,23,0.07)', borderBottom: '1px solid rgba(186,117,23,0.2)', padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <i className="ti ti-rotate-clockwise" style={{ fontSize: 15, color: '#BA7517' }} />
+          <span style={{ fontSize: 13, color: '#92400e' }}>
+            Your onboarding forms have been unlocked by an administrator. Please re-complete and re-submit all forms.
+          </span>
+        </div>
+      )}
 
       {/* Form embed */}
       <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
