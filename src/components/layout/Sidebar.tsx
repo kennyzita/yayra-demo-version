@@ -77,6 +77,7 @@ const adminSections: NavSection[] = [
   {
     label: 'Quick Links',
     items: [
+      { href: '#', externalUrl: 'https://cro.dhs.state.nj.us/Account/Login?ReturnUrl=%2F', label: 'CRO Check', icon: 'ti-user-search' },
       { href: '#', externalUrl: 'https://accessnj.com/index.php/login-2/', label: 'AccessNJ', icon: 'ti-building-community' },
       { href: '#', externalUrl: 'https://uenroll.identogo.com/status-check', label: 'IdentoGO', icon: 'ti-fingerprint' },
       { href: '#', externalUrl: 'https://www.i3screen.net/login/', label: 'MRO Check', icon: 'ti-clipboard-heart' },
