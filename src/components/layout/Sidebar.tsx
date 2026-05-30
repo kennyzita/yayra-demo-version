@@ -117,6 +117,7 @@ const staffSections: NavSection[] = [
     items: [
       { href: '/staff/training', label: 'My training', icon: 'ti-certificate', warnBadge: 1 },
       { href: '/staff/documents', label: 'My documents', icon: 'ti-folder' },
+      { href: '#', externalUrl: '/resources/employee-handbook-2025.pdf', label: 'Staff Hand Book', icon: 'ti-book' },
     ],
   },
 ]

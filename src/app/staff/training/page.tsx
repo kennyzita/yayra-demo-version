@@ -157,12 +157,14 @@ export default function TrainingPage() {
                   <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{t.meta}</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 80 }}>
-                    <div style={{ height: 5, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 3, background: t.barColor, width: `${t.pct}%` }} />
+                  {!t.hideProgress && (
+                    <div style={{ width: 80 }}>
+                      <div style={{ height: 5, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', borderRadius: 3, background: t.barColor, width: `${t.pct}%` }} />
+                      </div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, textAlign: 'right' }}>{t.pct}%</div>
                     </div>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, textAlign: 'right' }}>{t.pct}%</div>
-                  </div>
+                  )}
                   <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 10, fontWeight: 500, whiteSpace: 'nowrap', background: t.statusBg, color: t.statusColor }}>{t.status}</span>
                   {t.externalUrl ? (
                     <a
@@ -171,14 +173,14 @@ export default function TrainingPage() {
                       rel="noreferrer"
                       style={{ fontSize: 11, padding: '5px 12px', borderRadius: 6, border: '0.5px solid #008080', background: 'rgba(0,128,128,0.06)', color: '#008080', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap', textDecoration: 'none' }}
                     >
-                      Continue
+                      {t.buttonLabel ?? 'Continue'}
                     </a>
                   ) : (
                     <button
                       onClick={() => t.tab ? setTab(t.tab) : showToast('Opening...')}
                       style={{ fontSize: 11, padding: '5px 12px', borderRadius: 6, border: `0.5px solid ${t.pct === 100 ? '#d1d5db' : '#008080'}`, background: t.pct === 100 ? 'transparent' : 'rgba(0,128,128,0.06)', color: t.pct === 100 ? '#6b7280' : '#008080', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                     >
-                      {t.pct === 100 ? 'View cert' : t.tab === 'pdf' ? 'Continue →' : t.pct > 0 ? 'Continue →' : 'Start →'}
+                      {t.buttonLabel ?? (t.pct === 100 ? 'View cert' : t.tab === 'pdf' ? 'Continue →' : t.pct > 0 ? 'Continue →' : 'Start →')}
                     </button>
                   )}
                 </div>

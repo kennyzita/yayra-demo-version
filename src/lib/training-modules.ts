@@ -13,6 +13,8 @@ export interface Training {
   pdfUrl?: string
   externalUrl?: string
   dspStaffOnly?: boolean
+  hideProgress?: boolean
+  buttonLabel?: string
 }
 
 export const CDS_URL = 'https://login.elsevierperformancemanager.com/systemlogin.aspx?virtualname=EMBCenter'
@@ -33,6 +35,7 @@ export const ALL_TRAININGS: Training[] = [
     pct: 100, barColor: '#30B060', status: 'Complete',
     statusBg: 'rgba(48,176,96,0.1)', statusColor: '#30B060',
     tab: null, externalUrl: CDS_URL,
+    hideProgress: true, buttonLabel: 'Log into your CDS Portal',
   },
   {
     icon: 'ti-alert-triangle', iconBg: 'rgba(186,117,23,0.1)', iconColor: '#BA7517',
@@ -41,6 +44,7 @@ export const ALL_TRAININGS: Training[] = [
     pct: 30, barColor: '#BA7517', status: 'Due soon',
     statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517',
     tab: 'pdf', pdfUrl: '/danielles-law.pdf',
+    hideProgress: true,
   },
 ]
 
