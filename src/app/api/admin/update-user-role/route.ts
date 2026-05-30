@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   await supabaseAdmin
     .from('user_role_history')
-    .insert({ user_id: userId, role_id: roleId, effective_from: now, is_current: true })
+    .insert({ user_id: userId, role_id: roleId, changed_by: caller.id, effective_from: now, is_current: true })
 
   return NextResponse.json({ ok: true })
 }
