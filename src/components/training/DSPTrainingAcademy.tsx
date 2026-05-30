@@ -48,7 +48,7 @@ type CertStored = {
 }
 
 // ─── resource list ───────────────────────────────────────────────────────────
-const BASE_RES = 'https://dsp-buddy-train.lovable.app/resources'
+const BASE_RES = '/resources'
 const RESOURCE_CATEGORIES = [
   {
     name: 'Core Training', items: [
@@ -56,7 +56,10 @@ const RESOURCE_CATEGORIES = [
       { title: 'CPR-AED for Professional Rescuers Handbook', file: 'cpr-aed-professional-rescuers-handbook.pdf' },
       { title: 'OSHA Handbook', file: 'osha-handbook.pdf' },
       { title: 'OSHA Factsheet — Bloodborne Pathogens Standard', file: 'osha-bloodborne-pathogens-factsheet.pdf' },
+      { title: 'When to Use Universal Precautions', file: 'universal-precautions.pdf' },
+      { title: 'Direct Support Professionals and Identifiers', file: 'direct-support-professionals-identifiers.pdf' },
       { title: 'Direct Support Poster', file: 'direct-support-poster.pdf' },
+      { title: 'Provider Orientation Manual', file: 'provider-orientation-manual.pdf' },
     ],
   },
   {
@@ -65,11 +68,14 @@ const RESOURCE_CATEGORIES = [
       { title: "Danielle's Law — FAQ", file: 'danielles-law-faq.pdf' },
       { title: "Danielle's Law — Scenarios", file: 'danielles-law-scenarios.pdf' },
       { title: "Danielle's Law — Bulletin (LTE)", file: 'danielles-law-bulletin-lte.pdf' },
+      { title: "Danielle's Law — Flyer", file: 'danielles-law-flyer.pdf' },
+      { title: "Danielle — Her Story", file: 'danielle-her-story.pdf' },
+      { title: 'Chapter Law 191', file: 'chapter-law-191.pdf' },
     ],
   },
   {
     name: "Stephen Komninos' Law", items: [
-      { title: 'SKL — It\'s The Law', file: 'skl-its-the-law.pdf' },
+      { title: "SKL — It's The Law", file: 'skl-its-the-law.pdf' },
       { title: 'SKL — Fact Sheet', file: 'skl-fact-sheet.pdf' },
     ],
   },
@@ -77,16 +83,25 @@ const RESOURCE_CATEGORIES = [
     name: 'DDD Prevention Bulletins', items: [
       { title: 'Aspiration Prevention', file: 'ddd-aspiration-prevention-bulletin.pdf' },
       { title: 'Choking', file: 'ddd-choking-bulletin.pdf' },
+      { title: 'Constipation', file: 'ddd-constipation-bulletin.pdf' },
+      { title: 'Dehydration Prevention', file: 'ddd-dehydration-prevention-bulletin.pdf' },
+      { title: 'GERD Prevention', file: 'ddd-gerd-prevention-bulletin.pdf' },
       { title: 'Infection Prevention', file: 'ddd-infection-prevention-bulletin.pdf' },
       { title: 'Pressure Ulcers Prevention', file: 'ddd-pressure-ulcers-prevention-bulletin.pdf' },
       { title: 'Seizure Prevention', file: 'ddd-seizure-prevention-bulletin.pdf' },
+      { title: 'Pica Bulletin', file: 'ddd-pica-bulletin.pdf' },
+      { title: 'DDD Lesson References', file: 'ddd-lesson-references.pdf' },
+      { title: 'DDD Direct Service Required', file: 'ddd-direct-service-required.xlsx' },
     ],
   },
   {
     name: 'Forms & Checklists', items: [
       { title: 'Seizure Observation Form', file: 'ddd-seizure-observation-form.pdf' },
+      { title: 'Bowel Movement Chart', file: 'DDD-bowel-movement-chart.pdf' },
+      { title: 'Input / Output Form', file: 'DDD-input-output-form.pdf' },
       { title: 'Initial Incident Report', file: 'initial-incident-report.docx' },
       { title: 'Walkaway Checklist', file: 'walkaway-checklist.docx' },
+      { title: 'Incident Reporting Levels & Categories Grid', file: 'incident-reporting-levels-categories-grid.pdf' },
     ],
   },
 ]
