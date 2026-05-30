@@ -11,6 +11,7 @@ const DOCUMENT_TYPES = [
   'CRO Consent',
   "Driver's License",
   'EAD / Green card',
+  'SSN Card',
   'CPR Certificate',
   "Danielle's Law Sign-off",
   "Stephen Komnino's Law",
