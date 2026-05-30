@@ -530,7 +530,6 @@ export default function HiringPage() {
           { done: formsSigned, warn: !formsSigned,   label: 'CRO consent signed'          },
           { done: formsSigned, warn: !formsSigned,   label: 'Direct deposit form'         },
           { done: formsSigned, warn: !formsSigned,   label: 'NJ W4'                       },
-          { done: false,        miss: true,           label: 'CARI clearance'              },
           { done: formsSigned, warn: !formsSigned,   label: "Danielle's Law sign-off"     },
           { done: formsSigned, warn: !formsSigned,   label: "Stephen Komnino's Law"       },
           { done: formsSigned, warn: !formsSigned,   label: 'Appendix A'                  },

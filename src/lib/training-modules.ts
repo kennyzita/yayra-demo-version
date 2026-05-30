@@ -9,7 +9,8 @@ export interface Training {
   status: string
   statusBg: string
   statusColor: string
-  tab: 'assess' | null
+  tab: 'assess' | 'pdf' | null
+  pdfUrl?: string
   externalUrl?: string
   dspStaffOnly?: boolean
 }
@@ -39,7 +40,7 @@ export const ALL_TRAININGS: Training[] = [
     meta: 'Required · Due May 20, 2026 · Mandatory annual',
     pct: 30, barColor: '#BA7517', status: 'Due soon',
     statusBg: 'rgba(186,117,23,0.1)', statusColor: '#BA7517',
-    tab: null,
+    tab: 'pdf', pdfUrl: '/danielles-law.pdf',
   },
 ]
 

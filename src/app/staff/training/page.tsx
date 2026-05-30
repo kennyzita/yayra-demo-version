@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ALL_TRAININGS, CDS_URL, getVisibleTrainings } from '@/lib/training-modules'
 
-type Tab = 'all' | 'assess' | 'certs'
+type Tab = 'all' | 'assess' | 'pdf' | 'certs'
 
 export default function TrainingPage() {
   const [tab,      setTab]      = useState<Tab>('all')
@@ -79,7 +79,39 @@ export default function TrainingPage() {
         </div>
       )}
 
-      <div style={{ padding: tab === 'assess' ? 0 : '20px 24px', display: tab === 'assess' ? 'none' : 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: tab === 'assess' ? undefined : 1 }}>
+      {/* Danielle's Law PDF viewer */}
+      {tab === 'pdf' && (() => {
+        const t = trainings.find(x => x.tab === 'pdf')
+        return (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
+            <div style={{ background: '#004050', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+              <button onClick={() => setTab('all')} style={{ fontSize: 12, padding: '5px 11px', borderRadius: 6, border: '0.5px solid rgba(255,255,255,0.25)', background: 'transparent', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', flexShrink: 0 }}>
+                <i className="ti ti-arrow-left" style={{ fontSize: 13 }} /> Modules
+              </button>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>{t?.name}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{t?.meta}</div>
+              </div>
+              <a
+                href={t?.pdfUrl}
+                download
+                style={{ fontSize: 12, padding: '5px 11px', borderRadius: 6, border: '0.5px solid rgba(255,255,255,0.25)', background: 'transparent', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none', flexShrink: 0 }}
+              >
+                <i className="ti ti-download" style={{ fontSize: 13 }} /> Download
+              </a>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+              <iframe
+                src={t?.pdfUrl}
+                style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+                title="Danielle's Law compliance"
+              />
+            </div>
+          </div>
+        )
+      })()}
+
+      <div style={{ padding: (tab === 'assess' || tab === 'pdf') ? 0 : '20px 24px', display: (tab === 'assess' || tab === 'pdf') ? 'none' : 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: (tab === 'assess' || tab === 'pdf') ? undefined : 1 }}>
 
         {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
@@ -146,7 +178,7 @@ export default function TrainingPage() {
                       onClick={() => t.tab ? setTab(t.tab) : showToast('Opening...')}
                       style={{ fontSize: 11, padding: '5px 12px', borderRadius: 6, border: `0.5px solid ${t.pct === 100 ? '#d1d5db' : '#008080'}`, background: t.pct === 100 ? 'transparent' : 'rgba(0,128,128,0.06)', color: t.pct === 100 ? '#6b7280' : '#008080', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                     >
-                      {t.pct === 100 ? 'View cert' : t.pct > 0 ? 'Continue →' : 'Start →'}
+                      {t.pct === 100 ? 'View cert' : t.tab === 'pdf' ? 'Continue →' : t.pct > 0 ? 'Continue →' : 'Start →'}
                     </button>
                   )}
                 </div>

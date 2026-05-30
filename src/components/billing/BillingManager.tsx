@@ -223,7 +223,7 @@ async function loadBillingStaff(){
   if(e1) throw e1;
   const dspUsers = (usersData||[]).filter(u=>{
     const rn = Array.isArray(u.role) ? u.role[0]?.name : u.role?.name;
-    return rn === "DSP" || rn === "DSP Staff";
+    return rn === "DSP Staff";
   });
   const ids = dspUsers.map(u=>u.id);
   if(!ids.length) return [];
