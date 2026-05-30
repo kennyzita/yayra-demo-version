@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getVisibleTrainings } from '@/lib/training-modules'
+import {
+  Users, Clock, FileText, GraduationCap,
+  Bell, Settings, ExternalLink, Upload,
+  CircleCheck, FilePlus, type LucideIcon,
+} from 'lucide-react'
 
 const CERT_CONFIG: Record<string, number> = {
   'CPR Certificate': 730,
@@ -46,8 +51,6 @@ export default function StaffDashboardPage() {
       const [profileRes, assignmentRes, timesheetRes, caseNoteCountRes, draftNoteRes, docsJson] = await Promise.all([
         supabase.from('users').select('first_name, role:roles(name)').eq('id', user.id).single(),
         supabase.from('assignments').select('client_id').eq('dsp_id', user.id),
-        // Fetch timesheets where today falls within [week_start, week_end] —
-        // works regardless of whether weeks start on Sunday or Monday.
         supabase.from('timesheets').select('total_hours').eq('dsp_id', user.id)
           .lte('week_start', today).gte('week_end', today),
         supabase.from('case_notes').select('id', { count: 'exact', head: true }).eq('dsp_id', user.id)
@@ -99,24 +102,28 @@ export default function StaffDashboardPage() {
   const trainingCompleted = trainings.filter(t => t.status === 'Complete').length
   const trainingDueSoon   = trainings.filter(t => t.status === 'Due soon').length
 
-  const metrics = [
+  const metrics: { IconComp: LucideIcon; iconBg: string; iconColor: string; badge: string; badgeBg: string; badgeColor: string; value: string; label: string }[] = [
     {
-      icon: 'ti-users', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080',
+      IconComp: Users,
+      iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080',
       badge: 'total', badgeBg: 'rgba(55,138,221,0.1)', badgeColor: '#378ADD',
       value: loading ? '—' : String(clientCount), label: 'My assigned clients',
     },
     {
-      icon: 'ti-clock', iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060',
+      IconComp: Clock,
+      iconBg: 'rgba(48,176,96,0.12)', iconColor: '#30B060',
       badge: 'this week', badgeBg: 'rgba(48,176,96,0.12)', badgeColor: '#30B060',
       value: loading ? '—' : hoursDisplay, label: 'Hours logged this week',
     },
     {
-      icon: 'ti-notes', iconBg: 'rgba(55,138,221,0.1)', iconColor: '#378ADD',
+      IconComp: FileText,
+      iconBg: 'rgba(55,138,221,0.1)', iconColor: '#378ADD',
       badge: 'this month', badgeBg: 'rgba(55,138,221,0.1)', badgeColor: '#378ADD',
       value: loading ? '—' : String(caseNotesMonth ?? 0), label: 'Case notes submitted',
     },
     {
-      icon: 'ti-certificate', iconBg: 'rgba(127,119,221,0.1)', iconColor: '#7F77DD',
+      IconComp: GraduationCap,
+      iconBg: 'rgba(127,119,221,0.1)', iconColor: '#7F77DD',
       badge: trainingDueSoon > 0 ? `${trainingDueSoon} due soon` : 'all current',
       badgeBg: trainingDueSoon > 0 ? 'rgba(186,117,23,0.12)' : 'rgba(48,176,96,0.1)',
       badgeColor: trainingDueSoon > 0 ? '#BA7517' : '#30B060',
@@ -134,6 +141,12 @@ export default function StaffDashboardPage() {
   const panel: React.CSSProperties = { background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, overflow: 'hidden' }
   const panelHeader: React.CSSProperties = { padding: '14px 16px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 }
 
+  const quickActions = [
+    { IconComp: Clock,    label: 'Log hours',       bg: 'rgba(0,128,128,0.1)',   color: '#008080', sub: loading ? '' : `${hoursDisplay} hrs this week`, href: '/staff/timesheet' },
+    { IconComp: FilePlus, label: 'Add case note',   bg: 'rgba(48,176,96,0.12)',  color: '#30B060', sub: loading ? '' : `${caseNotesMonth ?? 0} submitted this month`, href: '/staff/case-notes' },
+    { IconComp: Upload,   label: 'Upload document', bg: 'rgba(55,138,221,0.1)',  color: '#378ADD', sub: '', href: '/staff/documents' },
+  ]
+
   return (
     <>
       {/* Topbar */}
@@ -144,10 +157,14 @@ export default function StaffDashboardPage() {
         </div>
         <div style={{ flex: 1 }} />
         <div style={{ position: 'relative' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: 18 }}><i className="ti ti-bell" /></div>
+          <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+            <Bell size={18} />
+          </div>
           {(pendingNotes ?? 0) > 0 && <div style={{ position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: '50%', background: '#E24B4A', border: '1.5px solid #fff' }} />}
         </div>
-        <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: 18 }}><i className="ti ti-settings" /></div>
+        <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+          <Settings size={18} />
+        </div>
       </div>
 
       {/* Content */}
@@ -187,8 +204,8 @@ export default function StaffDashboardPage() {
           {metrics.map((m, i) => (
             <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: m.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: m.iconColor }}>
-                  <i className={`ti ${m.icon}`} />
+                <div style={{ width: 36, height: 36, borderRadius: 8, background: m.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: m.iconColor }}>
+                  <m.IconComp size={18} />
                 </div>
                 <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 10, fontWeight: 500, background: m.badgeBg, color: m.badgeColor }}>{m.badge}</span>
               </div>
@@ -202,14 +219,10 @@ export default function StaffDashboardPage() {
         <div>
           <div style={{ marginBottom: 10 }}><span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Quick actions</span></div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 10 }}>
-            {[
-              { icon: 'ti-clock',  label: 'Log hours',       bg: 'rgba(0,128,128,0.1)',   color: '#008080', sub: loading ? '' : `${hoursDisplay} hrs this week`, href: '/staff/timesheet' },
-              { icon: 'ti-notes',  label: 'Add case note',   bg: 'rgba(48,176,96,0.12)',  color: '#30B060', sub: loading ? '' : `${caseNotesMonth ?? 0} submitted this month`, href: '/staff/case-notes' },
-              { icon: 'ti-upload', label: 'Upload document', bg: 'rgba(55,138,221,0.1)',  color: '#378ADD', sub: '', href: '/staff/documents' },
-            ].map((qa) => (
+            {quickActions.map((qa) => (
               <a key={qa.label} href={qa.href} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', textAlign: 'center', textDecoration: 'none' }}>
-                <div style={{ width: 38, height: 38, borderRadius: 8, background: qa.bg, color: qa.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                  <i className={`ti ${qa.icon}`} />
+                <div style={{ width: 38, height: 38, borderRadius: 8, background: qa.bg, color: qa.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <qa.IconComp size={20} />
                 </div>
                 <span style={{ fontSize: 12, color: '#111', fontWeight: 500 }}>{qa.label}</span>
                 {qa.sub && <span style={{ fontSize: 11, color: '#9ca3af' }}>{qa.sub}</span>}
@@ -305,7 +318,7 @@ export default function StaffDashboardPage() {
                 </div>
                 <div style={{ fontSize: 12, color: '#9ca3af' }}>of 40 hrs standard week</div>
                 <a href="/staff/timesheet" style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#008080', fontWeight: 500, textDecoration: 'none' }}>
-                  <i className="ti ti-external-link" style={{ fontSize: 13 }} /> View full timesheet
+                  <ExternalLink size={13} /> View full timesheet
                 </a>
               </div>
             </div>
@@ -328,7 +341,7 @@ export default function StaffDashboardPage() {
                   </div>
                 </div>
                 <a href="/staff/case-notes" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px', background: 'rgba(0,128,128,0.06)', border: '0.5px solid rgba(0,128,128,0.15)', borderRadius: 8, fontSize: 12, color: '#008080', fontWeight: 500, textDecoration: 'none', cursor: 'pointer' }}>
-                  <i className="ti ti-notes" style={{ fontSize: 13 }} /> Open case notes
+                  <FileText size={13} /> Open case notes
                 </a>
               </div>
             </div>
@@ -336,7 +349,7 @@ export default function StaffDashboardPage() {
             {/* Expiring certs */}
             <div style={panel}>
               <div style={{ ...panelHeader, gap: 8 }}>
-                <i className="ti ti-certificate" style={{ fontSize: 15, color: loading ? '#9ca3af' : expiringCerts.length > 0 ? '#E24B4A' : '#30B060' }} />
+                <GraduationCap size={15} color={loading ? '#9ca3af' : expiringCerts.length > 0 ? '#E24B4A' : '#30B060'} />
                 <span style={{ fontSize: 14, fontWeight: 500, color: '#111', flex: 1 }}>Expiring certs</span>
                 {!loading && (
                   <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: expiringCerts.length > 0 ? 'rgba(226,75,74,0.1)' : 'rgba(48,176,96,0.1)', color: expiringCerts.length > 0 ? '#E24B4A' : '#30B060' }}>
@@ -348,7 +361,7 @@ export default function StaffDashboardPage() {
                 <div style={{ padding: '14px 16px', color: '#9ca3af', fontSize: 13 }}>Loading…</div>
               ) : expiringCerts.length === 0 ? (
                 <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <i className="ti ti-circle-check" style={{ fontSize: 15, color: '#30B060' }} />
+                  <CircleCheck size={15} color="#30B060" />
                   <span style={{ fontSize: 13, color: '#6b7280' }}>All certificates are current</span>
                 </div>
               ) : (
@@ -359,8 +372,8 @@ export default function StaffDashboardPage() {
                     const color   = expired || urgent ? '#E24B4A' : cert.daysLeft <= 30 ? '#BA7517' : '#d97706'
                     return (
                       <div key={i} style={{ padding: '11px 16px', borderBottom: i < expiringCerts.length - 1 ? '0.5px solid #f3f4f6' : 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 30, height: 30, borderRadius: 6, background: `${color}20`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
-                          <i className="ti ti-certificate" />
+                        <div style={{ width: 30, height: 30, borderRadius: 6, background: `${color}20`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <GraduationCap size={14} />
                         </div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{cert.type}</div>
@@ -383,7 +396,7 @@ export default function StaffDashboardPage() {
                   })}
                   <div style={{ padding: '10px 16px', borderTop: '0.5px solid #e5e7eb' }}>
                     <a href="/staff/documents" style={{ fontSize: 12, color: '#008080', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <i className="ti ti-upload" style={{ fontSize: 13 }} /> Upload updated certificate
+                      <Upload size={13} /> Upload updated certificate
                     </a>
                   </div>
                 </>

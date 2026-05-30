@@ -3,6 +3,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import {
+  Users, UserCog, UserCheck, ClipboardList, FileEdit,
+  UserPlus, ClipboardCheck, ArrowLeftRight,
+  Search, Bell, Settings, FileCheck, Clock, FileText,
+  type LucideIcon,
+} from 'lucide-react'
 
 const AVATAR_PALETTE = [
   { bg: 'rgba(16,185,129,0.12)',  color: '#059669' },
@@ -40,7 +46,7 @@ function relTime(iso: string | null): string {
 
 interface FeedItem {
   key: string
-  iconBg: string; iconColor: string; icon: string
+  iconBg: string; iconColor: string; IconComp: LucideIcon
   text: React.ReactNode
   time: string
   sortMs: number
@@ -98,7 +104,6 @@ export default function AdminDashboardPage() {
       const users   = userRows   ?? []
       const clients = clientRows ?? []
 
-      // Metrics
       setClientCount(clients.length)
       setNewClients(clients.filter(c => c.created_at >= sevenDaysAgo).length)
 
@@ -112,7 +117,6 @@ export default function AdminDashboardPage() {
       setPendingTs(tsCount ?? 0)
       setPendingCn(cnCount ?? 0)
 
-      // Lookup maps
       const userMap   = new Map(users.map(u => [u.id, u]))
       const clientMap = new Map(clients.map(c => [c.id, c]))
 
@@ -165,14 +169,14 @@ export default function AdminDashboardPage() {
         if (t.status === 'approved') {
           feed.push({
             key: `ts-ap-${t.id}`,
-            iconBg: 'rgba(16,185,129,0.12)', iconColor: '#059669', icon: 'ti-file-check',
+            iconBg: 'rgba(16,185,129,0.12)', iconColor: '#059669', IconComp: FileCheck,
             text: <>Timesheet approved for <strong>{name}</strong>.</>,
             time: relTime(t.submitted_at), sortMs: ms,
           })
         } else {
           feed.push({
             key: `ts-${t.id}`,
-            iconBg: 'rgba(16,185,129,0.12)', iconColor: '#059669', icon: 'ti-check',
+            iconBg: 'rgba(16,185,129,0.12)', iconColor: '#059669', IconComp: Clock,
             text: <><strong>{name}</strong> submitted a timesheet.</>,
             time: relTime(t.submitted_at), sortMs: ms,
           })
@@ -185,7 +189,7 @@ export default function AdminDashboardPage() {
         const ms   = n.submitted_at ? new Date(n.submitted_at).getTime() : 0
         feed.push({
           key: `cn-${n.id}`,
-          iconBg: 'rgba(245,158,11,0.13)', iconColor: '#d97706', icon: 'ti-notes',
+          iconBg: 'rgba(245,158,11,0.13)', iconColor: '#d97706', IconComp: FileText,
           text: <>Case note added for <strong>{name}</strong>.</>,
           time: relTime(n.submitted_at), sortMs: ms,
         })
@@ -196,7 +200,7 @@ export default function AdminDashboardPage() {
         .forEach(c => {
           feed.push({
             key: `cl-${c.id}`,
-            iconBg: 'rgba(99,102,241,0.12)', iconColor: '#6366f1', icon: 'ti-user',
+            iconBg: 'rgba(99,102,241,0.12)', iconColor: '#6366f1', IconComp: UserPlus,
             text: <><strong>New client</strong> profile created: {c.full_name}.</>,
             time: relTime(c.created_at), sortMs: new Date(c.created_at).getTime(),
           })
@@ -208,30 +212,30 @@ export default function AdminDashboardPage() {
     load()
   }, [])
 
-  const metrics = [
+  const metrics: { IconComp: LucideIcon; iconBg: string; iconColor: string; badge: string; badgeBg: string; badgeColor: string; value: string; label: string }[] = [
     {
-      icon: 'ti-users',
+      IconComp: Users,
       iconBg: 'rgba(16,185,129,0.12)', iconColor: '#059669',
       badge: newClients > 0 ? `+${newClients} new` : 'Total',
       badgeBg: 'rgba(16,185,129,0.12)', badgeColor: '#059669',
       value: loading ? '—' : String(clientCount), label: 'Active clients',
     },
     {
-      icon: 'ti-user',
+      IconComp: UserCog,
       iconBg: 'rgba(245,158,11,0.13)', iconColor: '#d97706',
       badge: newDspStaff > 0 ? `+${newDspStaff} new` : 'Total',
       badgeBg: 'rgba(16,185,129,0.12)', badgeColor: '#059669',
       value: loading ? '—' : String(dspStaffCount), label: 'DSP Staff',
     },
     {
-      icon: 'ti-user-check',
+      IconComp: UserCheck,
       iconBg: 'rgba(20,184,166,0.12)', iconColor: '#0d9488',
       badge: newDspOnly > 0 ? `+${newDspOnly} new` : 'Total',
       badgeBg: 'rgba(16,185,129,0.12)', badgeColor: '#059669',
       value: loading ? '—' : String(dspOnlyCount), label: 'DSP',
     },
     {
-      icon: 'ti-clock',
+      IconComp: ClipboardList,
       iconBg: 'rgba(99,102,241,0.12)', iconColor: '#6366f1',
       badge: loading ? '…' : `${pendingTs} pending`,
       badgeBg: pendingTs > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.12)',
@@ -239,7 +243,7 @@ export default function AdminDashboardPage() {
       value: loading ? '—' : String(pendingTs), label: 'Timesheets to approve',
     },
     {
-      icon: 'ti-edit',
+      IconComp: FileEdit,
       iconBg: 'rgba(168,85,247,0.12)', iconColor: '#a855f7',
       badge: loading ? '…' : `${pendingCn} pending`,
       badgeBg: pendingCn > 0 ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.12)',
@@ -248,11 +252,11 @@ export default function AdminDashboardPage() {
     },
   ]
 
-  const quickActions = [
-    { href: '/admin/clients/new', icon: 'ti-user-plus',       label: 'New client'         },
-    { href: '/admin/timesheets',  icon: 'ti-clock',            label: 'Approve timesheets' },
-    { href: '/admin/case-notes',  icon: 'ti-notes',            label: 'Review case notes'  },
-    { href: '/admin/assignments', icon: 'ti-arrows-exchange',  label: 'DSP assignment'     },
+  const quickActions: { href: string; IconComp: LucideIcon; label: string }[] = [
+    { href: '/admin/clients/new', IconComp: UserPlus,       label: 'New client'         },
+    { href: '/admin/timesheets',  IconComp: ClipboardCheck,  label: 'Approve timesheets' },
+    { href: '/admin/case-notes',  IconComp: FileEdit,        label: 'Review case notes'  },
+    { href: '/admin/assignments', IconComp: ArrowLeftRight,  label: 'DSP assignment'     },
   ]
 
   return (
@@ -265,19 +269,19 @@ export default function AdminDashboardPage() {
         </div>
         <div style={{ flex: 1 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f9fafb', border: '0.5px solid #d1d5db', borderRadius: 8, padding: '0 12px', height: 32, width: 200 }}>
-          <i className="ti ti-search" style={{ fontSize: 15, color: '#6b7280' }} />
+          <Search size={15} color="#6b7280" />
           <input type="text" placeholder="Search staff, clients…" style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#111', outline: 'none', width: '100%' }} />
         </div>
         <div style={{ position: 'relative' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: 18 }}>
-            <i className="ti ti-bell" />
+          <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+            <Bell size={18} />
           </div>
           {pendingTs + pendingCn > 0 && (
             <div style={{ position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #fff' }} />
           )}
         </div>
-        <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', fontSize: 18 }}>
-          <i className="ti ti-settings" />
+        <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+          <Settings size={18} />
         </div>
       </div>
 
@@ -289,8 +293,8 @@ export default function AdminDashboardPage() {
           {metrics.map((m, i) => (
             <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, padding: '20px 20px 18px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div style={{ width: 48, height: 48, borderRadius: 12, background: m.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, color: m.iconColor }}>
-                  <i className={`ti ${m.icon}`} />
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: m.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: m.iconColor }}>
+                  <m.IconComp size={22} />
                 </div>
                 <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, fontWeight: 500, background: m.badgeBg, color: m.badgeColor }}>{m.badge}</span>
               </div>
@@ -309,8 +313,8 @@ export default function AdminDashboardPage() {
                 <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, padding: '24px 12px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, cursor: 'pointer', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', transition: 'box-shadow 0.15s' }}
                   onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.09)')}
                   onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)')}>
-                  <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(0,128,128,0.1)', color: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
-                    <i className={`ti ${qa.icon}`} />
+                  <div style={{ width: 52, height: 52, borderRadius: 14, background: 'rgba(0,128,128,0.1)', color: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <qa.IconComp size={24} />
                   </div>
                   <span style={{ fontSize: 13, color: '#111', fontWeight: 500 }}>{qa.label}</span>
                 </div>
@@ -381,8 +385,8 @@ export default function AdminDashboardPage() {
               <div>
                 {feedItems.map((item, i) => (
                   <div key={item.key} style={{ display: 'flex', gap: 12, padding: '14px 18px', borderBottom: i < feedItems.length - 1 ? '0.5px solid #f3f4f6' : 'none', alignItems: 'flex-start' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: item.iconBg, color: item.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                      <i className={`ti ${item.icon}`} />
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: item.iconBg, color: item.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <item.IconComp size={16} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, color: '#111', lineHeight: 1.5 }}>{item.text}</div>
