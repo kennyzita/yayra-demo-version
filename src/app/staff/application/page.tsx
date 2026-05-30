@@ -424,13 +424,17 @@ export default function ApplicationPage() {
   const [step,     setStep]      = useState(0)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [downloading, setDownloading] = useState(false)
   const [toast,    setToast]     = useState<string | null>(null)
   const [userId,   setUserId]    = useState<string | null>(null) // used for submit only
   const [form,      setForm]      = useState<AppFormState>(INIT_FORM)
+  const formRef    = useRef<AppFormState>(INIT_FORM)
   const [stepError, setStepError] = useState<string | null>(null)
 
   const sf = <K extends keyof AppFormState>(k: K, v: AppFormState[K]) =>
     setForm(p => ({ ...p, [k]: v }))
+
+  useEffect(() => { formRef.current = form }, [form])
 
   function validateDocStep(): string | null {
     const missing: string[] = []
@@ -462,8 +466,8 @@ export default function ApplicationPage() {
       setUserId(user.id)
       setForm(p => ({ ...p, email: user.email ?? '' }))
 
-      const { data } = await supabase.from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
-      const saved = data?.data as Record<string, unknown> | null
+      const { data: bsd } = await supabase.from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
+      const saved = bsd?.data as Record<string, unknown> | null
       if (saved?.application_submitted === 'true') {
         setSubmitted(true)
         if (saved.form) setForm(p => ({ ...p, ...(saved.form as Partial<AppFormState>) }))
@@ -502,22 +506,34 @@ export default function ApplicationPage() {
   }
 
   async function handleDownload() {
-    let formData = form
-    if (userId) {
-      const { data } = await supabase.from('billing_staff_data').select('data').eq('staff_id', userId).maybeSingle()
-      const saved = data?.data as Record<string, unknown> | null
-      if (saved?.form) formData = { ...INIT_FORM, ...(saved.form as Partial<AppFormState>) }
+    setDownloading(true)
+    try {
+      // Always get fresh user + data — don't rely on potentially-stale state
+      const { data: { user } } = await supabase.auth.getUser()
+      let formData: AppFormState = formRef.current  // latest rendered form as fallback
+
+      if (user) {
+        const { data } = await supabase
+          .from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
+        const saved = data?.data as Record<string, unknown> | null
+        if (saved?.form) {
+          formData = { ...INIT_FORM, ...(saved.form as Partial<AppFormState>) }
+        }
+      }
+
+      const html = buildApplicationHtml(formData)
+      const blob = new Blob([html], { type: 'text/html' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `DSP-Application-${formData.firstName || 'draft'}-${formData.lastName || ''}.html`.replace(/\s+/g, '-')
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } finally {
+      setDownloading(false)
     }
-    const html = buildApplicationHtml(formData)
-    const blob = new Blob([html], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `DSP-Application-${formData.firstName || 'draft'}-${formData.lastName || ''}.html`.replace(/\s+/g, '-')
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
   }
 
   // ── Step renderers ──────────────────────────────────────────────────────────
@@ -794,8 +810,8 @@ export default function ApplicationPage() {
         <span style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>DSP job application</span>
         <div style={{ flex: 1 }} />
         <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>Save draft</button>
-        <button onClick={handleDownload} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #008080', background: 'transparent', color: '#008080', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
-          <i className="ti ti-download" /> Download PDF
+        <button onClick={handleDownload} disabled={downloading} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #008080', background: 'transparent', color: '#008080', cursor: downloading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', opacity: downloading ? 0.6 : 1 }}>
+          <i className={downloading ? 'ti ti-loader-2' : 'ti ti-download'} /> {downloading ? 'Loading…' : 'Download PDF'}
         </button>
         {submitted ? (
           <span style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, background: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -843,8 +859,8 @@ export default function ApplicationPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#059669' }}>
                 <i className="ti ti-circle-check" style={{ fontSize: 16, flexShrink: 0 }} />
                 <span style={{ flex: 1 }}>Your application has been submitted and is under review. You can browse but cannot re-submit.</span>
-                <button onClick={handleDownload} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', color: '#059669', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <i className="ti ti-download" style={{ fontSize: 13 }} /> Download
+                <button onClick={handleDownload} disabled={downloading} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', color: '#059669', cursor: downloading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', flexShrink: 0, opacity: downloading ? 0.6 : 1 }}>
+                  <i className={downloading ? 'ti ti-loader-2' : 'ti ti-download'} style={{ fontSize: 13 }} /> {downloading ? 'Loading…' : 'Download'}
                 </button>
               </div>
             )}
