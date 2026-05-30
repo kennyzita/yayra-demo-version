@@ -250,7 +250,7 @@ async function loadBillingStaff(){
       ...b,
       id: u.id,
       name: b.name || fullName || "",
-      role: b.role || roleName || "DSP",
+      role: roleName || b.role || "DSP",
       archived: row?.archived ?? !!b.archived,
       assignedClientIds: assignByUser.get(u.id) || [],
     };
@@ -1822,8 +1822,7 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
   const activeStaff=staff.find(s=>s.id===sid);
 
   function addC(){
-    toast.info("Add new clients in Admin → Clients. They'll appear here automatically.");
-    router.push("/admin/clients");
+    router.push("/admin/clients/new");
   }
   function updC(id,p){setClients(prev=>prev.map(c=>c.id===id?{...c,...p}:c));}
   // Soft-archive only: data preserved for audit. The form sets archived flag via upd().
@@ -1832,8 +1831,7 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
   }
 
   function addStaff(){
-    toast.info("Add new staff in Admin → Staff. DSPs, Supervisors and Behaviour Support staff will appear here automatically.");
-    router.push("/admin/staff");
+    router.push("/admin/assignments");
   }
   function updStaff(id,p){setStaff(prev=>prev.map(s=>s.id===id?{...s,...p}:s));}
   function delStaff(id){
