@@ -23,6 +23,7 @@ export default function AdminProfilePage() {
   const [loading,          setLoading]          = useState(true)
   const [saving,           setSaving]           = useState(false)
   const [toast,            setToast]            = useState<{ msg: string; ok: boolean } | null>(null)
+  const [staffId,          setStaffId]          = useState('—')
   const [firstName,        setFirstName]        = useState('')
   const [lastName,         setLastName]         = useState('')
   const [phone,            setPhone]            = useState('')
@@ -40,7 +41,7 @@ export default function AdminProfilePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 
-      const [{ data: userData }, { data: billingData }] = await Promise.all([
+      const [{ data: userData }, { data: billingData }, { data: allUsersData }] = await Promise.all([
         supabase.from('users')
           .select('id, first_name, last_name, email, phone, created_at, role:roles(name)')
           .eq('id', user.id)
@@ -49,6 +50,9 @@ export default function AdminProfilePage() {
           .select('data')
           .eq('staff_id', user.id)
           .maybeSingle(),
+        supabase.from('users')
+          .select('id, first_name, last_name')
+          .order('created_at', { ascending: true }),
       ])
 
       if (userData) {
@@ -72,6 +76,15 @@ export default function AdminProfilePage() {
         setStreetAddress(p.street_address)
         setCityStateZip(p.city_state_zip)
         setEmergencyContact(p.emergency_contact)
+
+        const fullName = `${userData.first_name} ${userData.last_name}`.trim()
+        if (fullName === 'Rasheed Yekini') {
+          setStaffId('RCS-001')
+        } else {
+          const others = (allUsersData ?? []).filter((u: any) => `${u.first_name} ${u.last_name}`.trim() !== 'Rasheed Yekini')
+          const pos = others.findIndex((u: any) => u.id === user.id)
+          setStaffId(pos >= 0 ? `RCS-${String(pos + 2).padStart(3, '0')}` : 'RCS-???')
+        }
       }
       setLoading(false)
     }
@@ -113,7 +126,7 @@ export default function AdminProfilePage() {
 
   const initials   = profile ? `${profile.first_name[0] ?? ''}${profile.last_name[0] ?? ''}`.toUpperCase() : '—'
   const joinDate   = profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'
-  const staffIdShort = profile?.id ? 'RC-' + profile.id.replace(/-/g, '').slice(0, 6).toUpperCase() : '—'
+  const staffIdShort = staffId
 
   const inp: React.CSSProperties = { width: '100%', border: '1px solid #d1d5db', borderRadius: 8, padding: '11px 14px', fontSize: 14, color: '#111', outline: 'none', background: '#fff', boxSizing: 'border-box', fontFamily: 'inherit' }
   const readonlyInp: React.CSSProperties = { ...inp, background: '#f3f4f6', color: '#6b7280', cursor: 'default' }

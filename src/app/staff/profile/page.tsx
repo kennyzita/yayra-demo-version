@@ -25,6 +25,7 @@ export default function StaffProfilePage() {
   const [loading,   setLoading]   = useState(true)
   const [saving,    setSaving]    = useState(false)
   const [toast,     setToast]     = useState<{ msg: string; ok: boolean } | null>(null)
+  const [staffId,   setStaffId]   = useState('—')
 
   // editable fields
   const [firstName,        setFirstName]        = useState('')
@@ -44,7 +45,7 @@ export default function StaffProfilePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 
-      const [{ data: userData }, { data: billingData }] = await Promise.all([
+      const [{ data: userData }, { data: billingData }, { data: allUsersData }] = await Promise.all([
         supabase.from('users')
           .select('id, first_name, last_name, email, phone, status, created_at, role:roles(name)')
           .eq('id', user.id)
@@ -53,6 +54,9 @@ export default function StaffProfilePage() {
           .select('data')
           .eq('staff_id', user.id)
           .maybeSingle(),
+        supabase.from('users')
+          .select('id, first_name, last_name')
+          .order('created_at', { ascending: true }),
       ])
 
       if (userData) {
@@ -77,6 +81,15 @@ export default function StaffProfilePage() {
         setStreetAddress(p.street_address)
         setCityStateZip(p.city_state_zip)
         setEmergencyContact(p.emergency_contact)
+
+        const fullName = `${userData.first_name} ${userData.last_name}`.trim()
+        if (fullName === 'Rasheed Yekini') {
+          setStaffId('RCS-001')
+        } else {
+          const others = (allUsersData ?? []).filter((u: any) => `${u.first_name} ${u.last_name}`.trim() !== 'Rasheed Yekini')
+          const pos = others.findIndex((u: any) => u.id === user.id)
+          setStaffId(pos >= 0 ? `RCS-${String(pos + 2).padStart(3, '0')}` : 'RCS-???')
+        }
       }
       setLoading(false)
     }
@@ -136,9 +149,7 @@ export default function StaffProfilePage() {
     ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
     : '—'
 
-  const staffIdShort = profile?.id
-    ? 'YC-' + profile.id.replace(/-/g, '').slice(0, 6).toUpperCase()
-    : '—'
+  const staffIdShort = staffId
 
   const inp: React.CSSProperties = {
     width: '100%', border: '1px solid #d1d5db', borderRadius: 8,
