@@ -757,8 +757,15 @@ export default function HiringPage() {
                         <Row label="Email" value={fd.email} />
                         <Row label="Phone" value={fd.phone} />
                         <Row label="Date of birth" value={fd.dob} />
-                        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
-                          <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>SSN</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+                          {docUrls['SSN Card'] && ssnCountdown === 0 ? (
+                            <button onClick={revealSsn} style={{ fontSize: 11, color: '#0891b2', fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                              SSN (Click to view)
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>SSN</span>
+                          )}
                           <div>
                             {docUrls['SSN Card'] ? (
                               ssnCountdown > 0 ? (
@@ -769,12 +776,7 @@ export default function HiringPage() {
                                   </div>
                                   <iframe src={docUrls['SSN Card']} title="SSN Card" style={{ width: '100%', height: 200, border: '1px solid #e5e7eb', borderRadius: 8 }} />
                                 </div>
-                              ) : (
-                                <button onClick={revealSsn} style={{ fontSize: 12, color: '#0891b2', background: 'rgba(8,145,178,0.06)', border: '1px solid rgba(8,145,178,0.3)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                                  Click to view
-                                </button>
-                              )
+                              ) : null
                             ) : (
                               <span style={{ fontSize: 12, color: '#111' }}>{fd.ssnProvided ? 'Provided ✓' : 'Not provided'}</span>
                             )}
