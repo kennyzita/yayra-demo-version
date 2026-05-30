@@ -355,12 +355,12 @@ function SignaturePad({ value, onChange }: { value: string; onChange: (v: string
 
 // ── Download application ───────────────────────────────────────────────────────
 
-function downloadApplication(form: AppFormState) {
+function buildApplicationHtml(form: AppFormState): string {
   const esc = (s: string | undefined) => (s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   const row = (label: string, value: string | undefined) =>
     `<div class="row"><span class="label">${esc(label)}</span><span class="value">${esc(value) || '—'}</span></div>`
 
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>DSP Application — ${esc(form.firstName)} ${esc(form.lastName)}</title>
 <style>
   body{font-family:Arial,sans-serif;font-size:12px;color:#111;margin:24px;max-width:800px}
@@ -414,12 +414,6 @@ ${row('DL Expiry', form.dlExpiry)}${row('EAD Expiry', form.eadExpiry)}${row('CPR
 ${row('Signed Name', form.signatureName)}${row('Date', form.signatureDate)}
 ${form.signatureData ? `<div class="sig"><img src="${form.signatureData}" alt="Signature" /></div>` : ''}
 </body></html>`
-
-  const w = window.open('', '_blank')
-  if (!w) return
-  w.document.write(html)
-  w.document.close()
-  setTimeout(() => { w.focus(); w.print() }, 400)
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -505,6 +499,25 @@ export default function ApplicationPage() {
       }
     }
     setSubmitting(false)
+  }
+
+  async function handleDownload() {
+    let formData = form
+    if (userId) {
+      const { data } = await supabase.from('billing_staff_data').select('data').eq('staff_id', userId).maybeSingle()
+      const saved = data?.data as Record<string, unknown> | null
+      if (saved?.form) formData = { ...INIT_FORM, ...(saved.form as Partial<AppFormState>) }
+    }
+    const html = buildApplicationHtml(formData)
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `DSP-Application-${formData.firstName || 'draft'}-${formData.lastName || ''}.html`.replace(/\s+/g, '-')
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 
   // ── Step renderers ──────────────────────────────────────────────────────────
@@ -781,7 +794,7 @@ export default function ApplicationPage() {
         <span style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>DSP job application</span>
         <div style={{ flex: 1 }} />
         <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>Save draft</button>
-        <button onClick={() => downloadApplication(form)} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #008080', background: 'transparent', color: '#008080', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
+        <button onClick={handleDownload} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #008080', background: 'transparent', color: '#008080', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
           <i className="ti ti-download" /> Download PDF
         </button>
         {submitted ? (
@@ -830,7 +843,7 @@ export default function ApplicationPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 8, marginBottom: 16, fontSize: 13, color: '#059669' }}>
                 <i className="ti ti-circle-check" style={{ fontSize: 16, flexShrink: 0 }} />
                 <span style={{ flex: 1 }}>Your application has been submitted and is under review. You can browse but cannot re-submit.</span>
-                <button onClick={() => downloadApplication(form)} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', color: '#059669', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <button onClick={handleDownload} style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', color: '#059669', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', flexShrink: 0 }}>
                   <i className="ti ti-download" style={{ fontSize: 13 }} /> Download
                 </button>
               </div>
