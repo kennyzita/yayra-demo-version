@@ -16,6 +16,7 @@ import {
   type ReactNode,
   type TextareaHTMLAttributes,
 } from "react";
+import { createClient } from "@/lib/supabase/client";
 
 type FormData = Record<string, any>;
 
@@ -42,7 +43,10 @@ const RISK_QUESTIONS = [
 const STORAGE_KEY = "rcs_intake_draft_v1";
 
 export default function IntakePage() {
+  const supabase = createClient();
   const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [data, setData] = useState<FormData>(() => {
     if (typeof window !== "undefined") {
@@ -76,15 +80,58 @@ export default function IntakePage() {
 
   const printForm = () => window.print();
 
-  const submit = () => {
+  const submit = async () => {
     if (!data.signature || !data.signatureDate) {
       flash("error", "Please sign and date the agreement.");
       return;
     }
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
-    console.log("Intake submission", data);
-    flash("success", "Intake submitted. You can now print or save a copy.");
+    setSubmitting(true);
+    const { error } = await supabase.from("client_intakes").insert({
+      form_data: data,
+      client_name: [data.name].filter(Boolean).join(" ") || null,
+      client_email: data.email || null,
+      submitted_at: new Date().toISOString(),
+      status: "pending",
+    });
+    setSubmitting(false);
+    if (error) {
+      flash("error", "Could not save your submission. Please try again.");
+      return;
+    }
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    setSubmitted(true);
   };
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-2xl border border-slate-200 bg-white p-10 shadow-sm text-center">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+            <svg className="h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-semibold text-slate-900 mb-3">Intake Submitted!</h2>
+          <p className="text-sm text-slate-600 mb-6">
+            Thank you, <strong>{data.name || "valued client"}</strong>. Your intake form has been received by Reliance Care Services.
+            A care coordinator will be in touch shortly.
+          </p>
+          <button
+            onClick={() => window.print()}
+            className="rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm hover:bg-slate-50 mr-2"
+          >
+            Print / Save PDF
+          </button>
+          <a
+            href="/login"
+            className="inline-block rounded-lg bg-[#008080] px-5 py-2 text-sm font-medium text-white hover:bg-[#006666]"
+          >
+            Back to login
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -280,7 +327,9 @@ export default function IntakePage() {
               {step < STEPS.length - 1 ? (
                 <button onClick={next} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700">Continue →</button>
               ) : (
-                <button onClick={submit} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">Submit Intake</button>
+                <button onClick={submit} disabled={submitting} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed">
+                  {submitting ? "Submitting…" : "Submit Intake"}
+                </button>
               )}
             </div>
           </div>
