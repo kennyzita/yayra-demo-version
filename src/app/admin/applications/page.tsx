@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppFormState } from '@/app/staff/application/page'
 import type { StaffDocFile } from '@/app/api/list-staff-documents/route'
@@ -74,6 +74,28 @@ export default function HiringPage() {
   const [progressData,     setProgressData]     = useState<{ formsSigned: boolean; formsSignedAt: string | null; eadUploaded: boolean } | null>(null)
   const [progressLoading,  setProgressLoading]  = useState(false)
   const [sendingReminder,  setSendingReminder]  = useState(false)
+  const [ssnCountdown,     setSsnCountdown]     = useState(0)
+  const ssnTimerRef = useRef<number | null>(null)
+
+  function revealSsn() {
+    setSsnCountdown(10)
+    if (ssnTimerRef.current) window.clearInterval(ssnTimerRef.current)
+    ssnTimerRef.current = window.setInterval(() => {
+      setSsnCountdown(prev => {
+        if (prev <= 1) {
+          window.clearInterval(ssnTimerRef.current!)
+          ssnTimerRef.current = null
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  function hideSsn() {
+    setSsnCountdown(0)
+    if (ssnTimerRef.current) { window.clearInterval(ssnTimerRef.current); ssnTimerRef.current = null }
+  }
 
   function showToast(msg: string) {
     setToast(msg)
@@ -141,6 +163,9 @@ export default function HiringPage() {
         })
     ).then(pairs => setDocUrls(Object.fromEntries(pairs.filter(([, url]) => url))))
   }, [viewingId])
+
+  // Reset SSN reveal when the user changes or closes the application view
+  useEffect(() => { hideSsn() }, [viewingId])
 
   useEffect(() => {
     if (!docsViewingId) return
@@ -732,7 +757,29 @@ export default function HiringPage() {
                         <Row label="Email" value={fd.email} />
                         <Row label="Phone" value={fd.phone} />
                         <Row label="Date of birth" value={fd.dob} />
-                        <Row label="SSN" value={fd.ssnProvided ? 'Provided ✓' : 'Not provided'} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+                          <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>SSN</span>
+                          <div>
+                            {docUrls['SSN Card'] ? (
+                              ssnCountdown > 0 ? (
+                                <div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                    <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>Visible for {ssnCountdown}s…</span>
+                                    <button onClick={hideSsn} style={{ fontSize: 11, color: '#dc2626', background: 'none', border: '1px solid #fca5a5', borderRadius: 4, padding: '1px 7px', cursor: 'pointer', fontFamily: 'inherit' }}>Hide now</button>
+                                  </div>
+                                  <iframe src={docUrls['SSN Card']} title="SSN Card" style={{ width: '100%', height: 200, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                                </div>
+                              ) : (
+                                <button onClick={revealSsn} style={{ fontSize: 12, color: '#0891b2', background: 'rgba(8,145,178,0.06)', border: '1px solid rgba(8,145,178,0.3)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                                  Click to view
+                                </button>
+                              )
+                            ) : (
+                              <span style={{ fontSize: 12, color: '#111' }}>{fd.ssnProvided ? 'Provided ✓' : 'Not provided'}</span>
+                            )}
+                          </div>
+                        </div>
                         <Row label="Address" value={[fd.address1, fd.address2, fd.city, fd.state, fd.zip].filter(Boolean).join(', ')} />
                       </Card>
 
