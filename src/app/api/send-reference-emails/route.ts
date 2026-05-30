@@ -17,8 +17,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, skipped: true })
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://yayracare.vercel.app'
-  const referenceFormUrl = `${baseUrl}/reference-form`
+  const referenceFormUrl = 'https://pdf.ac/Qf9FkkG'
 
   const results: { email: string; ok: boolean }[] = []
 
