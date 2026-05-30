@@ -174,6 +174,7 @@ export default function StaffProgressPage() {
   const [selectedId,    setSelectedId]    = useState('')
   const [loadingStaff,  setLoadingStaff]  = useState(true)
   const [loadingStatus, setLoadingStatus] = useState(false)
+  const [saving,        setSaving]        = useState(false)
   const [toast,         setToast]         = useState('')
 
   // Staff onboarding data loaded per-selection
@@ -192,9 +193,10 @@ export default function StaffProgressPage() {
   // Compliance
   const [compliance, setCompliance] = useState<[PillState, PillState][]>([
     ['yes', 'yes'], ['yes', 'yes'], ['yes', 'pending'], ['yes', 'pending'], ['yes', 'yes'],
+    ['yes', 'pending'], ['yes', 'pending'],
   ])
   const [complianceResults, setComplianceResults] = useState<ResultState[]>([
-    'negative', 'negative', 'none', 'none', 'negative',
+    'negative', 'negative', 'none', 'none', 'negative', 'none', 'none',
   ])
 
   // System access
@@ -317,10 +319,60 @@ export default function StaffProgressPage() {
         if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate: new Date(expiryMs) })
       }
       setExpiringCerts(expiring)
+
+      // Restore saved report state (or reset to defaults for a fresh member)
+      const savedReport = (extra.progress_report ?? null) as Record<string, any> | null
+      if (savedReport) {
+        if (savedReport.compliance)        setCompliance(savedReport.compliance)
+        if (savedReport.complianceResults) setComplianceResults(savedReport.complianceResults)
+        if (savedReport.cdsAccess)         setCdsAccess(savedReport.cdsAccess)
+        if (savedReport.managerAccess)     setManagerAccess(savedReport.managerAccess)
+        if (savedReport.portalAccess)      setPortalAccess(savedReport.portalAccess)
+        if (savedReport.training)          setTraining(savedReport.training)
+        if (savedReport.trainingDates)     setTrainingDates(savedReport.trainingDates)
+        if (savedReport.adminSignature)    setAdminSignature(savedReport.adminSignature)
+      } else {
+        setCompliance([
+          ['yes', 'yes'], ['yes', 'yes'], ['yes', 'pending'], ['yes', 'pending'], ['yes', 'yes'],
+          ['yes', 'pending'], ['yes', 'pending'],
+        ])
+        setComplianceResults(['negative', 'negative', 'none', 'none', 'negative', 'none', 'none'])
+        setCdsAccess('yes')
+        setManagerAccess('yes')
+        setPortalAccess('yes')
+        setTraining(['yes', 'yes', 'yes', 'pending', 'pending', 'yes'])
+        setTrainingDates(['2026-04-01', '2026-05-01', '2026-06-01', '2026-07-01', '2026-09-01', ''])
+        setAdminSignature('')
+      }
+
       setLoadingStatus(false)
     }
     loadStatus()
   }, [selectedId])
+
+  // ── Save report ──────────────────────────────────────────────────────────────
+
+  async function handleSave(requireSignature = false) {
+    if (!selectedId) { showToast('Select a staff member first'); return }
+    if (requireSignature && !adminSignature) { showToast('Please sign before saving'); return }
+    setSaving(true)
+    const reportData = {
+      compliance, complianceResults,
+      cdsAccess, managerAccess, portalAccess,
+      training, trainingDates, adminSignature,
+      savedAt: new Date().toISOString(),
+    }
+    const { data: existing } = await supabase
+      .from('billing_staff_data').select('data').eq('staff_id', selectedId).maybeSingle()
+    const existingData = ((existing?.data ?? {}) as Record<string, unknown>)
+    const { error } = await supabase.from('billing_staff_data').upsert({
+      staff_id: selectedId,
+      data: { ...existingData, progress_report: reportData },
+    })
+    setSaving(false)
+    if (error) showToast('Error saving: ' + error.message)
+    else showToast('Report saved successfully')
+  }
 
   // ── Derived values ────────────────────────────────────────────────────────────
 
@@ -352,7 +404,7 @@ export default function StaffProgressPage() {
   const completedCount = onboardItems.filter(i => i.done).length
   const obPct = Math.round((completedCount / onboardItems.length) * 100)
 
-  const complianceRowLabels = ['CRO check', 'Drug testing', 'CARI clearance', 'Fingerprinting', 'FARA check']
+  const complianceRowLabels = ['CRO check', 'Drug testing', 'CARI clearance', 'Fingerprinting', 'FARA check', 'E-Verify', 'AccessNJ']
   const trainingRowLabels   = ['Prior training', '60-day orientation', '90-day review', '120-day milestone', '180-day milestone', 'Internal training']
 
   const milestones = [
@@ -384,8 +436,8 @@ export default function StaffProgressPage() {
         <button onClick={() => window.print()} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
           <i className="ti ti-download" /> Export PDF
         </button>
-        <button onClick={() => showToast('Report saved')} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #008080', background: '#008080', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
-          <i className="ti ti-device-floppy" /> Save report
+        <button onClick={() => handleSave()} disabled={saving} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #008080', background: saving ? '#6b7280' : '#008080', color: 'white', cursor: saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', opacity: saving ? 0.8 : 1 }}>
+          <i className="ti ti-device-floppy" /> {saving ? 'Saving…' : 'Save report'}
         </button>
       </div>
 
@@ -678,13 +730,11 @@ export default function StaffProgressPage() {
                 </div>
                 <div style={{ paddingTop: 24 }}>
                   <button
-                    onClick={() => {
-                      if (!adminSignature) { showToast('Please sign before saving'); return }
-                      showToast('Report saved successfully')
-                    }}
-                    style={{ fontSize: 13, padding: '11px 22px', borderRadius: 8, border: 'none', background: '#008080', color: 'white', cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                    onClick={() => handleSave(true)}
+                    disabled={saving}
+                    style={{ fontSize: 13, padding: '11px 22px', borderRadius: 8, border: 'none', background: saving ? '#6b7280' : '#008080', color: 'white', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap', opacity: saving ? 0.8 : 1 }}
                   >
-                    Save report
+                    {saving ? 'Saving…' : 'Save report'}
                   </button>
                 </div>
               </div>
