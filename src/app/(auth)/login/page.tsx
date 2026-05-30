@@ -49,6 +49,13 @@ export default async function LoginPage({
           </a>
         </p>
 
+        <p className="text-center text-sm text-gray-500 mt-3">
+          New client?{' '}
+          <a href="/intake" className="text-[#008080] font-semibold hover:underline">
+            Complete Intake Form
+          </a>
+        </p>
+
         <p className="text-center text-xs text-gray-400 mt-6">
           Protected by HIPAA-compliant security · All activity is logged and monitored
         </p>
