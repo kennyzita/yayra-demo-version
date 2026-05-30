@@ -22,6 +22,7 @@ export default function RoleManagementPage() {
 
   const [users, setUsers]     = useState<UserRow[]>([])
   const [roles, setRoles]     = useState<Role[]>([])
+  const [myRole, setMyRole]   = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState<Record<string, boolean>>({})
   const [saved, setSaved]     = useState<Record<string, boolean>>({})
@@ -29,12 +30,16 @@ export default function RoleManagementPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: userRows }, { data: roleRows }] = await Promise.all([
+      const { data: { user: me } } = await supabase.auth.getUser()
+      const [{ data: userRows }, { data: roleRows }, { data: myProfile }] = await Promise.all([
         supabase
           .from('users')
           .select('id, first_name, last_name, email, role_id, role:roles(id, name)')
           .order('first_name'),
         supabase.from('roles').select('id, name').order('name'),
+        me
+          ? supabase.from('users').select('role:roles(name)').eq('id', me.id).single()
+          : Promise.resolve({ data: null }),
       ])
       // Supabase returns joined rows as arrays; normalize to single object or null
       const normalised: UserRow[] = (userRows ?? []).map((u: any) => ({
@@ -43,6 +48,8 @@ export default function RoleManagementPage() {
       }))
       setUsers(normalised)
       setRoles(roleRows ?? [])
+      const profileRole = (myProfile as any)?.role
+      setMyRole((Array.isArray(profileRole) ? profileRole[0] : profileRole)?.name ?? '')
       setLoading(false)
     }
     load()
@@ -137,8 +144,9 @@ export default function RoleManagementPage() {
                 const selectedId = getRoleId(u)
                 const isSaving = saving[u.id]
                 const justSaved = saved[u.id]
+                const lockedForHR = myRole === 'HR' && currentRoleName === 'Admin'
                 return (
-                  <tr key={u.id} style={{ background: isSaving ? 'rgba(0,128,128,0.02)' : 'transparent' }}>
+                  <tr key={u.id} style={{ background: isSaving ? 'rgba(0,128,128,0.02)' : lockedForHR ? 'rgba(99,102,241,0.02)' : 'transparent' }}>
                     <td style={cell}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#fff', flexShrink: 0 }}>
@@ -150,17 +158,26 @@ export default function RoleManagementPage() {
                     <td style={cellMuted}>{u.email}</td>
                     <td style={cell}>{roleBadge(currentRoleName)}</td>
                     <td style={cell}>
-                      <select
-                        value={selectedId}
-                        disabled={isSaving}
-                        onChange={e => { const val = e.target.value; if (val) handleRoleChange(u, val) }}
-                        style={{ padding: '7px 10px', borderRadius: 7, border: `1px solid ${isSaving ? '#008080' : '#d1d5db'}`, fontSize: 13, color: '#111', background: '#fff', outline: 'none', cursor: isSaving ? 'wait' : 'pointer', minWidth: 140, opacity: isSaving ? 0.7 : 1 }}
-                      >
-                        <option value="">— select role —</option>
-                        {roles.map(r => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                      </select>
+                      {lockedForHR ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }} title="HR cannot change the role of an Admin user">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+                          </svg>
+                          <span style={{ fontSize: 12, color: '#9ca3af' }}>Admin-protected</span>
+                        </div>
+                      ) : (
+                        <select
+                          value={selectedId}
+                          disabled={isSaving}
+                          onChange={e => { const val = e.target.value; if (val) handleRoleChange(u, val) }}
+                          style={{ padding: '7px 10px', borderRadius: 7, border: `1px solid ${isSaving ? '#008080' : '#d1d5db'}`, fontSize: 13, color: '#111', background: '#fff', outline: 'none', cursor: isSaving ? 'wait' : 'pointer', minWidth: 140, opacity: isSaving ? 0.7 : 1 }}
+                        >
+                          <option value="">— select role —</option>
+                          {roles.filter(r => r.name !== 'Admin').map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                          ))}
+                        </select>
+                      )}
                     </td>
                     <td style={{ ...cell, width: 120 }}>
                       {isSaving ? (

@@ -31,14 +31,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'userId and roleId are required' }, { status: 400 })
   }
 
-  // F20: HR cannot assign the Admin role — only Admins can
+  // HR restrictions: cannot touch users who are currently Admin, cannot assign Admin role
   if (callerRole?.name === 'HR') {
-    const { data: targetRole } = await supabaseAdmin
-      .from('roles')
-      .select('name')
-      .eq('id', roleId)
-      .single()
-    if (targetRole?.name === 'Admin') {
+    const [{ data: targetUser }, { data: newRole }] = await Promise.all([
+      supabaseAdmin.from('users').select('role:roles(name)').eq('id', userId).single(),
+      supabaseAdmin.from('roles').select('name').eq('id', roleId).single(),
+    ])
+    const targetCurrentRole = (Array.isArray(targetUser?.role)
+      ? (targetUser.role as any[])[0]
+      : targetUser?.role) as { name: string } | null
+    if (targetCurrentRole?.name === 'Admin') {
+      return NextResponse.json({ error: 'Forbidden: HR cannot change the role of an Admin user' }, { status: 403 })
+    }
+    if (newRole?.name === 'Admin') {
       return NextResponse.json({ error: 'Forbidden: HR cannot assign the Admin role' }, { status: 403 })
     }
   }
