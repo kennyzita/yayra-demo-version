@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // F24: /register added so unauthenticated visitors can reach the registration page
-const PUBLIC_PATHS = ['/login', '/auth/callback', '/training', '/reset-password', '/register']
+const PUBLIC_PATHS = ['/login', '/auth/callback', '/training', '/reset-password', '/register', '/intake', '/reference-form']
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes
 
 export async function middleware(request: NextRequest) {

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 
 type SchoolEntry    = { name: string; from: string; to: string; graduated: string; diploma: string; degree: string }
 type EmployerEntry  = { company: string; title: string; supervisor: string; responsibilities: string; reasonLeaving: string; canContact: string }
-type RefEntry       = { name: string; years: string }
+type RefEntry       = { name: string; years: string; email: string }
 
 export interface AppFormState {
   firstName: string; middleName: string; lastName: string
@@ -33,7 +33,7 @@ export interface AppFormState {
 
 const BLANK_SCHOOL:    SchoolEntry   = { name: '', from: '', to: '', graduated: '', diploma: '', degree: '' }
 const BLANK_EMPLOYER:  EmployerEntry = { company: '', title: '', supervisor: '', responsibilities: '', reasonLeaving: '', canContact: '' }
-const BLANK_REF:       RefEntry      = { name: '', years: '' }
+const BLANK_REF:       RefEntry      = { name: '', years: '', email: '' }
 
 const INIT_FORM: AppFormState = {
   firstName: '', middleName: '', lastName: '',
@@ -402,7 +402,7 @@ ${form.schools?.filter(s => s.name).length > 0 ? `<h2>Education History</h2>${fo
 
 ${form.employers?.filter(e => e.company).length > 0 ? `<h2>Employment History</h2>${form.employers.filter(e => e.company).map(e => `<div class="card">${row('Company', e.company)}${row('Title', e.title)}${row('Supervisor', e.supervisor)}${row('Responsibilities', e.responsibilities)}${row('Reason Left', e.reasonLeaving)}${row('Can Contact', e.canContact)}</div>`).join('')}` : ''}
 
-${form.references?.filter(r => r.name).length > 0 ? `<h2>References</h2>${form.references.filter(r => r.name).map((r, i) => row(`Ref ${i + 1}`, `${r.name} · ${r.years}`)).join('')}` : ''}
+${form.references?.filter(r => r.name).length > 0 ? `<h2>References</h2>${form.references.filter(r => r.name).map((r, i) => row(`Ref ${i + 1}`, `${r.name} · ${r.years}${r.email ? ' · ' + r.email : ''}`)).join('')}` : ''}
 
 <h2>Emergency Contact</h2>
 ${row('Name', form.emergencyName)}${row('Relationship', form.emergencyRelationship)}${row('Phone', form.emergencyPhone)}
@@ -491,7 +491,19 @@ export default function ApplicationPage() {
     }
     const { error } = await supabase.from('billing_staff_data').upsert({ staff_id: userId, data: merged })
     if (error) { setToast('Error submitting. Please try again.'); setTimeout(() => setToast(null), 3500) }
-    else setSubmitted(true)
+    else {
+      setSubmitted(true)
+      // Fire reference request emails — errors are non-blocking
+      const validRefs = form.references.filter(r => r.name && r.email)
+      if (validRefs.length > 0) {
+        const applicantName = [form.firstName, form.lastName].filter(Boolean).join(' ')
+        fetch('/api/send-reference-emails', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ applicantName, references: validRefs }),
+        }).catch(() => {/* silently ignore */})
+      }
+    }
     setSubmitting(false)
   }
 
@@ -669,9 +681,10 @@ export default function ApplicationPage() {
           <SectionTitle label="References" />
           {form.references.map((r, i) => (
             <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 10, background: '#fff' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
                 <Field label="Reference name" required><input value={r.name} onChange={e => { const a = [...form.references]; a[i] = { ...a[i], name: e.target.value }; sf('references', a) }} type="text" placeholder="Full name" style={fi} /></Field>
                 <Field label="Years acquainted" required><input value={r.years} onChange={e => { const a = [...form.references]; a[i] = { ...a[i], years: e.target.value }; sf('references', a) }} type="text" placeholder="e.g. 3 years" style={fi} /></Field>
+                <Field label="Email address" required><input value={r.email} onChange={e => { const a = [...form.references]; a[i] = { ...a[i], email: e.target.value }; sf('references', a) }} type="email" placeholder="reference@email.com" style={fi} /></Field>
               </div>
             </div>
           ))}
