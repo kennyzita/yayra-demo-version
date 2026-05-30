@@ -148,7 +148,9 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
-  const sections = role === 'admin' ? adminSections : getStaffSections(userRole)
+  const sections = role === 'admin'
+    ? (userRole === 'HR' ? adminSections.filter(s => s.label !== 'Billing') : adminSections)
+    : getStaffSections(userRole)
 
   async function handleSignOut() {
     await supabase.auth.signOut()
