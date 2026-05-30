@@ -14,6 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .single()
 
   const roleName = (user?.role as { name: string } | null)?.name ?? 'Admin'
+  if (roleName === 'Deactivate') redirect('/deactivated')
   if (roleName !== 'Admin' && roleName !== 'HR') redirect('/staff/dashboard')
 
   const firstName = user?.first_name ?? 'A'

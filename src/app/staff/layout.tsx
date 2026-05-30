@@ -16,6 +16,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   const firstName = user?.first_name ?? 'Maria'
   const lastName = user?.last_name ?? 'Santos'
   const roleName = (user?.role as { name: string } | null)?.name ?? 'DSP Staff'
+  if (roleName === 'Deactivate') redirect('/deactivated')
   const userName = `${firstName} ${lastName}`
   const userInitials = `${firstName[0]}${lastName[0]}`.toUpperCase()
 

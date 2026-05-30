@@ -113,7 +113,9 @@ export function LoginForm() {
 
     const roleName = (user?.role as unknown as { name: string } | null)?.name
 
-    if (roleName === 'Admin' || roleName === 'HR') {
+    if (roleName === 'Deactivate') {
+      router.push('/deactivated')
+    } else if (roleName === 'Admin' || roleName === 'HR') {
       router.push('/admin/dashboard')
     } else if (roleName === 'DSP') {
       router.push('/staff/application')

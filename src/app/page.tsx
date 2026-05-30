@@ -16,11 +16,8 @@ export default async function Home() {
     .single()
 
   const roleName = (user?.role as { name: string } | null)?.name
-  if (roleName === 'Admin' || roleName === 'HR') {
-    redirect('/admin/dashboard')
-  }
-  if (roleName === 'DSP') {
-    redirect('/staff/application')
-  }
+  if (roleName === 'Deactivate') redirect('/deactivated')
+  if (roleName === 'Admin' || roleName === 'HR') redirect('/admin/dashboard')
+  if (roleName === 'DSP') redirect('/staff/application')
   redirect('/staff/dashboard')
 }
