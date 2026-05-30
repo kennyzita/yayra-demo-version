@@ -42,8 +42,11 @@ function fmtDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) } catch { return '' }
 }
 
-function cleanName(raw: string) {
-  return raw.replace(/^\d+_/, '')
+function formatDocName(folder: string, staffName: string, raw: string): string {
+  const withoutPrefix = raw.replace(/^\d+_/, '')
+  const withoutExt = withoutPrefix.replace(/\.[^.]+$/, '')
+  const label = withoutExt || withoutPrefix
+  return staffName ? `${folder} - ${staffName} - ${label}` : `${folder} - ${label}`
 }
 
 export default function StaffDocumentsPage() {
@@ -51,6 +54,7 @@ export default function StaffDocumentsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [userId,        setUserId]        = useState('')
+  const [userName,      setUserName]      = useState('')
   const [docType,       setDocType]       = useState(DOCUMENT_TYPES[0])
   const [uploading,     setUploading]     = useState(false)
   const [uploadError,   setUploadError]   = useState<string | null>(null)
@@ -70,6 +74,9 @@ export default function StaffDocumentsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       setUserId(user.id)
+      const { data: profile } = await supabase
+        .from('users').select('first_name, last_name').eq('id', user.id).single()
+      setUserName([profile?.first_name, profile?.last_name].filter(Boolean).join(' '))
       loadDocs(user.id)
     }
     init()
@@ -259,7 +266,7 @@ export default function StaffDocumentsPage() {
                       </div>
                       <div style={{ flex: 1, overflow: 'hidden' }}>
                         <div style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {cleanName(f.name)}
+                          {formatDocName(f.folder, userName, f.name)}
                         </div>
                         <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
                           {[fmtSize(f.size), fmtDate(f.createdAt)].filter(Boolean).join(' · ')}

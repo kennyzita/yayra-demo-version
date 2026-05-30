@@ -404,9 +404,11 @@ export default function HiringPage() {
           if (['doc','docx'].includes(ext ?? '')) return { icon: 'ti-file-word', color: '#2563eb' }
           return { icon: 'ti-file', color: '#6b7280' }
         }
-        function cleanName(raw: string) {
-          // strip leading timestamp prefix added by upload route e.g. "dl-front_1234567890.jpg"
-          return raw.replace(/^[a-z-]+_\d+\./, raw.split('.').pop() ? raw.split('.')[0].replace(/_\d+$/, '') + '.' + raw.split('.').pop() : raw)
+        function formatDocName(folder: string, staffName: string, raw: string): string {
+          const withoutPrefix = raw.replace(/^\d+_/, '')
+          const withoutExt = withoutPrefix.replace(/\.[^.]+$/, '')
+          const label = withoutExt || withoutPrefix
+          return staffName ? `${folder} - ${staffName} - ${label}` : `${folder} - ${label}`
         }
 
         const folderLabel: Record<string, string> = { application: 'Application Uploads' }
@@ -467,7 +469,7 @@ export default function HiringPage() {
                               </div>
                               <div style={{ flex: 1, overflow: 'hidden' }}>
                                 <div style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {cleanName(f.name)}
+                                  {formatDocName(f.folder, r.name, f.name)}
                                 </div>
                                 <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
                                   {[fmtSize(f.size), fmtDate(f.createdAt)].filter(Boolean).join(' · ')}
