@@ -125,11 +125,11 @@ export default function CaseNotesPage() {
   const [expandedId, setExpandedId]           = useState<string | null>(null)
   const [deletingId, setDeletingId]           = useState<string | null>(null)
 
-  // Autosave entries to localStorage whenever they change
+  // Autosave entries to sessionStorage whenever they change
   useEffect(() => {
     if (!userId) return
     const timer = setTimeout(() => {
-      localStorage.setItem(`case_note_draft_${userId}`, JSON.stringify({ entries }))
+      sessionStorage.setItem(`case_note_draft_${userId}`, JSON.stringify({ entries }))
     }, 600)
     return () => clearTimeout(timer)
   }, [entries, userId])
@@ -143,7 +143,7 @@ export default function CaseNotesPage() {
 
     // Restore autosaved draft
     try {
-      const saved = localStorage.getItem(`case_note_draft_${user.id}`)
+      const saved = sessionStorage.getItem(`case_note_draft_${user.id}`)
       if (saved) {
         const { entries: savedEntries } = JSON.parse(saved)
         if (Array.isArray(savedEntries) && savedEntries.length > 0) {
@@ -289,7 +289,7 @@ export default function CaseNotesPage() {
     setClientId(''); setChecked(new Array(STRATEGIES.length).fill(false))
     setEntries([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
     nextIdRef.current = 2; setWeek(WEEKS[0])
-    if (userId) localStorage.removeItem(`case_note_draft_${userId}`)
+    if (userId) sessionStorage.removeItem(`case_note_draft_${userId}`)
   }
 
   function clearForm() { resetForm(); setEditingNoteId(null); showToast('Form cleared') }

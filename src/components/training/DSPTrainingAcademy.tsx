@@ -526,7 +526,7 @@ function AssessmentScreen({ onBack, onCertificate }: { onBack: () => void; onCer
   const [bank, setBank] = useState<Question[]>([])
 
   const [intake, setIntake] = useState<Intake>(() => {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('rcs-dsp-employee-v1') : null
+    const saved = typeof window !== 'undefined' ? sessionStorage.getItem('rcs-dsp-employee-v1') : null
     const parsed = saved ? JSON.parse(saved) : null
     return { employee_name: parsed?.employee_name ?? '', employee_id: parsed?.employee_id ?? '', assessment_date: todayISO(), admin_email: '' }
   })
@@ -559,7 +559,7 @@ function AssessmentScreen({ onBack, onCertificate }: { onBack: () => void; onCer
 
   function beginAssessment() {
     if (!validate() || !bank.length) return
-    localStorage.setItem('rcs-dsp-employee-v1', JSON.stringify({ employee_name: intake.employee_name, employee_id: intake.employee_id }))
+    sessionStorage.setItem('rcs-dsp-employee-v1', JSON.stringify({ employee_name: intake.employee_name, employee_id: intake.employee_id }))
     const picked = shuffle(bank).slice(0, 32).map(q => {
       const indices = shuffle(q.options.map((_, i) => i))
       const newOptions = indices.map(i => q.options[i])
@@ -606,7 +606,7 @@ function AssessmentScreen({ onBack, onCertificate }: { onBack: () => void; onCer
       setResult(res)
       setStarted(false)
       if (passed) {
-        localStorage.setItem('rcs-dsp-last-cert', JSON.stringify({ attemptId: attempt.id, certNumber, intake }))
+        sessionStorage.setItem('rcs-dsp-last-cert', JSON.stringify({ attemptId: attempt.id, certNumber, intake }))
       }
     } catch (e) {
       alert('Failed to submit: ' + (e instanceof Error ? e.message : String(e)))
@@ -777,7 +777,7 @@ function CertificateScreen({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('rcs-dsp-last-cert')
+      const raw = sessionStorage.getItem('rcs-dsp-last-cert')
       if (raw) {
         const s: CertStored = JSON.parse(raw)
         setStored(s)
