@@ -29,6 +29,7 @@ export default function AdminCaseNotesPage() {
   const [actioning, setActioning]       = useState<string | null>(null)
   const [rejectingId, setRejectingId]   = useState<string | null>(null)
   const [toast, setToast]               = useState('')
+  const [editingEntry, setEditingEntry] = useState<{ noteId: string; entryIndex: number; desc: string } | null>(null)
 
   useEffect(() => { load() }, [])
 
@@ -70,6 +71,14 @@ export default function AdminCaseNotesPage() {
     if (error) showToast('Error: ' + error.message)
     else { showToast('Case note rejected'); setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r)); setRejectingId(null) }
     setActioning(null)
+  }
+
+  async function saveEntryEdit(noteId: string, updatedEntries: any[]) {
+    const { error } = await supabase.from('case_notes').update({ entries: updatedEntries }).eq('id', noteId)
+    if (error) { showToast('Error: ' + error.message); return }
+    showToast('Entry updated ✓')
+    setRecords(prev => prev.map(r => r.id === noteId ? { ...r, entries: updatedEntries } : r))
+    setEditingEntry(null)
   }
 
   const filtered = records.filter(r => {
@@ -188,18 +197,57 @@ export default function AdminCaseNotesPage() {
                       {r.entries.length > 0 && (
                         <div style={{ marginBottom: 16 }}>
                           <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Activity Log</div>
-                          {r.entries.map((e: any, ei: number) => (
-                            <div key={ei} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #e5e7eb' }}>
-                              <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: e.desc ? 6 : 0, flexWrap: 'wrap' }}>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
-                                  {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
-                                </span>
-                                <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
-                                {e.strategy && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
+                          {r.entries.map((e: any, ei: number) => {
+                            const isEditingThis = editingEntry?.noteId === r.id && editingEntry?.entryIndex === ei
+                            return (
+                              <div key={ei} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: `1px solid ${isEditingThis ? '#008080' : '#e5e7eb'}` }}>
+                                <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                                    {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
+                                  </span>
+                                  <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
+                                  {e.strategy && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
+                                  {!isEditingThis && (
+                                    <button
+                                      onClick={ev => { ev.stopPropagation(); setEditingEntry({ noteId: r.id, entryIndex: ei, desc: e.desc ?? '' }) }}
+                                      style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 9px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'white', color: '#6b7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                      <i className="ti ti-pencil" style={{ fontSize: 11 }} /> Edit
+                                    </button>
+                                  )}
+                                </div>
+                                {isEditingThis ? (
+                                  <div>
+                                    <textarea
+                                      autoFocus
+                                      value={editingEntry.desc}
+                                      onChange={ev => setEditingEntry(prev => prev ? { ...prev, desc: ev.target.value } : prev)}
+                                      rows={3}
+                                      style={{ width: '100%', fontSize: 13, color: '#374151', lineHeight: 1.6, border: '1px solid #008080', borderRadius: 6, padding: '8px 10px', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                                    />
+                                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                                      <button
+                                        onClick={() => {
+                                          const updated = r.entries.map((ent: any, i: number) =>
+                                            i === ei ? { ...ent, desc: editingEntry.desc } : ent
+                                          )
+                                          saveEntryEdit(r.id, updated)
+                                        }}
+                                        style={{ fontSize: 12, padding: '5px 14px', borderRadius: 6, border: 'none', background: '#008080', color: 'white', cursor: 'pointer', fontWeight: 600 }}>
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingEntry(null)}
+                                        style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'white', color: '#374151', cursor: 'pointer' }}>
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{e.desc}</div>
+                                )}
                               </div>
-                              {e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{e.desc}</div>}
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       )}
 
