@@ -6,6 +6,14 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await serverClient.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // F13: Restrict email sending to Admin/HR — prevents phishing abuse by DSP accounts
+  const { data: callerProfile } = await serverClient
+    .from('users').select('role:roles(name)').eq('id', user.id).single()
+  const callerRole = (callerProfile?.role as { name: string } | null)?.name
+  if (callerRole !== 'Admin' && callerRole !== 'HR') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const { to, subject, html } = await req.json()
   if (!to || !subject || !html) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })

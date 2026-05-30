@@ -30,6 +30,15 @@ export async function GET(req: NextRequest) {
   const staffId = req.nextUrl.searchParams.get('staffId')
   if (!staffId) return NextResponse.json({ error: 'Missing staffId' }, { status: 400 })
 
+  // F4: Only allow a user to view their own documents, or Admin/HR to view anyone's
+  const { data: callerProfile } = await userSupabase
+    .from('users').select('role:roles(name)').eq('id', user.id).single()
+  const callerRole = (callerProfile?.role as { name: string } | null)?.name
+  const isAdminOrHR = callerRole === 'Admin' || callerRole === 'HR'
+  if (!isAdminOrHR && staffId !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceKey) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
 

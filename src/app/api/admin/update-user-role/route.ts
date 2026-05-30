@@ -31,6 +31,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'userId and roleId are required' }, { status: 400 })
   }
 
+  // F20: HR cannot assign the Admin role — only Admins can
+  if (callerRole?.name === 'HR') {
+    const { data: targetRole } = await supabaseAdmin
+      .from('roles')
+      .select('name')
+      .eq('id', roleId)
+      .single()
+    if (targetRole?.name === 'Admin') {
+      return NextResponse.json({ error: 'Forbidden: HR cannot assign the Admin role' }, { status: 403 })
+    }
+  }
+
   // Update users.role_id
   const { error } = await supabaseAdmin
     .from('users')

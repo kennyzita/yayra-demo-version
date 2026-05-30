@@ -10,6 +10,14 @@ export async function GET(req: NextRequest) {
   const userId = req.nextUrl.searchParams.get('userId')
   if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
 
+  // F5: Only Admin/HR can query other users' last login
+  const { data: callerProfile } = await userSupabase
+    .from('users').select('role:roles(name)').eq('id', user.id).single()
+  const callerRole = (callerProfile?.role as { name: string } | null)?.name
+  if (callerRole !== 'Admin' && callerRole !== 'HR' && userId !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceKey) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
 

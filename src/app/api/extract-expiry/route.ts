@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
 
 export async function POST(req: NextRequest) {
+  // F1: Require authentication before processing any document
+  const userSupabase = createServerClient()
+  const { data: { user } } = await userSupabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'API not configured' }, { status: 500 })
   }
