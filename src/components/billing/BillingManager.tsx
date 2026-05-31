@@ -313,9 +313,7 @@ async function deleteBillingStaffRow(id){
 
 async function pdfFileToText(file){
   const pdfjs=await import("pdfjs-dist");
-  // @ts-ignore worker bundled by Vite
-  const worker=await import("pdfjs-dist/build/pdf.worker.mjs?url");
-  pdfjs.GlobalWorkerOptions.workerSrc=worker.default;
+  pdfjs.GlobalWorkerOptions.workerSrc=`https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
   const buf=await file.arrayBuffer();
   const doc=await pdfjs.getDocument({data:buf}).promise;
   let out="";
