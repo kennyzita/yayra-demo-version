@@ -33,8 +33,6 @@ const DOCUMENT_TYPES = [
   'Other',
 ]
 
-const BUCKET = 'staff-documents'
-
 interface StaffUser {
   id: string
   first_name: string
@@ -47,6 +45,7 @@ interface DocFile {
   created_at: string
   metadata: { size: number; mimetype?: string } | null
   id: string
+  signedUrl?: string
 }
 
 interface AllDocEntry {
@@ -120,15 +119,21 @@ export default function AdminDocumentsPage() {
 
   async function loadDocs(staffId: string) {
     setLoadingDocs(true)
+    const res = await fetch(`/api/list-staff-documents?staffId=${staffId}`)
     const grouped: Record<string, DocFile[]> = {}
-    await Promise.all(
-      DOCUMENT_TYPES.map(async dt => {
-        const folder = `${staffId}/${dt}`
-        const { data } = await supabase.storage.from(BUCKET).list(folder, { sortBy: { column: 'created_at', order: 'desc' } })
-        const files = (data ?? []).filter(f => f.name !== '.emptyFolderPlaceholder')
-        if (files.length > 0) grouped[dt] = files as DocFile[]
-      })
-    )
+    if (res.ok) {
+      const json = await res.json()
+      for (const f of (json.files ?? [])) {
+        if (!grouped[f.folder]) grouped[f.folder] = []
+        grouped[f.folder].push({
+          name: f.name,
+          created_at: f.createdAt,
+          metadata: { size: f.size },
+          id: f.path,
+          signedUrl: f.signedUrl,
+        })
+      }
+    }
     setDocs(grouped)
     setLoadingDocs(false)
   }
@@ -174,17 +179,16 @@ export default function AdminDocumentsPage() {
     setUploadError(null)
     setUploadSuccess(null)
 
-    const safeName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
-    const path = `${selectedStaff}/${docType}/${safeName}`
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('docType', docType)
+    formData.append('staffId', selectedStaff)
 
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-      cacheControl: '3600',
-      upsert: false,
-      contentType: file.type || 'application/octet-stream',
-    })
+    const res = await fetch('/api/admin/upload-staff-document', { method: 'POST', body: formData })
+    const json = await res.json()
 
     setUploading(false)
-    if (error) { setUploadError(error.message); return }
+    if (!res.ok) { setUploadError(json.error ?? 'Upload failed.'); return }
     setUploadSuccess(`"${file.name}" uploaded successfully.`)
     if (fileInputRef.current) fileInputRef.current.value = ''
     await Promise.all([loadDocs(selectedStaff), loadAllDocuments(staffList)])
@@ -194,17 +198,15 @@ export default function AdminDocumentsPage() {
   async function handleDelete(staffId: string, dt: string, fileName: string) {
     const path = `${staffId}/${dt}/${fileName}`
     setDeleting(path)
-    await supabase.storage.from(BUCKET).remove([path])
+    await fetch(`/api/admin/delete-staff-document?path=${encodeURIComponent(path)}`, { method: 'DELETE' })
     setDeleting(null)
     const refreshes: Promise<void>[] = [loadAllDocuments(staffList)]
     if (staffId === selectedStaff) refreshes.push(loadDocs(staffId))
     await Promise.all(refreshes)
   }
 
-  async function handleDownload(staffId: string, dt: string, fileName: string) {
-    const path = `${staffId}/${dt}/${fileName}`
-    const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60)
-    if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+  async function handleDownload(_staffId: string, _dt: string, _fileName: string) {
+    // Signed URLs are now always available via loadDocs / loadAllDocuments — this is a no-op fallback
   }
 
   const selectedUser = staffList.find(u => u.id === selectedStaff)
@@ -368,10 +370,16 @@ export default function AdminDocumentsPage() {
                             {f.metadata?.size ? fmtSize(f.metadata.size) : ''}{f.created_at ? ` · ${fmtDate(f.created_at)}` : ''}
                           </div>
                         </div>
-                        <button onClick={() => handleDownload(selectedStaff, dt, f.name)}
-                          style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: 12, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
-                          <i className="ti ti-download" style={{ fontSize: 13 }} />View
-                        </button>
+                        {f.signedUrl ? (
+                          <a
+                            href={f.signedUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#fff', fontSize: 12, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, textDecoration: 'none' }}
+                          >
+                            <i className="ti ti-external-link" style={{ fontSize: 13 }} />View
+                          </a>
+                        ) : null}
                         <button onClick={() => handleDelete(selectedStaff, dt, f.name)} disabled={isDeleting}
                           style={{ padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(220,38,38,0.2)', background: 'rgba(220,38,38,0.04)', fontSize: 12, color: '#dc2626', cursor: isDeleting ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', opacity: isDeleting ? 0.6 : 1 }}>
                           <i className="ti ti-trash" style={{ fontSize: 13 }} />{isDeleting ? '…' : 'Delete'}
