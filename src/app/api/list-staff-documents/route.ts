@@ -8,9 +8,17 @@ const BUCKET = 'staff-documents'
 const SUBFOLDERS = [
   'application',
   'W4', 'NJ W4', 'Form I-9', 'Direct Deposit Form', 'CRO Consent',
-  "Driver's License", 'EAD / Green card', 'CPR Certificate', "Danielle's Law Sign-off",
+  "Driver's License - Front", "Driver's License - Back",
+  "Driver's License", // legacy
+  'EAD / Green card - Front', 'EAD / Green card - Back',
+  'EAD / Green card', // legacy
+  'SSN Card',
+  'CPR Certificate', "Danielle's Law Sign-off",
   "Stephen Komnino's Law", 'Appendix A', 'CARI Clearance',
-  'Background Check', 'IdentoGO', 'Reference Letter', 'Other',
+  'Background Check', 'IdentoGO', 'Reference Letter',
+  // Admin-only document types
+  'Onboarding Forms', 'MRO', 'CRO', 'CARI', 'FARA', 'Everify', 'CDS',
+  'Other',
 ]
 
 export interface StaffDocFile {
