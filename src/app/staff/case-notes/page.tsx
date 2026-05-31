@@ -10,8 +10,6 @@ const STRATEGIES = [
   { title: 'Assistance with On-The-Job Support', desc: 'Safety awareness, restroom use, attending to task, lunch/breaks, etc.' },
   { title: 'Assistance with Learning Activities', desc: 'Basic tutoring – math, reading, writing; support attending a class; etc.' },
   { title: 'Assistance with Socialization', desc: 'Conversation skills, peer interaction, community events, clubs, etc.' },
-  { title: 'Assistance with Health & Wellness', desc: 'Medical appointments, exercise, nutrition, medication reminders, etc.' },
-  { title: 'Assistance with Transportation', desc: 'Travel training, bus routes, ride scheduling, safety in transit, etc.' },
 ]
 
 function getNoteTag(strategies: string[]): { label: string; bg: string; color: string } {
