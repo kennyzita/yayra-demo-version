@@ -32,6 +32,19 @@ export default function NewClientPage() {
     setSaving(true)
     setError('')
     try {
+      // Block creation if client already submitted an intake form
+      const { data: intakeMatch } = await supabase
+        .from('client_intakes')
+        .select('id, client_name, status')
+        .ilike('client_name', form.full_name.trim())
+        .limit(1)
+      if (intakeMatch && intakeMatch.length > 0) {
+        const match = intakeMatch[0]
+        setError(`"${match.client_name}" already has a ${match.status} intake submission. Please review and process their intake form instead of creating a duplicate client record.`)
+        setSaving(false)
+        return
+      }
+
       // Insert into clients table
       const { data: row, error: err } = await supabase
         .from('clients')
