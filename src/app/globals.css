@@ -17,3 +17,53 @@ body {
 .scrollbar-thin::-webkit-scrollbar { width: 6px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+/* ── Responsive grid utilities ─────────────────────────────────────────────── */
+.rcs-grid-5  { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 14px; }
+.rcs-grid-4  { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+.rcs-grid-4g14 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+.rcs-grid-3  { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+.rcs-grid-sidebar     { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+.rcs-grid-sidebar-lg  { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+
+/* Tablet (≤1024px) */
+@media (max-width: 1024px) {
+  .rcs-grid-5         { grid-template-columns: repeat(3, minmax(0,1fr)); }
+  .rcs-grid-sidebar   { grid-template-columns: 1fr; }
+  .rcs-grid-sidebar-lg{ grid-template-columns: 1fr; }
+}
+
+/* Mobile (≤767px) */
+@media (max-width: 767px) {
+  .rcs-grid-5         { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .rcs-grid-4         { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .rcs-grid-4g14      { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .rcs-grid-3         { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .rcs-grid-sidebar   { grid-template-columns: 1fr; gap: 12px; }
+  .rcs-grid-sidebar-lg{ grid-template-columns: 1fr; gap: 12px; }
+
+  /* Page content padding */
+  .rcs-page-content   { padding: 14px !important; }
+  .rcs-page-content-24{ padding: 14px !important; }
+
+  /* Topbar adjustments */
+  .rcs-topbar-search  { display: none !important; }
+
+  /* Tables — horizontal scroll on mobile */
+  .rcs-table-scroll   { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .rcs-table-scroll table { min-width: 560px; }
+
+  /* Hide secondary text on small screens */
+  .rcs-hide-xs        { display: none !important; }
+
+  /* Bottom padding so FAB doesn't overlap content */
+  .rcs-main-content   { padding-bottom: 80px !important; }
+}
+
+/* Small mobile (≤480px) */
+@media (max-width: 480px) {
+  .rcs-grid-5         { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rcs-grid-4         { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rcs-grid-4g14      { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rcs-grid-3         { grid-template-columns: 1fr; gap: 8px; }
+}

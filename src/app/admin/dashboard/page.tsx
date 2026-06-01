@@ -268,7 +268,7 @@ export default function AdminDashboardPage() {
           <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>{todayLabel}</div>
         </div>
         <div style={{ flex: 1 }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f9fafb', border: '0.5px solid #d1d5db', borderRadius: 8, padding: '0 12px', height: 32, width: 200 }}>
+        <div className="rcs-topbar-search" style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f9fafb', border: '0.5px solid #d1d5db', borderRadius: 8, padding: '0 12px', height: 32, width: 200 }}>
           <Search size={15} color="#6b7280" />
           <input type="text" placeholder="Search staff, clients…" style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#111', outline: 'none', width: '100%' }} />
         </div>
@@ -286,10 +286,10 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Content */}
-      <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20, background: '#f9fafb', minHeight: 'calc(100% - 56px)' }}>
+      <div className="rcs-page-content-24 rcs-main-content" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 20, background: '#f9fafb', minHeight: 'calc(100% - 56px)' }}>
 
         {/* Metric cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0,1fr))', gap: 14 }}>
+        <div className="rcs-grid-5">
           {metrics.map((m, i) => (
             <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, padding: '20px 20px 18px', cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -307,7 +307,7 @@ export default function AdminDashboardPage() {
         {/* Quick actions */}
         <div>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#111', marginBottom: 12 }}>Quick Actions</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 14 }}>
+          <div className="rcs-grid-4g14">
             {quickActions.map(qa => (
               <Link key={qa.label} href={qa.href} style={{ textDecoration: 'none' }}>
                 <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, padding: '24px 12px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, cursor: 'pointer', textAlign: 'center', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', transition: 'box-shadow 0.15s' }}
@@ -324,7 +324,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Two-col: staff table + activity feed */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 16 }}>
+        <div className="rcs-grid-sidebar-lg">
 
           {/* Recent Staff Activity */}
           <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
@@ -337,7 +337,7 @@ export default function AdminDashboardPage() {
             ) : staffRows.length === 0 ? (
               <div style={{ padding: '32px 0', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>No recent activity.</div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <div className="rcs-table-scroll"><table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '0.5px solid #f3f4f6' }}>
                     {['Staff Member', 'Role', 'Action', 'Status'].map(h => (
@@ -367,7 +367,7 @@ export default function AdminDashboardPage() {
                     )
                   })}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </div>
 

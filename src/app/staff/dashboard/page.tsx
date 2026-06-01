@@ -168,7 +168,7 @@ export default function StaffDashboardPage() {
       </div>
 
       {/* Content */}
-      <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="rcs-page-content-24 rcs-main-content" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Welcome banner */}
         <div style={{ background: '#002830', borderRadius: 10, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
@@ -200,7 +200,7 @@ export default function StaffDashboardPage() {
         </div>
 
         {/* Metric cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
+        <div className="rcs-grid-4">
           {metrics.map((m, i) => (
             <div key={i} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -218,7 +218,7 @@ export default function StaffDashboardPage() {
         {/* Quick actions */}
         <div>
           <div style={{ marginBottom: 10 }}><span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Quick actions</span></div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 10 }}>
+          <div className="rcs-grid-3">
             {quickActions.map((qa) => (
               <a key={qa.label} href={qa.href} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, padding: '14px 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer', textAlign: 'center', textDecoration: 'none' }}>
                 <div style={{ width: 38, height: 38, borderRadius: 8, background: qa.bg, color: qa.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -232,7 +232,7 @@ export default function StaffDashboardPage() {
         </div>
 
         {/* Two-col layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 16 }}>
+        <div className="rcs-grid-sidebar">
 
           {/* Left col */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

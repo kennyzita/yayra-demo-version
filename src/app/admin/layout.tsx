@@ -23,9 +23,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const userInitials = `${firstName[0]}${lastName[0]}`.toUpperCase()
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#f4f5f7', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100dvh', background: '#f4f5f7', overflow: 'hidden' }}>
       <Sidebar role="admin" userName={userName} userInitials={userInitials} userRole={roleName} />
-      <main style={{ flex: 1, overflowY: 'auto' }}>{children}</main>
+      <main style={{ flex: 1, overflowY: 'auto', minWidth: 0 }}>{children}</main>
     </div>
   )
 }
