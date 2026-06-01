@@ -20,26 +20,31 @@ Fields to extract:
 - serviceLocation: Service location or setting
 - procCode: Procedure/billing code (e.g. H2021HI, H2016HI)
 - rate: Hourly or unit rate as a number (e.g. 9.77)
-- totalUnits: Total authorized or approved units as a number
+- totalUnits: Total authorized or approved units as a number. Look for labels like "Total Units", "Authorized Units", "Units Authorized", "Approved Units", "PA Units".
 - totalHours: Total authorized hours as a number
 - totalCost: Total authorized cost as a number
 - unitType: Unit of measure (e.g. "15 min", "hour", "visit")
 - frequency: Service frequency (e.g. "weekly", "daily")
-- paNumber: Prior Authorization number
-- paApproved: PA approved units as a number
-- paStart: PA start date (YYYY-MM-DD format)
-- paEnd: PA end date (YYYY-MM-DD format)
+- paNumber: Prior Authorization number. Look for "PA#", "PA Number", "Auth Number", "Authorization Number".
+- paApproved: The total number of authorized/approved PA units as a number. Look for "Units Authorized", "PA Authorized Units", "Approved Units", "Total Units", "Auth Units". This is typically the same value as totalUnits. Do NOT return 0 unless the document explicitly shows 0.
+- paStart: PA start date (YYYY-MM-DD format). Look for "Start Date", "Effective Date", "Auth Start", "PA Start".
+- paEnd: PA end date (YYYY-MM-DD format). Look for "End Date", "Expiration Date", "Auth End", "PA End".
 - planId: Plan or ISP ID
-- evv: EVV status — either "EVV" or "Non-EVV"
-- scCompany: Support Coordinator agency/company name
-- scEmail: Support Coordinator agency email
-- scPhone: Support Coordinator agency phone
-- scName: Support Coordinator individual name
-- scIndEmail: Support Coordinator individual email
-- scIndPhone: Support Coordinator individual phone
-- scsName: Support Coordination Supervisor name
-- scsEmail: Support Coordination Supervisor email
-- scsPhone: Support Coordination Supervisor phone
+- evv: EVV status — either "EVV" or "Non-EVV". Look for "EVV", "Electronic Visit Verification".
+- scCompany: Support Coordinator agency/company name. Look for "SC Agency", "Agency Name", "Support Coordination Agency".
+- scEmail: Support Coordinator agency email address (the agency-level email, not the individual's email).
+- scPhone: Support Coordinator agency phone number (the agency-level phone, not the individual's phone).
+- scName: Individual Support Coordinator's full name. Look for "SC Name", "Support Coordinator", "Assigned SC".
+- scIndEmail: Individual Support Coordinator's personal/direct email address. Look for the email listed next to the SC's name.
+- scIndPhone: Individual Support Coordinator's personal/direct phone number. Look for the phone number listed next to or near the SC name. May be labeled "SC Direct", "SC Cell", "SC Phone", or appear next to the SC name in the contact block.
+- scsName: Support Coordination Supervisor's full name. Look for "SCS", "Supervisor", "SC Supervisor".
+- scsEmail: Support Coordination Supervisor's email address.
+- scsPhone: Support Coordination Supervisor's phone number. Look for the phone number listed next to or near the SCS name.
+
+Important notes:
+- paApproved should equal totalUnits if both refer to the same authorized unit count.
+- If a phone number appears only once for an SC/SCS contact block, use it for both the agency and individual phone fields.
+- Phone numbers may include extensions (e.g. "609.515.1225 x 0").
 
 Return ONLY a valid JSON object with these exact keys and no other text.`
 
