@@ -15,6 +15,7 @@ const ALLOWED_MIMES = [
 
 const ALLOWED_DOC_TYPES = [
   'W4', 'NJ W4', 'Form I-9', 'Direct Deposit Form', 'CRO Consent',
+  "Driver's License / Identification - Front", "Driver's License / Identification - Back",
   "Driver's License - Front", "Driver's License - Back", "Driver's License",
   'EAD / Green card - Front', 'EAD / Green card - Back', 'EAD / Green card',
   'SSN Card', 'CPR Certificate', "Danielle's Law Sign-off",

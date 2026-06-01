@@ -14,6 +14,7 @@ const ALLOWED_MIMES = [
 // F16: allowlist matching the SUBFOLDERS in list-staff-documents — prevents path traversal
 const ALLOWED_DOC_TYPES = [
   'W4', 'NJ W4', 'Form I-9', 'Direct Deposit Form', 'CRO Consent',
+  "Driver's License / Identification - Front", "Driver's License / Identification - Back",
   "Driver's License", 'EAD / Green card', 'CPR Certificate',
   "Danielle's Law Sign-off", "Stephen Komnino's Law", 'Appendix A',
   'CARI Clearance', 'Background Check', 'IdentoGO',
