@@ -4,30 +4,9 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-export async function POST(req: NextRequest) {
-  const userSupabase = createServerClient()
-  const { data: { user } } = await userSupabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+const PROMPT = `You are a data extraction assistant for NJ DDD (Division of Developmental Disabilities) Service Data Records (SDRs) and Prior Authorization documents.
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: 'API not configured' }, { status: 500 })
-  }
-
-  let text: string
-  try {
-    const body = await req.json()
-    text = body.text
-  } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
-  }
-
-  if (!text || text.trim().length < 10) {
-    return NextResponse.json({ error: 'No extractable text provided' }, { status: 400 })
-  }
-
-  const prompt = `You are a data extraction assistant for NJ DDD (Division of Developmental Disabilities) Service Data Records (SDRs) and Prior Authorization documents.
-
-Extract the following fields from the document text below and return a JSON object with EXACTLY these keys. If a field is not found, use null.
+Extract the following fields from this document and return a JSON object with EXACTLY these keys. If a field is not found, use null.
 
 Fields to extract:
 - name: Full client/patient name
@@ -62,16 +41,47 @@ Fields to extract:
 - scsEmail: Support Coordination Supervisor email
 - scsPhone: Support Coordination Supervisor phone
 
-Return ONLY a valid JSON object with these exact keys and no other text.
+Return ONLY a valid JSON object with these exact keys and no other text.`
 
-Document text:
-${text.slice(0, 12000)}`
+export async function POST(req: NextRequest) {
+  const userSupabase = createServerClient()
+  const { data: { user } } = await userSupabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json({ error: 'API not configured' }, { status: 500 })
+  }
+
+  const form = await req.formData()
+  const file = form.get('file') as File | null
+  if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+
+  if (file.type !== 'application/pdf') {
+    return NextResponse.json({ error: 'Only PDF files are supported.' }, { status: 400 })
+  }
+
+  const MAX_SIZE = 20 * 1024 * 1024
+  if (file.size > MAX_SIZE) {
+    return NextResponse.json({ error: 'File too large. Maximum size is 20 MB.' }, { status: 413 })
+  }
 
   try {
+    const bytes = await file.arrayBuffer()
+    const base64 = Buffer.from(bytes).toString('base64')
+
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: { type: 'base64', media_type: 'application/pdf', data: base64 },
+          },
+          { type: 'text', text: PROMPT },
+        ] as Anthropic.ContentBlockParam[],
+      }],
     })
 
     const raw = response.content[0].type === 'text' ? response.content[0].text.trim() : ''

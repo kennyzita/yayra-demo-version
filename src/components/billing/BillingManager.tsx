@@ -311,23 +311,10 @@ async function deleteBillingStaffRow(id){
   if(error) throw error;
 }
 
-async function pdfFileToText(file){
-  const pdfjs=await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc=`https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-  const buf=await file.arrayBuffer();
-  const doc=await pdfjs.getDocument({data:buf}).promise;
-  let out="";
-  for(let i=1;i<=doc.numPages;i++){
-    const page=await doc.getPage(i);
-    const c=await page.getTextContent();
-    out+=c.items.map(it=>it.str).join(" ")+"\n";
-  }
-  return out;
-}
 async function pdfExtract(file){
-  const text=await pdfFileToText(file);
-  if(!text||text.trim().length<10)throw new Error("This PDF appears to be a scanned image with no selectable text. Try a text-based PDF.");
-  const res=await fetch("/api/public/extract-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});
+  const fd=new FormData();
+  fd.append("file",file);
+  const res=await fetch("/api/public/extract-pdf",{method:"POST",body:fd});
   const d=await res.json();
   if(!res.ok)throw new Error(d.error||`Server error ${res.status}`);
   return d.data;
