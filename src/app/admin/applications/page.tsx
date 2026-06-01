@@ -295,10 +295,10 @@ export default function HiringPage() {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 24, background: '#f4f5f7' }}>
+      <div className="rcs-page-content-24 rcs-main-content" style={{ flex: 1, overflowY: 'auto', padding: 24, background: '#f4f5f7' }}>
 
         {/* Summary cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+        <div className="rcs-grid-4" style={{ marginBottom: 24 }}>
           {summaryCards.map(card => (
             <div key={card.label} style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 12, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ width: 44, height: 44, borderRadius: 10, background: card.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: card.iconColor, flexShrink: 0 }}>
@@ -349,6 +349,7 @@ export default function HiringPage() {
           </div>
         ) : (
           <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+            <div className="rcs-table-scroll">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
@@ -398,6 +399,7 @@ export default function HiringPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
@@ -441,7 +443,7 @@ export default function HiringPage() {
         return (
           <>
             <div onClick={() => setDocsViewingId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 40 }} />
-            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 480, background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(480px, 100vw)', background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
               {/* Header */}
               <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -571,7 +573,7 @@ export default function HiringPage() {
         return (
           <>
             <div onClick={() => setProgressId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 40 }} />
-            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 500, background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(500px, 100vw)', background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
               {/* Header */}
               <div style={{ background: '#0d2d5e', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -696,7 +698,7 @@ export default function HiringPage() {
               style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 40 }}
             />
             {/* Drawer */}
-            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 420, background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(420px, 100vw)', background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
               {/* Drawer header */}
               <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12 }}>

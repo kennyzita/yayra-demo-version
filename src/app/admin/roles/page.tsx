@@ -111,7 +111,7 @@ export default function RoleManagementPage() {
   }
 
   return (
-    <div style={{ padding: '32px 32px 48px', maxWidth: 900 }}>
+    <div className="rcs-page-content-24 rcs-main-content" style={{ padding: '32px 32px 48px', maxWidth: 900 }}>
       <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111', margin: '0 0 6px' }}>Role Management</h1>
       <p style={{ fontSize: 14, color: '#6b7280', margin: '0 0 28px' }}>
         Update user roles. Changes take effect immediately on next login.
@@ -128,6 +128,7 @@ export default function RoleManagementPage() {
         {loading ? (
           <div style={{ padding: 48, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>Loading users…</div>
         ) : (
+          <div className="rcs-table-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
@@ -197,6 +198,7 @@ export default function RoleManagementPage() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
