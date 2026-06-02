@@ -87,12 +87,6 @@ const adminSections: NavSection[] = [
       { href: '#', externalUrl: 'https://www.e-verify.gov/',            label: 'Everify',     icon: 'ti-external-link' },
     ],
   },
-  {
-    label: '',
-    items: [
-      { href: '/admin/settings', label: 'Settings', icon: 'ti-settings' },
-    ],
-  },
 ]
 
 const staffSections: NavSection[] = [
