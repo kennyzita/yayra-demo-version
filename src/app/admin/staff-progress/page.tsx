@@ -181,6 +181,7 @@ export default function StaffProgressPage() {
   const [formsSignedAt, setFormsSignedAt] = useState<string | null>(null)
   const [formsSigned,   setFormsSigned]   = useState(false)
   const [eadUploaded,   setEadUploaded]   = useState(false)
+  const [isCitizen,     setIsCitizen]     = useState(false)
   const [lastLogin,     setLastLogin]     = useState<string | null>(null)
   const [revokeOnboarding, setRevokeOnboarding] = useState(false)
   const [revoking,      setRevoking]      = useState(false)
@@ -286,7 +287,7 @@ export default function StaffProgressPage() {
   useEffect(() => {
     if (!selectedId) {
       setFormsSigned(false); setFormsSignedAt(null)
-      setEadUploaded(false); setLastLogin(null)
+      setEadUploaded(false); setIsCitizen(false); setLastLogin(null)
       setExpiringCerts([])
       setRevokeOnboarding(false)
       return
@@ -312,20 +313,32 @@ export default function StaffProgressPage() {
 
       const allFiles: { folder: string; createdAt: string }[] = (docsJson as any).files ?? []
       const EAD_FOLDERS = ['EAD / Green card', 'EAD / Green card - Front', 'EAD / Green card - Back']
+      // US citizens don't need EAD/Green card — Work Authorization is automatically satisfied
+      const citizenFlag = formData?.isCitizen === 'Yes'
+      setIsCitizen(citizenFlag)
       setEadUploaded(
+        citizenFlag ||
         !!(formData?.docEADFront) ||
         !!(formData?.docEADBack) ||
         allFiles.some(f => EAD_FOLDERS.includes(f.folder))
       )
+
+      // Manually stored expiry dates take precedence over upload-date calculation
+      const storedExpiries = (extra.docExpiries ?? {}) as Record<string, string>
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
       for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
-        const certFiles = allFiles.filter(f => f.folder === certType)
-        if (certFiles.length === 0) continue
-        const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
-        const expiryMs = latestMs + validityDays * 86400000
-        const daysLeft = Math.floor((expiryMs - nowMs) / 86400000)
-        if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate: new Date(expiryMs) })
+        let expiryDate: Date
+        if (storedExpiries[certType]) {
+          expiryDate = new Date(storedExpiries[certType] + 'T00:00:00')
+        } else {
+          const certFiles = allFiles.filter(f => f.folder === certType)
+          if (certFiles.length === 0) continue
+          const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
+          expiryDate = new Date(latestMs + validityDays * 86400000)
+        }
+        const daysLeft = Math.floor((expiryDate.getTime() - nowMs) / 86400000)
+        if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate })
       }
       setExpiringCerts(expiring)
 
@@ -429,7 +442,7 @@ export default function StaffProgressPage() {
     { done: formsSigned, warn: !formsSigned, label: "Danielle's Law sign-off"      },
     { done: formsSigned, warn: !formsSigned, label: "Stephen Komnino's Law"        },
     { done: formsSigned, warn: !formsSigned, label: 'Appendix A'                   },
-    { done: eadUploaded, warn: !eadUploaded, label: 'Work authorization uploaded'  },
+    { done: eadUploaded, warn: !eadUploaded, label: isCitizen ? 'Work authorization (US citizen)' : 'Work authorization uploaded' },
   ]
 
   const completedCount = onboardItems.filter(i => i.done).length

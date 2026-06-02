@@ -87,6 +87,7 @@ export default function AdminDocumentsPage() {
   const [uploading,      setUploading]      = useState(false)
   const [uploadError,    setUploadError]    = useState<string | null>(null)
   const [uploadSuccess,  setUploadSuccess]  = useState<string | null>(null)
+  const [expiryDate,     setExpiryDate]     = useState<string>('')
   const [docs,           setDocs]           = useState<Record<string, DocFile[]>>({})
   const [loadingDocs,    setLoadingDocs]    = useState(false)
   const [deleting,       setDeleting]       = useState<string | null>(null)
@@ -183,16 +184,18 @@ export default function AdminDocumentsPage() {
     formData.append('file', file)
     formData.append('docType', docType)
     formData.append('staffId', selectedStaff)
+    if (expiryDate) formData.append('expiryDate', expiryDate)
 
     const res = await fetch('/api/admin/upload-staff-document', { method: 'POST', body: formData })
     const json = await res.json()
 
     setUploading(false)
     if (!res.ok) { setUploadError(json.error ?? 'Upload failed.'); return }
-    setUploadSuccess(`"${file.name}" uploaded successfully.`)
+    setUploadSuccess(`"${file.name}" uploaded successfully.${expiryDate ? ` Expiry date saved: ${new Date(expiryDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.` : ''}`)
     if (fileInputRef.current) fileInputRef.current.value = ''
+    setExpiryDate('')
     await Promise.all([loadDocs(selectedStaff), loadAllDocuments(staffList)])
-    setTimeout(() => setUploadSuccess(null), 4000)
+    setTimeout(() => setUploadSuccess(null), 5000)
   }
 
   async function handleDelete(staffId: string, dt: string, fileName: string) {
@@ -237,7 +240,7 @@ export default function AdminDocumentsPage() {
 
       {/* Upload card */}
       <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 24, marginBottom: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 16 }}>
           <div>
             <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
               Staff Member <span style={{ color: '#e24b4a' }}>*</span>
@@ -260,13 +263,37 @@ export default function AdminDocumentsPage() {
             </label>
             <select
               value={docType}
-              onChange={e => setDocType(e.target.value)}
+              onChange={e => { setDocType(e.target.value); setExpiryDate('') }}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, color: '#111', background: '#fff', outline: 'none', cursor: 'pointer' }}
             >
               {DOCUMENT_TYPES.map(dt => (
                 <option key={dt} value={dt}>{dt}</option>
               ))}
             </select>
+          </div>
+        </div>
+
+        {/* Expiration date — optional override */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
+            Expiration date
+            <span style={{ fontSize: 12, fontWeight: 400, color: '#9ca3af', marginLeft: 6 }}>optional — enter manually if auto-extraction is unavailable or incorrect</span>
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input
+              type="date"
+              value={expiryDate}
+              onChange={e => setExpiryDate(e.target.value)}
+              style={{ padding: '10px 12px', borderRadius: 8, border: `1px solid ${expiryDate ? '#008080' : '#d1d5db'}`, fontSize: 14, color: expiryDate ? '#111' : '#9ca3af', background: '#fff', outline: 'none', fontFamily: 'inherit', maxWidth: 220 }}
+            />
+            {expiryDate && (
+              <button
+                onClick={() => setExpiryDate('')}
+                style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+              >
+                <i className="ti ti-x" style={{ fontSize: 11 }} /> Clear
+              </button>
+            )}
           </div>
         </div>
 

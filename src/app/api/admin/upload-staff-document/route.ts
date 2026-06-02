@@ -41,9 +41,10 @@ export async function POST(req: NextRequest) {
   }
 
   const form = await req.formData()
-  const file    = form.get('file')    as File   | null
-  const docType = form.get('docType') as string | null
-  const staffId = form.get('staffId') as string | null
+  const file       = form.get('file')       as File   | null
+  const docType    = form.get('docType')    as string | null
+  const staffId    = form.get('staffId')    as string | null
+  const expiryDate = (form.get('expiryDate') as string | null)?.trim() || null
 
   if (!file || !docType || !staffId) {
     return NextResponse.json({ error: 'Missing file, docType, or staffId' }, { status: 400 })
@@ -84,5 +85,21 @@ export async function POST(req: NextRequest) {
   })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // If a manual expiry date was provided, persist it in billing_staff_data
+  if (expiryDate) {
+    const { data: existing } = await db
+      .from('billing_staff_data')
+      .select('data')
+      .eq('staff_id', staffId)
+      .maybeSingle()
+    const existingData = ((existing?.data ?? {}) as Record<string, unknown>)
+    const prevExpiries = (existingData.docExpiries ?? {}) as Record<string, string>
+    await db.from('billing_staff_data').upsert({
+      staff_id: staffId,
+      data: { ...existingData, docExpiries: { ...prevExpiries, [docType]: expiryDate } },
+    })
+  }
+
   return NextResponse.json({ path })
 }
