@@ -165,62 +165,133 @@ const HERO_BLUE  = '#1a60e6'
 function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
   onBack: () => void; onPoster: () => void; onModules: () => void; onAssessment: () => void
 }) {
+  const [name, setName] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? sessionStorage.getItem('rcs-dsp-employee-v1') : null
+      return saved ? (JSON.parse(saved).employee_name ?? '') : ''
+    } catch { return '' }
+  })
+  const [empId, setEmpId] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? sessionStorage.getItem('rcs-dsp-employee-v1') : null
+      return saved ? (JSON.parse(saved).employee_id ?? '') : ''
+    } catch { return '' }
+  })
+  const [date, setDate] = useState(todayISO)
+  const [adminEmail, setAdminEmail] = useState('')
+  const [errors, setErrors] = useState<{ name?: string; empId?: string; adminEmail?: string }>({})
+
+  function begin() {
+    const errs: typeof errors = {}
+    if (!name.trim()) errs.name = 'Full name required'
+    if (!empId.trim()) errs.empId = 'Employee ID required'
+    if (adminEmail && !/^[^@]+@[^@]+\.[^@]+$/.test(adminEmail)) errs.adminEmail = 'Invalid email'
+    setErrors(errs)
+    if (Object.keys(errs).length > 0) return
+    try {
+      sessionStorage.setItem('rcs-dsp-employee-v1', JSON.stringify({ employee_name: name.trim(), employee_id: empId.trim() }))
+    } catch { /* ignore */ }
+    onPoster()
+  }
+
+  const fi: CSSProperties = {
+    width: '100%', borderRadius: 14, border: '1.5px solid #e2e8f0',
+    background: '#ffffff', padding: '14px 18px', fontSize: 14,
+    fontFamily: 'inherit', color: C.text, outline: 'none', boxSizing: 'border-box',
+  }
+
+  const featureCards = [
+    { Icon: PlayCircle,    title: '12 training modules',   desc: 'Video-gated curriculum covering ethics, safety, rights, and documentation.' },
+    { Icon: ClipboardCheck, title: '32-question assessment', desc: 'Randomized from a 60-question bank. 80% to pass.' },
+    { Icon: Award,         title: 'Certificate on pass',   desc: 'Branded certificate of completion issued immediately.' },
+  ]
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* top nav */}
-      <div style={{ background: '#fff', borderBottom: '0.5px solid #e5e7eb', padding: '0 20px', height: 56, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 8, background: HERO_NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <Award size={17} color="white" />
-        </div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: HERO_NAVY, letterSpacing: '-0.2px', lineHeight: 1.2 }}>RCS DSP Academy</div>
-          <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 600 }}>Reliance Care Services</div>
-        </div>
-        <div style={{ flex: 1 }} />
-        <button onClick={onBack} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontFamily: 'inherit', marginRight: 8 }}>
-          ← Exit
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f0f4f8', overflowY: 'auto' }}>
+      {/* minimal top bar */}
+      <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <button onClick={onBack} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <ArrowLeft size={13} /> Exit
         </button>
-        <button onClick={onPoster} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: HERO_NAVY, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
-          Start training
-        </button>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.15em', textTransform: 'uppercase' }}>RCS DSP Academy</div>
       </div>
 
-      {/* hero */}
-      <div style={{
-        flex: 1, background: HERO_NAVY, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
-        padding: 'clamp(32px, 5%, 60px) clamp(28px, 6%, 80px)',
-        backgroundImage: 'radial-gradient(ellipse at 80% 15%, rgba(26,96,230,0.18) 0%, transparent 50%), radial-gradient(ellipse at 10% 90%, rgba(0,64,80,0.4) 0%, transparent 45%)',
-      }}>
-        {/* badge */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.05)', marginBottom: 24, alignSelf: 'flex-start' }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: HERO_BLUE, flexShrink: 0, boxShadow: `0 0 6px ${HERO_BLUE}` }} />
-          <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: 'rgba(255,255,255,0.8)' }}>Direct Support Professional Training</span>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 24px 48px' }}>
+        {/* headline */}
+        <div style={{ textAlign: 'center', marginBottom: 28, maxWidth: 640 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.22em', color: '#64748b', marginBottom: 10 }}>Get Started</div>
+          <h1 style={{ fontSize: 'clamp(26px, 4vw, 44px)', fontWeight: 800, color: HERO_NAVY, margin: '0 0 12px', lineHeight: 1.1, letterSpacing: '-0.5px' }}>
+            Enroll & begin your training
+          </h1>
+          <p style={{ fontSize: 15, color: '#64748b', lineHeight: 1.6, margin: 0 }}>
+            Enter your details below to begin the 12-module training program.
+          </p>
         </div>
 
-        {/* headline */}
-        <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 62px)', fontWeight: 800, color: '#ffffff', lineHeight: 1.06, letterSpacing: '-1.5px', margin: '0 0 18px', maxWidth: 800 }}>
-          Training that honors the<br />people you support.
-        </h1>
+        {/* enrollment form card */}
+        <div style={{ background: '#ffffff', borderRadius: 20, border: '1px solid #e2e8f0', padding: '36px 40px', width: '100%', maxWidth: 700, boxShadow: '0 2px 14px rgba(0,0,0,0.06)', marginBottom: 28 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, marginBottom: 28 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>
+                Employee Full Name <span style={{ color: C.danger }}>*</span>
+              </label>
+              <input type="text" value={name}
+                onChange={e => { setName(e.target.value); setErrors(r => ({ ...r, name: undefined })) }}
+                placeholder="Enter your full name"
+                style={{ ...fi, borderColor: errors.name ? C.danger : '#e2e8f0' }} />
+              {errors.name && <div style={{ fontSize: 12, color: C.danger, marginTop: 4 }}>{errors.name}</div>}
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>
+                Employee ID <span style={{ color: C.danger }}>*</span>
+              </label>
+              <input type="text" value={empId}
+                onChange={e => { setEmpId(e.target.value); setErrors(r => ({ ...r, empId: undefined })) }}
+                placeholder="Enter your Employee ID"
+                style={{ ...fi, borderColor: errors.empId ? C.danger : '#e2e8f0' }} />
+              {errors.empId && <div style={{ fontSize: 12, color: C.danger, marginTop: 4 }}>{errors.empId}</div>}
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>Date</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} style={{ ...fi }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>Admin Notification Email</label>
+              <input type="email" value={adminEmail}
+                onChange={e => { setAdminEmail(e.target.value); setErrors(r => ({ ...r, adminEmail: undefined })) }}
+                placeholder="admin@reliancecareservicesllc.com"
+                style={{ ...fi, background: '#f8fafc', borderColor: errors.adminEmail ? C.danger : '#e2e8f0' }} />
+              {errors.adminEmail
+                ? <div style={{ fontSize: 12, color: C.danger, marginTop: 4 }}>{errors.adminEmail}</div>
+                : <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>Certificate will be sent to this address upon completion.</div>
+              }
+            </div>
+          </div>
 
-        {/* sub */}
-        <p style={{ fontSize: 'clamp(13px, 1.3vw, 17px)', color: 'rgba(255,255,255,0.6)', lineHeight: 1.65, margin: '0 0 40px', maxWidth: 520 }}>
-          Twelve video-gated modules followed by a final assessment. Complete it and earn your RCS Certificate of Completion.
-        </p>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <button onClick={begin} style={{ fontSize: 15, padding: '14px 44px', borderRadius: 12, border: 'none', background: HERO_NAVY, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 18px rgba(13,27,46,0.32)' }}>
+              Begin Training <ArrowRight size={18} />
+            </button>
+          </div>
+        </div>
 
-        {/* CTAs */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={onPoster}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, padding: '13px 26px', borderRadius: 10, border: 'none', background: HERO_BLUE, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, boxShadow: `0 4px 20px rgba(26,96,230,0.45)` }}
-          >
-            <PlayCircle size={18} /> Begin training →
-          </button>
-          <button
-            onClick={onAssessment}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, padding: '12px 24px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, backdropFilter: 'blur(4px)' }}
-          >
-            Go to assessment
-          </button>
+        {/* feature cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14, width: '100%', maxWidth: 700, marginBottom: 36 }}>
+          {featureCards.map(({ Icon, title, desc }, i) => (
+            <div key={i} style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', padding: '22px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 10, background: '#edf2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, color: HERO_NAVY }}>
+                <Icon size={20} />
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: HERO_NAVY, marginBottom: 6 }}>{title}</div>
+              <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>{desc}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* footer */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 700, paddingTop: 16, borderTop: '0.5px solid #e2e8f0' }}>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>© {new Date().getFullYear()} Reliance Care Services</span>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>RCS DSP Academy</span>
         </div>
       </div>
     </div>
