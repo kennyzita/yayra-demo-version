@@ -38,6 +38,7 @@ type Module = {
 type Question = { id: string; question: string; options: string[]; correct_index: number; explanation: string | null }
 
 type NavState =
+  | { screen: 'landing' }
   | { screen: 'modules' }
   | { screen: 'module-detail'; moduleId: string }
   | { screen: 'assessment' }
@@ -126,18 +127,21 @@ const scrollable: CSSProperties = { flex: 1, overflowY: 'auto', padding: '20px 2
 
 // ─── root component ───────────────────────────────────────────────────────────
 export default function DSPTrainingAcademy({ onBack }: { onBack: () => void }) {
-  const [nav, setNav] = useState<NavState>({ screen: 'modules' })
+  const [nav, setNav] = useState<NavState>({ screen: 'landing' })
 
   const go = {
-    modules: () => setNav({ screen: 'modules' }),
-    module: (id: string) => setNav({ screen: 'module-detail', moduleId: id }),
-    assessment: () => setNav({ screen: 'assessment' }),
+    landing:     () => setNav({ screen: 'landing' }),
+    modules:     () => setNav({ screen: 'modules' }),
+    module:      (id: string) => setNav({ screen: 'module-detail', moduleId: id }),
+    assessment:  () => setNav({ screen: 'assessment' }),
     certificate: () => setNav({ screen: 'certificate' }),
     orientation: () => setNav({ screen: 'orientation' }),
   }
 
+  if (nav.screen === 'landing')
+    return <LandingScreen onBack={onBack} onModules={go.modules} onAssessment={go.assessment} />
   if (nav.screen === 'modules')
-    return <ModulesScreen onBack={onBack} onModule={go.module} onAssessment={go.assessment} onCertificate={go.certificate} onOrientation={go.orientation} />
+    return <ModulesScreen onBack={go.landing} onModule={go.module} onAssessment={go.assessment} onCertificate={go.certificate} onOrientation={go.orientation} />
   if (nav.screen === 'module-detail')
     return <ModuleDetailScreen moduleId={nav.moduleId} onBack={go.modules} onModule={go.module} />
   if (nav.screen === 'assessment')
@@ -147,6 +151,75 @@ export default function DSPTrainingAcademy({ onBack }: { onBack: () => void }) {
   if (nav.screen === 'orientation')
     return <OrientationScreen onBack={go.modules} />
   return null
+}
+
+// ─── LandingScreen ───────────────────────────────────────────────────────────
+const HERO_NAVY  = '#0c1b2e'
+const HERO_BLUE  = '#1a60e6'
+
+function LandingScreen({ onBack, onModules, onAssessment }: {
+  onBack: () => void; onModules: () => void; onAssessment: () => void
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* top nav */}
+      <div style={{ background: '#fff', borderBottom: '0.5px solid #e5e7eb', padding: '0 20px', height: 56, display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 8, background: HERO_NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Award size={17} color="white" />
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: HERO_NAVY, letterSpacing: '-0.2px', lineHeight: 1.2 }}>RCS DSP Academy</div>
+          <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 600 }}>Reliance Care Services</div>
+        </div>
+        <div style={{ flex: 1 }} />
+        <button onClick={onBack} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontFamily: 'inherit', marginRight: 8 }}>
+          ← Exit
+        </button>
+        <button onClick={onModules} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: HERO_NAVY, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
+          Start training
+        </button>
+      </div>
+
+      {/* hero */}
+      <div style={{
+        flex: 1, background: HERO_NAVY, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end',
+        padding: 'clamp(32px, 5%, 60px) clamp(28px, 6%, 80px)',
+        backgroundImage: 'radial-gradient(ellipse at 80% 15%, rgba(26,96,230,0.18) 0%, transparent 50%), radial-gradient(ellipse at 10% 90%, rgba(0,64,80,0.4) 0%, transparent 45%)',
+      }}>
+        {/* badge */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.05)', marginBottom: 24, alignSelf: 'flex-start' }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: HERO_BLUE, flexShrink: 0, boxShadow: `0 0 6px ${HERO_BLUE}` }} />
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, color: 'rgba(255,255,255,0.8)' }}>Direct Support Professional Training</span>
+        </div>
+
+        {/* headline */}
+        <h1 style={{ fontSize: 'clamp(28px, 4.5vw, 62px)', fontWeight: 800, color: '#ffffff', lineHeight: 1.06, letterSpacing: '-1.5px', margin: '0 0 18px', maxWidth: 800 }}>
+          Training that honors the<br />people you support.
+        </h1>
+
+        {/* sub */}
+        <p style={{ fontSize: 'clamp(13px, 1.3vw, 17px)', color: 'rgba(255,255,255,0.6)', lineHeight: 1.65, margin: '0 0 40px', maxWidth: 520 }}>
+          Twelve video-gated modules followed by a final assessment. Complete it and earn your RCS Certificate of Completion.
+        </p>
+
+        {/* CTAs */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={onModules}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, padding: '13px 26px', borderRadius: 10, border: 'none', background: HERO_BLUE, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, boxShadow: `0 4px 20px rgba(26,96,230,0.45)` }}
+          >
+            <PlayCircle size={18} /> Begin training →
+          </button>
+          <button
+            onClick={onAssessment}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, padding: '12px 24px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.9)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, backdropFilter: 'blur(4px)' }}
+          >
+            Go to assessment
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ─── ModulesScreen ────────────────────────────────────────────────────────────
