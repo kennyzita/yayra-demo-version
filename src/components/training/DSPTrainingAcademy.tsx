@@ -9,7 +9,7 @@ import { TRAINING_SECTIONS } from '@/lib/training-manual'
 import {
   PlayCircle, Award, ClipboardCheck, ArrowRight, Lock, CheckCircle2,
   FileText, VideoOff, BookOpen, Download, ArrowLeft, RotateCcw,
-  Printer, ChevronRight,
+  Printer, ChevronRight, LayoutGrid,
 } from 'lucide-react'
 
 // ─── colour tokens (matching yayracare brand) ───────────────────────────────
@@ -703,116 +703,130 @@ function ModulesScreen({ onBack, onModule, onAssessment, onCertificate, onOrient
   const allDone = total > 0 && watched === total
 
   const statCards = [
-    { icon: PlayCircle,    label: 'Modules completed', value: loading ? '…' : `${watched} / ${total}` },
-    { icon: ClipboardCheck, label: 'Final assessment',  value: allDone ? 'Unlocked' : 'Locked' },
-    { icon: Award,         label: 'Certificate',        value: allDone ? 'Available on pass' : 'Pending' },
+    { Icon: PlayCircle,    label: 'Modules completed', value: loading ? '…' : `${watched} / ${total}` },
+    { Icon: ClipboardCheck, label: 'Final assessment',  value: allDone ? 'Unlocked' : 'Locked' },
+    { Icon: Award,         label: 'Certificate',        value: allDone ? 'Available' : 'Pending' },
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
-      {/* header bar */}
-      <div style={{ background: C.primary, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <button onClick={onBack} style={backBtn}>
-          <ArrowLeft size={13} /> Modules
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f0f4f8' }}>
+      {/* white top nav */}
+      <div style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0 28px', height: 64, display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
+        <button onClick={onBack} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: HERO_NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Award size={20} color="white" />
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: HERO_NAVY, letterSpacing: '-0.3px', lineHeight: 1.2 }}>RCS DSP Academy</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Training & Assessment</div>
+          </div>
         </button>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>DSP Training Academy</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Reliance Care Services · Required for all DSP staff</div>
+        <div style={{ flex: 1 }} />
+        <div style={{ display: 'flex', gap: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, background: '#f0f4f8', fontSize: 14, fontWeight: 600, color: HERO_NAVY }}>
+            <LayoutGrid size={15} /> Training
+          </div>
+          <button onClick={onAssessment} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, background: 'none', border: 'none', fontSize: 14, fontWeight: 500, color: '#64748b', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <ClipboardCheck size={15} /> Assessment
+          </button>
+          <button onClick={onCertificate} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', borderRadius: 8, background: 'none', border: 'none', fontSize: 14, fontWeight: 500, color: '#64748b', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <Award size={15} /> Certificate
+          </button>
         </div>
       </div>
 
-      <div style={scrollable}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '32px 28px' }}>
+        {/* hero */}
+        <h1 style={{ fontSize: 32, fontWeight: 800, color: HERO_NAVY, margin: '0 0 6px', letterSpacing: '-0.5px' }}>Your training</h1>
+        <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 28px', lineHeight: 1.5 }}>
+          Complete each module in order. When all {total || 12} are complete, the final assessment unlocks.
+        </p>
+
         {/* stat cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12, marginBottom: 20 }}>
-          {statCards.map((s, i) => (
-            <div key={i} style={{ ...card, padding: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 8, background: C.secondary, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.primary }}>
-                  <s.icon size={18} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 16, marginBottom: 32 }}>
+          {statCards.map(({ Icon, label, value }, i) => (
+            <div key={i} style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', padding: '22px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#edf2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: HERO_NAVY, flexShrink: 0 }}>
+                  <Icon size={18} />
                 </div>
-                <span style={{ fontSize: 12, color: C.muted }}>{s.label}</span>
+                <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>{label}</span>
               </div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: C.text }}>{s.value}</div>
+              <div style={{ fontSize: 30, fontWeight: 800, color: HERO_NAVY, letterSpacing: '-0.5px' }}>{value}</div>
             </div>
           ))}
         </div>
 
-        {/* orientation manual entry */}
-        <OrientationBanner onOpen={onOrientation} />
+        {/* modules heading */}
+        <h2 style={{ fontSize: 22, fontWeight: 800, color: HERO_NAVY, margin: '0 0 16px', letterSpacing: '-0.3px' }}>Training modules</h2>
 
-        {/* module grid */}
-        <div style={{ marginBottom: 8 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, color: C.text, marginBottom: 12 }}>Training modules</h2>
-          {loading ? (
-            <div style={{ textAlign: 'center', color: C.muted, fontSize: 13, padding: 32 }}>Loading modules…</div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12 }}>
-              {modules.map((m, idx) => {
-                const done    = progress.has(m.id)
-                const prevDone = idx === 0 || progress.has(modules[idx - 1]?.id)
-                const locked  = !done && !prevDone
-                return (
-                  <ModuleCard key={m.id} index={idx + 1} module={m} done={done} locked={locked}
-                    onClick={() => !locked && onModule(m.id)} />
-                )
-              })}
-            </div>
-          )}
-        </div>
+        {loading ? (
+          <div style={{ textAlign: 'center', color: '#64748b', fontSize: 14, padding: 48 }}>Loading modules…</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 14, marginBottom: 24 }}>
+            {modules.map((m, idx) => {
+              const done     = progress.has(m.id)
+              const prevDone = idx === 0 || progress.has(modules[idx - 1]?.id)
+              const locked   = !done && !prevDone
+              return (
+                <ModuleCard key={m.id} index={idx + 1} module={m} done={done} locked={locked}
+                  onClick={() => !locked && onModule(m.id)} />
+              )
+            })}
+          </div>
+        )}
 
         {/* assessment banner */}
-        <div style={{ ...card, padding: 20, marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', padding: '24px 28px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Final assessment</div>
-            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-              32 questions drawn from a 60-question bank · 80% to pass · Certificate on success
+            <div style={{ fontSize: 18, fontWeight: 700, color: HERO_NAVY, marginBottom: 4 }}>Final assessment</div>
+            <div style={{ fontSize: 13, color: '#64748b' }}>
+              32 questions randomly drawn from a 60-question bank · 80% to pass · Certificate on success
             </div>
           </div>
           {allDone ? (
-            <button onClick={onAssessment} style={{ ...primaryBtn, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ClipboardCheck size={14} /> Start assessment
+            <button onClick={onAssessment} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, padding: '12px 24px', borderRadius: 10, border: 'none', background: HERO_NAVY, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+              <ClipboardCheck size={15} /> Start assessment
             </button>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: C.muted, padding: '8px 14px', borderRadius: 8, border: `0.5px solid ${C.border}`, background: C.secondary }}>
-              <Lock size={13} /> Complete all {total} modules to unlock
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b', padding: '10px 18px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#f8fafc', fontWeight: 500 }}>
+              <Lock size={14} /> Complete all {total} modules to unlock
             </div>
           )}
         </div>
 
         {/* additional resources */}
-        <div style={{ ...card, padding: 20, marginTop: 16, borderColor: `${C.accent}30` }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 16 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: `${C.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
-              <BookOpen size={18} />
+        <div style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', padding: '24px 28px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, marginBottom: 20 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: '#edf2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4a7da4', flexShrink: 0 }}>
+              <BookOpen size={20} />
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Additional Resources</span>
-                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: C.secondary, color: C.muted, fontWeight: 500, textTransform: 'uppercase', letterSpacing: 1 }}>Optional</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                <span style={{ fontSize: 18, fontWeight: 700, color: HERO_NAVY }}>Additional Resources</span>
+                <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 10, background: '#edf2f7', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Optional</span>
               </div>
-              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-                Reference materials, bulletins, forms and handbooks. Not required — use as needed.
+              <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>
+                Reference materials, bulletins, forms, and handbooks. Not required to complete training — use as needed on the job.
               </div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 14 }}>
             {RESOURCE_CATEGORIES.map(cat => (
-              <div key={cat.name} style={{ borderRadius: 10, border: `0.5px solid ${C.border}`, background: 'rgba(255,255,255,0.6)', padding: '12px 14px' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: C.accent, marginBottom: 8 }}>{cat.name}</div>
-                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div key={cat.name} style={{ borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafc', padding: '16px 18px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#4a7da4', marginBottom: 12 }}>{cat.name}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {cat.items.map(r => (
-                    <li key={r.file}>
-                      <a href={`${BASE_RES}/${encodeURIComponent(r.file)}`} target="_blank" rel="noreferrer"
-                        style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '4px 6px', borderRadius: 6, fontSize: 12, color: C.text, textDecoration: 'none' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = C.secondary)}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <FileText size={13} style={{ marginTop: 1, flexShrink: 0, color: C.muted }} />
-                        <span style={{ lineHeight: 1.4 }}>{r.title}</span>
-                      </a>
-                    </li>
+                    <a key={r.file} href={`${BASE_RES}/${encodeURIComponent(r.file)}`} target="_blank" rel="noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 6px', borderRadius: 8, fontSize: 13, color: HERO_NAVY, textDecoration: 'none' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = '#edf2f7')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <FileText size={15} style={{ flexShrink: 0, color: '#64748b' }} />
+                      <span style={{ lineHeight: 1.4 }}>{r.title}</span>
+                    </a>
                   ))}
-                </ul>
+                </div>
               </div>
             ))}
           </div>
@@ -833,44 +847,58 @@ function ModuleCard({ index, module: m, done, locked, onClick }: {
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        ...card, padding: 16, cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.55 : 1,
-        border: hover && !locked ? `0.5px solid ${C.accent}` : `0.5px solid ${C.border}`,
+        background: '#ffffff', borderRadius: 16, padding: '22px 24px',
+        border: `1px solid ${hover && !locked ? '#cbd5e1' : '#e2e8f0'}`,
+        cursor: locked ? 'default' : 'pointer',
+        boxShadow: hover && !locked ? '0 4px 12px rgba(0,0,0,0.08)' : '0 1px 4px rgba(0,0,0,0.04)',
         transition: 'border-color 0.15s, box-shadow 0.15s',
-        boxShadow: hover && !locked ? '0 2px 8px rgba(0,128,128,0.08)' : 'none',
+        display: 'flex', flexDirection: 'column',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 12 }}>
-        <div style={{ fontSize: 30, width: 44, height: 44, borderRadius: 10, background: C.secondary, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* top row: emoji badge + status pill */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#edf2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>
           {m.cover_emoji ?? '📘'}
         </div>
         {done ? (
-          <StatusPill color={C.success} bg={`${C.success}18`}><CheckCircle2 size={11} /> Complete</StatusPill>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 8, background: `${C.success}12`, fontSize: 12, fontWeight: 600, color: C.success }}>
+            <CheckCircle2 size={13} /> Complete
+          </div>
         ) : locked ? (
-          <StatusPill color={C.muted} bg={C.secondary}><Lock size={11} /> Locked</StatusPill>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 8, background: '#f0f4f8', fontSize: 12, fontWeight: 500, color: '#94a3b8' }}>
+            <Lock size={12} /> Locked
+          </div>
         ) : (
-          <StatusPill color={C.accent} bg={`${C.accent}18`}>Ready</StatusPill>
+          <div style={{ padding: '5px 12px', borderRadius: 8, background: '#f0f4f8', fontSize: 12, fontWeight: 500, color: '#64748b' }}>
+            Ready
+          </div>
         )}
       </div>
-      <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+
+      {/* module label */}
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8', marginBottom: 6 }}>
         Module {index} · {m.category} · {mins} min
       </div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{m.title}</div>
-      <div style={{ fontSize: 12, color: C.muted, marginTop: 4, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+
+      {/* title */}
+      <div style={{ fontSize: 17, fontWeight: 700, color: locked ? '#94a3b8' : HERO_NAVY, lineHeight: 1.3, marginBottom: 8 }}>
+        {m.title}
+      </div>
+
+      {/* description */}
+      <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, flex: 1, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: !locked ? 16 : 0 }}>
         {m.description}
       </div>
+
+      {/* bottom links — unlocked only */}
       {!locked && (
-        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: C.primary, display: 'flex', alignItems: 'center', gap: 4 }}>
-            {done ? 'Review' : 'Watch now'} <ArrowRight size={13} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 14, borderTop: '1px solid #f0f4f8' }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: HERO_NAVY, display: 'flex', alignItems: 'center', gap: 6 }}>
+            {done ? 'Review' : 'Watch now'} <ArrowRight size={15} />
           </span>
-          <span style={{ fontSize: 11, color: C.muted, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <FileText size={12} /> Handout
+          <span style={{ fontSize: 13, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <FileText size={14} /> Handout
           </span>
-        </div>
-      )}
-      {!locked && !m.video_url && (
-        <div style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 8px', borderRadius: 6, background: `${C.warn}15`, color: C.warn }}>
-          <VideoOff size={11} /> Video pending
         </div>
       )}
     </div>
