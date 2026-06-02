@@ -311,7 +311,12 @@ export default function StaffProgressPage() {
       setAdminSignature('')
 
       const allFiles: { folder: string; createdAt: string }[] = (docsJson as any).files ?? []
-      setEadUploaded(!!(formData?.docEADFront) || allFiles.some(f => f.folder === 'EAD / Green card'))
+      const EAD_FOLDERS = ['EAD / Green card', 'EAD / Green card - Front', 'EAD / Green card - Back']
+      setEadUploaded(
+        !!(formData?.docEADFront) ||
+        !!(formData?.docEADBack) ||
+        allFiles.some(f => EAD_FOLDERS.includes(f.folder))
+      )
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
       for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
@@ -457,7 +462,7 @@ export default function StaffProgressPage() {
 
       {/* Topbar */}
       <div style={{ background: 'white', borderBottom: '1px solid #e5e7eb', padding: '0 22px', height: 54, display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 10 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>Staff progress report</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>Staff Progress Report</span>
         <div style={{ flex: 1 }} />
         <button onClick={() => window.print()} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit' }}>
           <i className="ti ti-download" /> Export PDF
@@ -569,12 +574,12 @@ export default function StaffProgressPage() {
                   disabled={revoking}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 7, flexShrink: 0,
-                    padding: '8px 18px', borderRadius: 8, border: 'none', fontFamily: 'inherit',
+                    padding: '8px 18px', borderRadius: 8, fontFamily: 'inherit',
                     background: revokeOnboarding ? 'rgba(226,75,74,0.1)' : '#f3f4f6',
                     color: revokeOnboarding ? '#E24B4A' : '#374151',
                     cursor: revoking ? 'not-allowed' : 'pointer',
                     fontSize: 13, fontWeight: 600, opacity: revoking ? 0.7 : 1,
-                    border: `1px solid ${revokeOnboarding ? 'rgba(226,75,74,0.3)' : '#e5e7eb'}` as any,
+                    border: `1px solid ${revokeOnboarding ? 'rgba(226,75,74,0.3)' : '#e5e7eb'}`,
                   }}
                 >
                   <i className={`ti ${revokeOnboarding ? 'ti-lock-open' : 'ti-lock'}`} style={{ fontSize: 14 }} />

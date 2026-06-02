@@ -17,6 +17,7 @@ interface ClientRow {
   medicaid_id: string
   dx: string
   isp_outcome: string
+  source: 'Intake Form' | 'Admin Console'
 }
 
 function initials(name: string) {
@@ -31,12 +32,13 @@ function fmtDob(dob: string | null) {
 export default function ClientsPage() {
   const supabase = createClient()
 
-  const [clients,   setClients]   = useState<ClientRow[]>([])
-  const [loading,   setLoading]   = useState(true)
-  const [search,    setSearch]    = useState('')
-  const [view,      setView]      = useState<'list' | 'create' | 'edit'>('list')
-  const [selected,  setSelected]  = useState<ClientRow | null>(null)
-  const [viewModal, setViewModal] = useState<ClientRow | null>(null)
+  const [clients,      setClients]      = useState<ClientRow[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [search,       setSearch]       = useState('')
+  const [sourceFilter, setSourceFilter] = useState<'' | 'Intake Form' | 'Admin Console'>('')
+  const [view,         setView]         = useState<'list' | 'create' | 'edit'>('list')
+  const [selected,     setSelected]     = useState<ClientRow | null>(null)
+  const [viewModal,    setViewModal]    = useState<ClientRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null)
 
   const [form,    setForm]    = useState({ ...EMPTY_FORM })
@@ -56,22 +58,34 @@ export default function ClientsPage() {
 
   async function loadClients() {
     setLoading(true)
-    const { data: rows } = await supabase
-      .from('clients')
-      .select('id, full_name, dob, created_at')
-      .order('full_name')
+    const [clientsRes, bcdRes, intakesRes] = await Promise.all([
+      supabase.from('clients').select('id, full_name, dob, created_at').order('full_name'),
+      supabase.from('billing_client_data').select('client_id, data'),
+      supabase.from('client_intakes').select('client_name'),
+    ])
 
+    const rows = clientsRes.data
     if (!rows) { setLoading(false); return }
 
-    const { data: bcd } = await supabase
-      .from('billing_client_data')
-      .select('client_id, data')
-      .in('client_id', rows.map(r => r.id))
+    const bcdMap = new Map(
+      ((bcdRes.data ?? []) as { client_id: string; data: Record<string, unknown> }[])
+        .map(b => [b.client_id, b.data])
+    )
 
-    const bcdMap = new Map((bcd ?? []).map(b => [b.client_id, b.data as Record<string, unknown>]))
+    // Build a lowercase set of names that came through the intake form
+    const intakeNames = new Set(
+      (intakesRes.data ?? []).map(i => (i.client_name ?? '').toLowerCase().trim())
+    )
 
     const merged: ClientRow[] = rows.map(r => {
       const d = bcdMap.get(r.id) ?? {}
+      const storedSource = d.source as string | undefined
+      let source: 'Intake Form' | 'Admin Console'
+      if (storedSource === 'Intake Form' || storedSource === 'Admin Console') {
+        source = storedSource
+      } else {
+        source = intakeNames.has(r.full_name.toLowerCase().trim()) ? 'Intake Form' : 'Admin Console'
+      }
       return {
         id: r.id,
         full_name: r.full_name,
@@ -82,6 +96,7 @@ export default function ClientsPage() {
         medicaid_id: String(d.mid ?? ''),
         dx:          String(d.dx ?? ''),
         isp_outcome: String(d.isp_outcome ?? ''),
+        source,
       }
     })
 
@@ -155,6 +170,7 @@ export default function ClientsPage() {
           mid: form.medicaid_id,
           dx: form.dx,
           isp_outcome: form.isp_outcome,
+          source: 'Admin Console',
           locked: false,
           pin: '1234',
           services: [],
@@ -232,7 +248,9 @@ export default function ClientsPage() {
 
   const filtered = clients.filter(c => {
     const q = search.toLowerCase()
-    return !q || c.full_name.toLowerCase().includes(q) || c.medicaid_id.toLowerCase().includes(q) || c.county.toLowerCase().includes(q) || c.dx.toLowerCase().includes(q)
+    const matchesSearch = !q || c.full_name.toLowerCase().includes(q) || c.medicaid_id.toLowerCase().includes(q) || c.county.toLowerCase().includes(q) || c.dx.toLowerCase().includes(q)
+    const matchesSource = !sourceFilter || c.source === sourceFilter
+    return matchesSearch && matchesSource
   })
 
   const inp: React.CSSProperties = { width: '100%', padding: '8px 11px', fontSize: 13, borderRadius: 8, border: '0.5px solid #d1d5db', background: '#fff', color: '#111', outline: 'none', boxSizing: 'border-box' }
@@ -355,16 +373,27 @@ export default function ClientsPage() {
       </div>
 
       <div style={{ padding: '24px 28px', maxWidth: 1100 }}>
-        {/* Search */}
-        <div style={{ position: 'relative', marginBottom: 20, maxWidth: 380 }}>
-          <i className="ti ti-search" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#9ca3af', pointerEvents: 'none' }} />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search by name, Medicaid ID, county, or diagnosis…"
-            style={{ width: '100%', paddingLeft: 34, paddingRight: 12, paddingTop: 9, paddingBottom: 9, border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box' }}
-          />
+        {/* Search + source filter row */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: 380 }}>
+            <i className="ti ti-search" style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: '#9ca3af', pointerEvents: 'none' }} />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name, Medicaid ID, county, or diagnosis…"
+              style={{ width: '100%', paddingLeft: 34, paddingRight: 12, paddingTop: 9, paddingBottom: 9, border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 13, color: '#111', background: '#fff', outline: 'none', boxSizing: 'border-box' }}
+            />
+          </div>
+          <select
+            value={sourceFilter}
+            onChange={e => setSourceFilter(e.target.value as typeof sourceFilter)}
+            style={{ fontSize: 13, padding: '9px 32px 9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, background: '#fff', color: sourceFilter ? '#111' : '#6b7280', outline: 'none', cursor: 'pointer', appearance: 'none', minWidth: 160, fontFamily: 'inherit' }}
+          >
+            <option value="">All sources</option>
+            <option value="Intake Form">Intake Form</option>
+            <option value="Admin Console">Admin Console</option>
+          </select>
         </div>
 
         {/* Table */}
@@ -463,13 +492,28 @@ export default function ClientsPage() {
             </div>
             {/* Modal body */}
             <div style={{ padding: '20px 22px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 24px' }}>
+              {/* Source badge — full width */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5 }}>Source</div>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  fontSize: 12, fontWeight: 600, padding: '3px 11px', borderRadius: 10,
+                  background: viewModal.source === 'Intake Form' ? 'rgba(0,128,128,0.1)' : 'rgba(0,64,80,0.1)',
+                  color:      viewModal.source === 'Intake Form' ? '#008080'              : '#004050',
+                }}>
+                  <i className={`ti ${viewModal.source === 'Intake Form' ? 'ti-file-text' : 'ti-layout-dashboard'}`} />
+                  {viewModal.source}
+                </span>
+              </div>
+
               {[
-                ['Full name',    viewModal.full_name],
-                ['Medicaid ID',  viewModal.medicaid_id || '—'],
+                ['Full name',     viewModal.full_name],
+                ['Medicaid ID',   viewModal.medicaid_id || '—'],
                 ['Date of birth', fmtDob(viewModal.dob)],
-                ['Sex',          viewModal.sex === 'M' ? 'Male' : viewModal.sex === 'F' ? 'Female' : '—'],
-                ['County',       viewModal.county || '—'],
-                ['Diagnosis',    viewModal.dx || '—'],
+                ['Sex',           viewModal.sex === 'M' ? 'Male' : viewModal.sex === 'F' ? 'Female' : '—'],
+                ['County',        viewModal.county || '—'],
+                ['Diagnosis',     viewModal.dx || '—'],
+                ['Added',         new Date(viewModal.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })],
               ].map(([label, value]) => (
                 <div key={label}>
                   <div style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
