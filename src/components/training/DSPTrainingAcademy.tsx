@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef, type ReactNode, type CSSProperties } from 'react'
 import { dspSupabase as supabase } from '@/lib/dsp-supabase'
 import { useProgress, markComplete } from '@/lib/dsp-progress'
+import { MANUAL_META, MANUAL_SECTIONS, type ManualBlock } from '@/lib/orientation-manual'
 import {
   PlayCircle, Award, ClipboardCheck, ArrowRight, Lock, CheckCircle2,
   FileText, VideoOff, BookOpen, Download, ArrowLeft, RotateCcw,
@@ -41,6 +42,7 @@ type NavState =
   | { screen: 'module-detail'; moduleId: string }
   | { screen: 'assessment' }
   | { screen: 'certificate' }
+  | { screen: 'orientation' }
 
 type CertStored = {
   attemptId: string; certNumber: string
@@ -131,23 +133,26 @@ export default function DSPTrainingAcademy({ onBack }: { onBack: () => void }) {
     module: (id: string) => setNav({ screen: 'module-detail', moduleId: id }),
     assessment: () => setNav({ screen: 'assessment' }),
     certificate: () => setNav({ screen: 'certificate' }),
+    orientation: () => setNav({ screen: 'orientation' }),
   }
 
   if (nav.screen === 'modules')
-    return <ModulesScreen onBack={onBack} onModule={go.module} onAssessment={go.assessment} onCertificate={go.certificate} />
+    return <ModulesScreen onBack={onBack} onModule={go.module} onAssessment={go.assessment} onCertificate={go.certificate} onOrientation={go.orientation} />
   if (nav.screen === 'module-detail')
     return <ModuleDetailScreen moduleId={nav.moduleId} onBack={go.modules} onModule={go.module} />
   if (nav.screen === 'assessment')
     return <AssessmentScreen onBack={go.modules} onCertificate={go.certificate} />
   if (nav.screen === 'certificate')
     return <CertificateScreen onBack={go.modules} />
+  if (nav.screen === 'orientation')
+    return <OrientationScreen onBack={go.modules} />
   return null
 }
 
 // ─── ModulesScreen ────────────────────────────────────────────────────────────
-function ModulesScreen({ onBack, onModule, onAssessment, onCertificate }: {
+function ModulesScreen({ onBack, onModule, onAssessment, onCertificate, onOrientation }: {
   onBack: () => void; onModule: (id: string) => void
-  onAssessment: () => void; onCertificate: () => void
+  onAssessment: () => void; onCertificate: () => void; onOrientation: () => void
 }) {
   const [modules, setModules] = useState<Module[]>([])
   const [loading, setLoading] = useState(true)
@@ -196,6 +201,9 @@ function ModulesScreen({ onBack, onModule, onAssessment, onCertificate }: {
             </div>
           ))}
         </div>
+
+        {/* orientation manual entry */}
+        <OrientationBanner onOpen={onOrientation} />
 
         {/* module grid */}
         <div style={{ marginBottom: 8 }}>
@@ -908,6 +916,230 @@ function CertificateScreen({ onBack }: { onBack: () => void }) {
       </div>
     </div>
   )
+}
+
+// ─── OrientationBanner ───────────────────────────────────────────────────────
+function OrientationBanner({ onOpen }: { onOpen: () => void }) {
+  const acknowledged = typeof window !== 'undefined' && localStorage.getItem('rcs-orientation-ack-v1') === '1'
+  return (
+    <div style={{ ...card, padding: 18, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', borderColor: `${C.accent}55` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: `${C.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, flexShrink: 0 }}>
+          <BookOpen size={18} />
+        </div>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Provider Orientation Manual</span>
+            {acknowledged && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, padding: '2px 7px', borderRadius: 10, background: `${C.success}18`, color: C.success, fontWeight: 600 }}>
+                <CheckCircle2 size={10} /> Acknowledged
+              </span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+            10-section NJ HCBS onboarding — required reading before your first solo shift.
+          </div>
+        </div>
+      </div>
+      <button onClick={onOpen} style={{ ...primaryBtn, flexShrink: 0 }}>
+        <BookOpen size={14} /> Open manual
+      </button>
+    </div>
+  )
+}
+
+// ─── OrientationScreen ────────────────────────────────────────────────────────
+function OrientationScreen({ onBack }: { onBack: () => void }) {
+  const [sectionIdx, setSectionIdx] = useState(0)
+  const [visited, setVisited] = useState<Set<string>>(() => {
+    try {
+      const raw = typeof window !== 'undefined' ? localStorage.getItem('rcs-orientation-visited-v1') : null
+      return new Set(raw ? JSON.parse(raw) : [])
+    } catch { return new Set() }
+  })
+  const [acknowledged, setAcknowledged] = useState(() => {
+    try { return typeof window !== 'undefined' && localStorage.getItem('rcs-orientation-ack-v1') === '1' } catch { return false }
+  })
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const section = MANUAL_SECTIONS[sectionIdx]
+  const isLast  = sectionIdx === MANUAL_SECTIONS.length - 1
+
+  useEffect(() => {
+    if (!visited.has(section.id)) {
+      const next = new Set([...visited, section.id])
+      setVisited(next)
+      try { localStorage.setItem('rcs-orientation-visited-v1', JSON.stringify([...next])) } catch { /* ignore */ }
+    }
+    if (contentRef.current) contentRef.current.scrollTop = 0
+  }, [sectionIdx])
+
+  function acknowledge() {
+    try { localStorage.setItem('rcs-orientation-ack-v1', '1') } catch { /* ignore */ }
+    setAcknowledged(true)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
+      {/* header */}
+      <div style={{ background: C.primary, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+        <button onClick={onBack} style={backBtn}><ArrowLeft size={13} /> Training</button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Provider Orientation Manual</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{MANUAL_META.agency} · Effective {MANUAL_META.effective}</div>
+        </div>
+        {acknowledged && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '3px 10px', borderRadius: 10, fontWeight: 600, background: `${C.success}30`, color: C.success, flexShrink: 0 }}>
+            <CheckCircle2 size={12} /> Acknowledged
+          </span>
+        )}
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {/* sidebar */}
+        <div style={{ width: 220, flexShrink: 0, overflowY: 'auto', borderRight: `0.5px solid ${C.border}`, background: C.card, padding: '8px 0' }}>
+          {MANUAL_SECTIONS.map((s, i) => {
+            const isVisited = visited.has(s.id)
+            const isActive  = sectionIdx === i
+            return (
+              <button
+                key={s.id}
+                onClick={() => setSectionIdx(i)}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%',
+                  padding: '8px 14px', textAlign: 'left', cursor: 'pointer',
+                  fontFamily: 'inherit', border: 'none',
+                  background: isActive ? `${C.primary}10` : 'transparent',
+                  borderLeft: `2.5px solid ${isActive ? C.primary : 'transparent'}`,
+                }}
+              >
+                <div style={{
+                  width: 20, height: 20, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: isVisited ? `${C.success}18` : C.secondary,
+                  border: `1px solid ${isVisited ? C.success : C.border}`,
+                }}>
+                  {isVisited
+                    ? <CheckCircle2 size={11} color={C.success} />
+                    : <span style={{ fontSize: 9, fontWeight: 600, color: C.muted }}>{i + 1}</span>
+                  }
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5, color: isActive ? C.primary : C.muted }}>{s.number}</div>
+                  <div style={{ fontSize: 12, color: isActive ? C.text : C.muted, fontWeight: isActive ? 600 : 400, lineHeight: 1.3, marginTop: 1 }}>{s.title}</div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* content */}
+        <div ref={contentRef} style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+          <div style={{ maxWidth: 760, margin: '0 auto' }}>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: C.accent }}>{section.number}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginTop: 2 }}>{section.title}</div>
+            </div>
+
+            <div style={{ ...card, padding: 24 }}>
+              {section.blocks.map((block, i) => renderManualBlock(block, i))}
+            </div>
+
+            {/* section navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, gap: 12 }}>
+              <button
+                onClick={() => setSectionIdx(n => Math.max(0, n - 1))}
+                disabled={sectionIdx === 0}
+                style={{ ...secondaryBtn, opacity: sectionIdx === 0 ? 0.4 : 1 }}
+              >
+                <ArrowLeft size={14} /> Previous
+              </button>
+              {isLast ? (
+                <button
+                  onClick={acknowledge}
+                  disabled={acknowledged}
+                  style={{ ...primaryBtn, opacity: acknowledged ? 0.7 : 1, cursor: acknowledged ? 'default' : 'pointer', background: C.success }}
+                >
+                  <CheckCircle2 size={14} />
+                  {acknowledged ? 'Acknowledged' : 'Acknowledge & Complete'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setSectionIdx(n => Math.min(MANUAL_SECTIONS.length - 1, n + 1))}
+                  style={{ ...primaryBtn }}
+                >
+                  Next <ArrowRight size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function renderManualBlock(block: ManualBlock, key: number): ReactNode {
+  switch (block.type) {
+    case 'h3':
+      return <h3 key={key} style={{ fontSize: 15, fontWeight: 700, color: C.primary, margin: '20px 0 8px', borderBottom: `0.5px solid ${C.border}`, paddingBottom: 6 }}>{block.text}</h3>
+    case 'h4':
+      return <h4 key={key} style={{ fontSize: 13, fontWeight: 700, color: C.text, margin: '14px 0 6px' }}>{block.text}</h4>
+    case 'p':
+      return <p key={key} style={{ fontSize: 13, color: C.text, lineHeight: 1.7, margin: '8px 0' }}>{block.text}</p>
+    case 'ul':
+      return (
+        <ul key={key} style={{ paddingLeft: 20, margin: '8px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {block.items.map((item, i) => <li key={i} style={{ fontSize: 13, color: C.text, lineHeight: 1.6 }}>{item}</li>)}
+        </ul>
+      )
+    case 'ol':
+      return (
+        <ol key={key} style={{ paddingLeft: 20, margin: '8px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {block.items.map((item, i) => <li key={i} style={{ fontSize: 13, color: C.text, lineHeight: 1.6 }}>{item}</li>)}
+        </ol>
+      )
+    case 'quote': {
+      const variants: Record<string, { bg: string; border: string; icon: string; color: string }> = {
+        info: { bg: `${C.accent}10`, border: C.accent,   icon: 'ℹ', color: C.accent   },
+        warn: { bg: `${C.warn}10`,   border: C.warn,     icon: '⚠', color: C.warn     },
+        tip:  { bg: `${C.success}10`, border: C.success, icon: '✔', color: C.success  },
+        star: { bg: `${C.gold}15`,   border: C.gold,     icon: '★', color: C.gold     },
+      }
+      const v = variants[block.variant ?? 'info'] ?? variants.info
+      return (
+        <div key={key} style={{ borderLeft: `3px solid ${v.border}`, background: v.bg, borderRadius: '0 8px 8px 0', padding: '12px 14px', margin: '12px 0', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+          <span style={{ fontSize: 14, color: v.color, flexShrink: 0, marginTop: 1 }}>{v.icon}</span>
+          <span style={{ fontSize: 12, color: C.text, lineHeight: 1.6 }}>{block.text}</span>
+        </div>
+      )
+    }
+    case 'table':
+      return (
+        <div key={key} style={{ overflowX: 'auto', margin: '12px 0' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ background: C.primary, color: 'white' }}>
+                {block.headers.map((h, i) => (
+                  <th key={i} style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, ri) => (
+                <tr key={ri} style={{ background: ri % 2 === 0 ? C.card : C.bg }}>
+                  {row.map((cell, ci) => (
+                    <td key={ci} style={{ padding: '9px 12px', borderBottom: `0.5px solid ${C.border}`, lineHeight: 1.5, verticalAlign: 'top' }}>{cell}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )
+    default:
+      return null
+  }
 }
 
 // ─── shared sub-components ────────────────────────────────────────────────────
