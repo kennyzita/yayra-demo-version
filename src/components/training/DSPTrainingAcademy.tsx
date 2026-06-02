@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, type ReactNode, type CSSProperties } from 
 import { dspSupabase as supabase } from '@/lib/dsp-supabase'
 import { useProgress, markComplete } from '@/lib/dsp-progress'
 import { MANUAL_META, MANUAL_SECTIONS, type ManualBlock } from '@/lib/orientation-manual'
+import { TRAINING_SECTIONS } from '@/lib/training-manual'
 import {
   PlayCircle, Award, ClipboardCheck, ArrowRight, Lock, CheckCircle2,
   FileText, VideoOff, BookOpen, Download, ArrowLeft, RotateCcw,
@@ -39,6 +40,7 @@ type Question = { id: string; question: string; options: string[]; correct_index
 
 type NavState =
   | { screen: 'landing' }
+  | { screen: 'poster' }
   | { screen: 'modules' }
   | { screen: 'module-detail'; moduleId: string }
   | { screen: 'assessment' }
@@ -131,6 +133,7 @@ export default function DSPTrainingAcademy({ onBack }: { onBack: () => void }) {
 
   const go = {
     landing:     () => setNav({ screen: 'landing' }),
+    poster:      () => setNav({ screen: 'poster' }),
     modules:     () => setNav({ screen: 'modules' }),
     module:      (id: string) => setNav({ screen: 'module-detail', moduleId: id }),
     assessment:  () => setNav({ screen: 'assessment' }),
@@ -139,7 +142,9 @@ export default function DSPTrainingAcademy({ onBack }: { onBack: () => void }) {
   }
 
   if (nav.screen === 'landing')
-    return <LandingScreen onBack={onBack} onModules={go.modules} onAssessment={go.assessment} />
+    return <LandingScreen onBack={onBack} onPoster={go.poster} onModules={go.modules} onAssessment={go.assessment} />
+  if (nav.screen === 'poster')
+    return <PosterScreen onBack={go.landing} onAssessment={go.assessment} />
   if (nav.screen === 'modules')
     return <ModulesScreen onBack={go.landing} onModule={go.module} onAssessment={go.assessment} onCertificate={go.certificate} onOrientation={go.orientation} />
   if (nav.screen === 'module-detail')
@@ -157,8 +162,8 @@ export default function DSPTrainingAcademy({ onBack }: { onBack: () => void }) {
 const HERO_NAVY  = '#0c1b2e'
 const HERO_BLUE  = '#1a60e6'
 
-function LandingScreen({ onBack, onModules, onAssessment }: {
-  onBack: () => void; onModules: () => void; onAssessment: () => void
+function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
+  onBack: () => void; onPoster: () => void; onModules: () => void; onAssessment: () => void
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -175,7 +180,7 @@ function LandingScreen({ onBack, onModules, onAssessment }: {
         <button onClick={onBack} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontFamily: 'inherit', marginRight: 8 }}>
           ← Exit
         </button>
-        <button onClick={onModules} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: HERO_NAVY, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
+        <button onClick={onPoster} style={{ fontSize: 13, padding: '8px 18px', borderRadius: 8, border: 'none', background: HERO_NAVY, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
           Start training
         </button>
       </div>
@@ -205,7 +210,7 @@ function LandingScreen({ onBack, onModules, onAssessment }: {
         {/* CTAs */}
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <button
-            onClick={onModules}
+            onClick={onPoster}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, padding: '13px 26px', borderRadius: 10, border: 'none', background: HERO_BLUE, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, boxShadow: `0 4px 20px rgba(26,96,230,0.45)` }}
           >
             <PlayCircle size={18} /> Begin training →
@@ -216,6 +221,392 @@ function LandingScreen({ onBack, onModules, onAssessment }: {
           >
             Go to assessment
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── PosterScreen ────────────────────────────────────────────────────────────
+const POSTER_STEPS = [
+  {
+    title: 'Direct Support Poster',
+    description: 'Required posting — this poster must be displayed at your worksite at all times.',
+    preview: '/resources/direct-support-poster-preview.png',
+    download: '/resources/direct-support-poster.pdf',
+    downloadName: 'Direct Support Poster',
+  },
+  {
+    title: "Stephen Komninos' Law",
+    description: 'NJ mandatory awareness poster required for all direct support professionals.',
+    preview: '/resources/skl-its-the-law-preview.png',
+    download: '/resources/skl-its-the-law.pdf',
+    downloadName: "SKL — It's The Law",
+  },
+  {
+    title: "Danielle's Law Flyer",
+    description: 'Required reading on NJ abuse and neglect reporting obligations.',
+    preview: '/resources/danielles-law-flyer-preview.png',
+    download: '/resources/danielles-law-flyer.pdf',
+    downloadName: "Danielle's Law Flyer",
+  },
+]
+
+function PosterScreen({ onBack, onAssessment }: { onBack: () => void; onAssessment: () => void }) {
+  const [step, setStep] = useState(1)
+
+  // Orientation Manual state (step 4)
+  const [orientSectionIdx, setOrientSectionIdx] = useState(0)
+  const [orientChecked, setOrientChecked] = useState(false)
+  const [orientAck, setOrientAck] = useState(() => {
+    try { return typeof window !== 'undefined' && localStorage.getItem('rcs-orientation-ack-v1') === '1' } catch { return false }
+  })
+
+  // Training Manual state (step 5)
+  const [trainSectionIdx, setTrainSectionIdx] = useState(0)
+  const [trainChecked, setTrainChecked] = useState(false)
+  const [trainAck, setTrainAck] = useState(() => {
+    try { return typeof window !== 'undefined' && localStorage.getItem('rcs-training-ack-v1') === '1' } catch { return false }
+  })
+
+  // Shared employee intake (pre-populated from sessionStorage)
+  const [empName, setEmpName] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? sessionStorage.getItem('rcs-dsp-employee-v1') : null
+      return saved ? (JSON.parse(saved).employee_name ?? '') : ''
+    } catch { return '' }
+  })
+  const [empId, setEmpId] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? sessionStorage.getItem('rcs-dsp-employee-v1') : null
+      return saved ? (JSON.parse(saved).employee_id ?? '') : ''
+    } catch { return '' }
+  })
+  const [intakeError, setIntakeError] = useState('')
+  const [ackSubmitting, setAckSubmitting] = useState(false)
+
+  const orientContentRef = useRef<HTMLDivElement>(null)
+  const trainContentRef  = useRef<HTMLDivElement>(null)
+
+  const TOTAL_STEPS = 5
+
+  async function acknowledgeOrientation() {
+    const name = empName.trim(); const id = empId.trim()
+    if (!name || !id) { setIntakeError('Full name and Employee ID are required'); return }
+    setIntakeError(''); setAckSubmitting(true)
+    try {
+      await supabase.from('orientation_acknowledgements').insert({ employee_name: name, employee_id: id })
+      sessionStorage.setItem('rcs-dsp-employee-v1', JSON.stringify({ employee_name: name, employee_id: id }))
+    } catch (e) { console.warn('orientation_acknowledgements insert failed:', e) }
+    try { localStorage.setItem('rcs-orientation-ack-v1', '1') } catch { /* ignore */ }
+    setOrientAck(true); setAckSubmitting(false)
+  }
+
+  async function acknowledgeTraining() {
+    const name = empName.trim(); const id = empId.trim()
+    if (!name || !id) { setIntakeError('Full name and Employee ID are required'); return }
+    setIntakeError(''); setAckSubmitting(true)
+    try {
+      await supabase.from('training_acknowledgements').insert({ employee_name: name, employee_id: id })
+      sessionStorage.setItem('rcs-dsp-employee-v1', JSON.stringify({ employee_name: name, employee_id: id }))
+    } catch (e) { console.warn('training_acknowledgements insert failed:', e) }
+    try { localStorage.setItem('rcs-training-ack-v1', '1') } catch { /* ignore */ }
+    setTrainAck(true); setAckSubmitting(false)
+  }
+
+  // ── step indicator (reusable inline ──
+  const stepIndicator = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
+      {Array.from({ length: TOTAL_STEPS }, (_, i) => {
+        const s = i + 1; const done = step > s; const active = step === s
+        return (
+          <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: '50%', fontSize: 11, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              background: done ? C.success : active ? C.primary : C.secondary,
+              color: (done || active) ? 'white' : C.muted,
+              border: `2px solid ${done ? C.success : active ? C.primary : C.border}`,
+            }}>
+              {done ? '✓' : s}
+            </div>
+            {i < TOTAL_STEPS - 1 && (
+              <div style={{ width: 28, height: 2, background: step > s ? C.success : C.border, borderRadius: 1 }} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  // ── Steps 1–3: poster/flyer previews ──
+  if (step <= 3) {
+    const ps = POSTER_STEPS[step - 1]
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
+        <div style={{ background: C.primary, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <button onClick={onBack} style={backBtn}><ArrowLeft size={13} /> Exit</button>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Required Onboarding Materials</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Reliance Care Services · Step {step} of {TOTAL_STEPS}</div>
+          </div>
+        </div>
+
+        <div style={scrollable}>
+          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+            {stepIndicator}
+
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: C.accent }}>Step {step} of {TOTAL_STEPS}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginTop: 2 }}>{ps.title}</div>
+              <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{ps.description}</div>
+            </div>
+
+            <div style={{ ...card, overflow: 'hidden', marginBottom: 16 }}>
+              <img src={ps.preview} alt={ps.title} style={{ width: '100%', maxHeight: 520, objectFit: 'contain', display: 'block', background: C.bg }} />
+            </div>
+
+            <div style={{ ...card, padding: 16, marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{ps.downloadName}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Download and save a copy for your records</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a href={ps.download} target="_blank" rel="noreferrer" style={secondaryBtn as CSSProperties}><FileText size={13} /> Open PDF</a>
+                <a href={ps.download} download style={primaryBtn as CSSProperties}><Download size={13} /> Download</a>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setStep(s => s + 1)} style={{ ...primaryBtn, fontSize: 14, padding: '11px 26px' }}>
+                Continue <ArrowRight size={15} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Step 4: Provider Orientation Manual ──
+  if (step === 4) {
+    const section = MANUAL_SECTIONS[orientSectionIdx]
+    const isLastSection = orientSectionIdx === MANUAL_SECTIONS.length - 1
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
+        <div style={{ background: C.primary, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <button onClick={() => setStep(3)} style={backBtn}><ArrowLeft size={13} /> Back</button>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Provider Orientation Manual</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Step 4 of 5 · Read all sections, then acknowledge</div>
+          </div>
+          {orientAck && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '3px 10px', borderRadius: 10, fontWeight: 600, background: `${C.success}30`, color: C.success, flexShrink: 0 }}>
+              <CheckCircle2 size={12} /> Acknowledged
+            </span>
+          )}
+        </div>
+
+        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+          {/* sidebar */}
+          <div style={{ width: 200, flexShrink: 0, overflowY: 'auto', borderRight: `0.5px solid ${C.border}`, background: C.card, padding: '8px 0' }}>
+            {MANUAL_SECTIONS.map((s, i) => {
+              const isActive = orientSectionIdx === i
+              return (
+                <button key={s.id} onClick={() => { setOrientSectionIdx(i); if (orientContentRef.current) orientContentRef.current.scrollTop = 0 }}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', padding: '8px 12px', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', border: 'none', background: isActive ? `${C.primary}10` : 'transparent', borderLeft: `2.5px solid ${isActive ? C.primary : 'transparent'}` }}>
+                  <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.secondary, border: `1px solid ${C.border}`, fontSize: 9, fontWeight: 600, color: C.muted }}>
+                    {i + 1}
+                  </div>
+                  <div style={{ fontSize: 11, color: isActive ? C.text : C.muted, fontWeight: isActive ? 600 : 400, lineHeight: 1.3 }}>{s.title}</div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* content */}
+          <div ref={orientContentRef} style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+            <div style={{ maxWidth: 720, margin: '0 auto' }}>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: C.accent }}>{section.number}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginTop: 2 }}>{section.title}</div>
+              </div>
+              <div style={{ ...card, padding: 24, marginBottom: 16 }}>
+                {section.blocks.map((block, i) => renderManualBlock(block, i))}
+              </div>
+
+              {/* section navigation */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <button onClick={() => { setOrientSectionIdx(n => Math.max(0, n - 1)); if (orientContentRef.current) orientContentRef.current.scrollTop = 0 }}
+                  disabled={orientSectionIdx === 0} style={{ ...secondaryBtn, opacity: orientSectionIdx === 0 ? 0.4 : 1 }}>
+                  <ArrowLeft size={14} /> Previous
+                </button>
+                {!isLastSection && (
+                  <button onClick={() => { setOrientSectionIdx(n => Math.min(MANUAL_SECTIONS.length - 1, n + 1)); if (orientContentRef.current) orientContentRef.current.scrollTop = 0 }}
+                    style={{ ...primaryBtn }}>
+                    Next section <ArrowRight size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* acknowledgement panel — last section only */}
+              {isLastSection && (
+                <div style={{ ...card, padding: 24, border: orientAck ? `0.5px solid ${C.success}60` : `0.5px solid ${C.border}`, background: orientAck ? `${C.success}05` : C.card }}>
+                  {orientAck ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                        <CheckCircle2 size={24} color={C.success} />
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Orientation manual acknowledged</div>
+                          <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Your acknowledgement is recorded. Continue to the DSP Training Manual.</div>
+                        </div>
+                      </div>
+                      <button onClick={() => setStep(5)} style={{ ...primaryBtn, fontSize: 14, padding: '11px 26px' }}>
+                        Continue to Training Manual <ArrowRight size={15} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Acknowledge Orientation Manual</div>
+                      <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>By acknowledging, you confirm you have read the Provider Orientation Manual and understand its contents.</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>Full Name <span style={{ color: C.danger }}>*</span></label>
+                          <input type="text" value={empName} onChange={e => { setEmpName(e.target.value); setIntakeError('') }} placeholder="Your full name" style={{ ...inputStyle }} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>Employee ID <span style={{ color: C.danger }}>*</span></label>
+                          <input type="text" value={empId} onChange={e => { setEmpId(e.target.value); setIntakeError('') }} placeholder="Your Employee ID" style={{ ...inputStyle }} />
+                        </div>
+                      </div>
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 12 }}>
+                        <input type="checkbox" checked={orientChecked} onChange={e => setOrientChecked(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, flexShrink: 0, accentColor: C.primary }} />
+                        <span style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>
+                          I have read the Provider Orientation Manual in its entirety and understand its contents, policies, and requirements.
+                        </span>
+                      </label>
+                      {intakeError && <div style={{ fontSize: 12, color: C.danger, marginBottom: 10 }}>{intakeError}</div>}
+                      <button onClick={acknowledgeOrientation} disabled={!orientChecked || ackSubmitting}
+                        style={{ ...primaryBtn, background: C.success, opacity: (orientChecked && !ackSubmitting) ? 1 : 0.45, cursor: (orientChecked && !ackSubmitting) ? 'pointer' : 'not-allowed' }}>
+                        <CheckCircle2 size={14} /> {ackSubmitting ? 'Saving…' : 'Acknowledge & Continue'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Step 5: DSP Training Manual ──
+  const trainSection = TRAINING_SECTIONS[trainSectionIdx]
+  const isLastTrainSection = trainSectionIdx === TRAINING_SECTIONS.length - 1
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
+      <div style={{ background: C.primary, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+        <button onClick={() => setStep(4)} style={backBtn}><ArrowLeft size={13} /> Back</button>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>DSP Training Manual</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Step 5 of 5 · Read all modules, then acknowledge</div>
+        </div>
+        {trainAck && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '3px 10px', borderRadius: 10, fontWeight: 600, background: `${C.success}30`, color: C.success, flexShrink: 0 }}>
+            <CheckCircle2 size={12} /> Acknowledged
+          </span>
+        )}
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {/* sidebar */}
+        <div style={{ width: 200, flexShrink: 0, overflowY: 'auto', borderRight: `0.5px solid ${C.border}`, background: C.card, padding: '8px 0' }}>
+          {TRAINING_SECTIONS.map((s, i) => {
+            const isActive = trainSectionIdx === i
+            return (
+              <button key={s.id} onClick={() => { setTrainSectionIdx(i); if (trainContentRef.current) trainContentRef.current.scrollTop = 0 }}
+                style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', padding: '8px 12px', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', border: 'none', background: isActive ? `${C.primary}10` : 'transparent', borderLeft: `2.5px solid ${isActive ? C.primary : 'transparent'}` }}>
+                <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.secondary, border: `1px solid ${C.border}`, fontSize: 9, fontWeight: 600, color: C.muted }}>
+                  {i + 1}
+                </div>
+                <div style={{ fontSize: 11, color: isActive ? C.text : C.muted, fontWeight: isActive ? 600 : 400, lineHeight: 1.3 }}>{s.title}</div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* content */}
+        <div ref={trainContentRef} style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+          <div style={{ maxWidth: 720, margin: '0 auto' }}>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1.5, color: C.accent }}>{trainSection.number}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginTop: 2 }}>{trainSection.title}</div>
+            </div>
+            <div style={{ ...card, padding: 24, marginBottom: 16 }}>
+              {trainSection.blocks.map((block, i) => renderManualBlock(block, i))}
+            </div>
+
+            {/* section navigation */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <button onClick={() => { setTrainSectionIdx(n => Math.max(0, n - 1)); if (trainContentRef.current) trainContentRef.current.scrollTop = 0 }}
+                disabled={trainSectionIdx === 0} style={{ ...secondaryBtn, opacity: trainSectionIdx === 0 ? 0.4 : 1 }}>
+                <ArrowLeft size={14} /> Previous
+              </button>
+              {!isLastTrainSection && (
+                <button onClick={() => { setTrainSectionIdx(n => Math.min(TRAINING_SECTIONS.length - 1, n + 1)); if (trainContentRef.current) trainContentRef.current.scrollTop = 0 }}
+                  style={{ ...primaryBtn }}>
+                  Next module <ArrowRight size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* acknowledgement panel — last module only */}
+            {isLastTrainSection && (
+              <div style={{ ...card, padding: 24, border: trainAck ? `0.5px solid ${C.success}60` : `0.5px solid ${C.border}`, background: trainAck ? `${C.success}05` : C.card }}>
+                {trainAck ? (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                      <CheckCircle2 size={24} color={C.success} />
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>Training manual acknowledged</div>
+                        <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>You're ready to take the final assessment.</div>
+                      </div>
+                    </div>
+                    <button onClick={onAssessment} style={{ ...primaryBtn, fontSize: 14, padding: '12px 28px', background: HERO_BLUE, boxShadow: `0 4px 18px rgba(26,96,230,0.4)` }}>
+                      <ClipboardCheck size={16} /> Continue to Assessment →
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Acknowledge DSP Training Manual</div>
+                    <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>By acknowledging, you confirm you have read the DSP Training Manual and understand your responsibilities.</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>Full Name <span style={{ color: C.danger }}>*</span></label>
+                        <input type="text" value={empName} onChange={e => { setEmpName(e.target.value); setIntakeError('') }} placeholder="Your full name" style={{ ...inputStyle }} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>Employee ID <span style={{ color: C.danger }}>*</span></label>
+                        <input type="text" value={empId} onChange={e => { setEmpId(e.target.value); setIntakeError('') }} placeholder="Your Employee ID" style={{ ...inputStyle }} />
+                      </div>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', marginBottom: 12 }}>
+                      <input type="checkbox" checked={trainChecked} onChange={e => setTrainChecked(e.target.checked)} style={{ width: 16, height: 16, marginTop: 1, flexShrink: 0, accentColor: C.primary }} />
+                      <span style={{ fontSize: 12, color: C.text, lineHeight: 1.5 }}>
+                        I have read the DSP Training Manual in its entirety and understand my responsibilities as a Direct Support Professional.
+                      </span>
+                    </label>
+                    {intakeError && <div style={{ fontSize: 12, color: C.danger, marginBottom: 10 }}>{intakeError}</div>}
+                    <button onClick={acknowledgeTraining} disabled={!trainChecked || ackSubmitting}
+                      style={{ ...primaryBtn, background: C.success, opacity: (trainChecked && !ackSubmitting) ? 1 : 0.45, cursor: (trainChecked && !ackSubmitting) ? 'pointer' : 'not-allowed' }}>
+                      <CheckCircle2 size={14} /> {ackSubmitting ? 'Saving…' : 'Acknowledge & Proceed to Assessment'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
