@@ -178,13 +178,16 @@ export default function StaffProgressPage() {
   const [toast,         setToast]         = useState('')
 
   // Staff onboarding data loaded per-selection
-  const [formsSignedAt, setFormsSignedAt] = useState<string | null>(null)
-  const [formsSigned,   setFormsSigned]   = useState(false)
-  const [eadUploaded,   setEadUploaded]   = useState(false)
-  const [isCitizen,     setIsCitizen]     = useState(false)
-  const [lastLogin,     setLastLogin]     = useState<string | null>(null)
+  const [formsSignedAt,    setFormsSignedAt]    = useState<string | null>(null)
+  const [formsSigned,      setFormsSigned]      = useState(false)
+  const [eadFromDocs,      setEadFromDocs]      = useState(false)
+  const [isCitizen,        setIsCitizen]        = useState(false)
+  const [appCitizenValue,  setAppCitizenValue]  = useState('')          // raw value from application form
+  const [citizenOverride,  setCitizenOverride]  = useState<boolean | null>(null) // null = not overridden
+  const [savingCitizen,    setSavingCitizen]    = useState(false)
+  const [lastLogin,        setLastLogin]        = useState<string | null>(null)
   const [revokeOnboarding, setRevokeOnboarding] = useState(false)
-  const [revoking,      setRevoking]      = useState(false)
+  const [revoking,         setRevoking]         = useState(false)
 
   // Expiring certs
   const [expiringCerts,  setExpiringCerts]  = useState<ExpiringCert[]>([])
@@ -287,7 +290,7 @@ export default function StaffProgressPage() {
   useEffect(() => {
     if (!selectedId) {
       setFormsSigned(false); setFormsSignedAt(null)
-      setEadUploaded(false); setIsCitizen(false); setLastLogin(null)
+      setEadFromDocs(false); setIsCitizen(false); setAppCitizenValue(''); setCitizenOverride(null); setLastLogin(null)
       setExpiringCerts([])
       setRevokeOnboarding(false)
       return
@@ -313,15 +316,20 @@ export default function StaffProgressPage() {
 
       const allFiles: { folder: string; createdAt: string }[] = (docsJson as any).files ?? []
       const EAD_FOLDERS = ['EAD / Green card', 'EAD / Green card - Front', 'EAD / Green card - Back']
-      // US citizens don't need EAD/Green card — Work Authorization is automatically satisfied
-      const citizenFlag = formData?.isCitizen === 'Yes'
-      setIsCitizen(citizenFlag)
-      setEadUploaded(
-        citizenFlag ||
-        !!(formData?.docEADFront) ||
-        !!(formData?.docEADBack) ||
-        allFiles.some(f => EAD_FOLDERS.includes(f.folder))
-      )
+
+      // Restore saved report early so we can read citizenOverride
+      const savedReport = (extra.progress_report ?? null) as Record<string, any> | null
+      const storedOverride = savedReport?.citizenOverride
+      const override: boolean | null = storedOverride === true ? true : storedOverride === false ? false : null
+
+      const appCitizen = formData?.isCitizen === 'Yes'
+      const effectiveCitizen = override !== null ? override : appCitizen
+      setAppCitizenValue(formData?.isCitizen ?? '')
+      setCitizenOverride(override)
+      setIsCitizen(effectiveCitizen)
+
+      const docEad = !!(formData?.docEADFront) || !!(formData?.docEADBack) || allFiles.some(f => EAD_FOLDERS.includes(f.folder))
+      setEadFromDocs(docEad)
 
       // Manually stored expiry dates take precedence over upload-date calculation
       const storedExpiries = (extra.docExpiries ?? {}) as Record<string, string>
@@ -343,7 +351,6 @@ export default function StaffProgressPage() {
       setExpiringCerts(expiring)
 
       // Restore saved report state (or reset to defaults for a fresh member)
-      const savedReport = (extra.progress_report ?? null) as Record<string, any> | null
       if (savedReport) {
         if (savedReport.compliance)        setCompliance(savedReport.compliance)
         if (savedReport.complianceResults) setComplianceResults(savedReport.complianceResults)
@@ -382,6 +389,7 @@ export default function StaffProgressPage() {
       compliance, complianceResults,
       cdsAccess, managerAccess, portalAccess,
       training, trainingDates, adminSignature,
+      citizenOverride,
       savedAt: new Date().toISOString(),
     }
     const { data: existing } = await supabase
@@ -418,9 +426,32 @@ export default function StaffProgressPage() {
     }
   }
 
+  // ── Citizen override (saves immediately) ─────────────────────────────────────
+
+  async function handleCitizenToggle(value: boolean | null) {
+    if (!selectedId) return
+    setSavingCitizen(true)
+    const { data: existing } = await supabase
+      .from('billing_staff_data').select('data').eq('staff_id', selectedId).maybeSingle()
+    const existingData = ((existing?.data ?? {}) as Record<string, unknown>)
+    const existingReport = ((existingData.progress_report ?? {}) as Record<string, unknown>)
+    const { error } = await supabase.from('billing_staff_data').upsert({
+      staff_id: selectedId,
+      data: { ...existingData, progress_report: { ...existingReport, citizenOverride: value } },
+    })
+    setSavingCitizen(false)
+    if (error) { showToast('Error saving: ' + error.message); return }
+    const appCitizen = appCitizenValue === 'Yes'
+    const effectiveCitizen = value !== null ? value : appCitizen
+    setCitizenOverride(value)
+    setIsCitizen(effectiveCitizen)
+    showToast(value === null ? 'Reset to application value' : `US Citizen set to ${value ? 'Yes' : 'No'}`)
+  }
+
   // ── Derived values ────────────────────────────────────────────────────────────
 
   const selectedStaff = staffList.find(s => s.id === selectedId)
+  const workAuthSatisfied = isCitizen || eadFromDocs
 
   const signedDate = formsSignedAt
     ? new Date(formsSignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -442,7 +473,7 @@ export default function StaffProgressPage() {
     { done: formsSigned, warn: !formsSigned, label: "Danielle's Law sign-off"      },
     { done: formsSigned, warn: !formsSigned, label: "Stephen Komnino's Law"        },
     { done: formsSigned, warn: !formsSigned, label: 'Appendix A'                   },
-    { done: eadUploaded, warn: !eadUploaded, label: isCitizen ? 'Work authorization (US citizen)' : 'Work authorization uploaded' },
+    { done: workAuthSatisfied, warn: !workAuthSatisfied, label: isCitizen ? 'Work authorization (US citizen)' : 'Work authorization uploaded' },
   ]
 
   const completedCount = onboardItems.filter(i => i.done).length
@@ -569,6 +600,51 @@ export default function StaffProgressPage() {
                       </div>
                     )
                   })}
+                </div>
+              </div>
+
+              {/* US Citizen override */}
+              <div style={{ padding: '12px 18px', borderTop: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#111', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    US Citizen
+                    {citizenOverride !== null && (
+                      <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 5, background: 'rgba(186,117,23,0.14)', color: '#BA7517', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Admin override
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                    {citizenOverride !== null
+                      ? `Overridden — affects Work Authorization. Application answer: ${appCitizenValue || 'not answered'}`
+                      : `From application: ${appCitizenValue || 'not answered'} — toggle to override`}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                  <button
+                    onClick={() => handleCitizenToggle(true)}
+                    disabled={savingCitizen}
+                    style={{ padding: '6px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: savingCitizen ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, border: isCitizen ? 'none' : '1px solid #d1d5db', background: isCitizen ? 'rgba(48,176,96,0.12)' : '#f9fafb', color: isCitizen ? '#30B060' : '#6b7280', opacity: savingCitizen ? 0.6 : 1 }}
+                  >
+                    <i className="ti ti-check" style={{ fontSize: 11 }} /> Yes
+                  </button>
+                  <button
+                    onClick={() => handleCitizenToggle(false)}
+                    disabled={savingCitizen}
+                    style={{ padding: '6px 14px', borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: savingCitizen ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, border: !isCitizen ? 'none' : '1px solid #d1d5db', background: !isCitizen ? 'rgba(226,75,74,0.1)' : '#f9fafb', color: !isCitizen ? '#E24B4A' : '#6b7280', opacity: savingCitizen ? 0.6 : 1 }}
+                  >
+                    <i className="ti ti-x" style={{ fontSize: 11 }} /> No
+                  </button>
+                  {citizenOverride !== null && (
+                    <button
+                      onClick={() => handleCitizenToggle(null)}
+                      disabled={savingCitizen}
+                      title="Reset to application value"
+                      style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', fontSize: 11, color: '#9ca3af', cursor: savingCitizen ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}
+                    >
+                      Reset
+                    </button>
+                  )}
                 </div>
               </div>
 
