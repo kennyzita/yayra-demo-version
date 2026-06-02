@@ -960,6 +960,23 @@ function OrientationScreen({ onBack }: { onBack: () => void }) {
   const [acknowledged, setAcknowledged] = useState(() => {
     try { return typeof window !== 'undefined' && localStorage.getItem('rcs-orientation-ack-v1') === '1' } catch { return false }
   })
+
+  // Intake for the acknowledgement record
+  const [ackName, setAckName] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? sessionStorage.getItem('rcs-dsp-employee-v1') : null
+      return saved ? (JSON.parse(saved).employee_name ?? '') : ''
+    } catch { return '' }
+  })
+  const [ackId, setAckId] = useState(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? sessionStorage.getItem('rcs-dsp-employee-v1') : null
+      return saved ? (JSON.parse(saved).employee_id ?? '') : ''
+    } catch { return '' }
+  })
+  const [ackError, setAckError] = useState('')
+  const [ackSubmitting, setAckSubmitting] = useState(false)
+
   const contentRef = useRef<HTMLDivElement>(null)
 
   const section = MANUAL_SECTIONS[sectionIdx]
@@ -974,9 +991,27 @@ function OrientationScreen({ onBack }: { onBack: () => void }) {
     if (contentRef.current) contentRef.current.scrollTop = 0
   }, [sectionIdx])
 
-  function acknowledge() {
+  async function acknowledge() {
+    const name = ackName.trim()
+    const empId = ackId.trim()
+    if (!name) { setAckError('Full name is required'); return }
+    if (!empId) { setAckError('Employee ID is required'); return }
+    setAckError('')
+    setAckSubmitting(true)
+    try {
+      const { error } = await supabase.from('orientation_acknowledgements').insert({
+        employee_name: name,
+        employee_id: empId,
+      })
+      if (error) throw error
+      sessionStorage.setItem('rcs-dsp-employee-v1', JSON.stringify({ employee_name: name, employee_id: empId }))
+    } catch (e) {
+      // Non-fatal: still complete locally if Supabase is unavailable
+      console.warn('orientation_acknowledgements insert failed:', e)
+    }
     try { localStorage.setItem('rcs-orientation-ack-v1', '1') } catch { /* ignore */ }
     setAcknowledged(true)
+    setAckSubmitting(false)
   }
 
   return (
@@ -1043,6 +1078,51 @@ function OrientationScreen({ onBack }: { onBack: () => void }) {
 
             <div style={{ ...card, padding: 24 }}>
               {section.blocks.map((block, i) => renderManualBlock(block, i))}
+
+              {/* Acknowledgement intake form — Section 10 only */}
+              {isLast && !acknowledged && (
+                <div style={{ marginTop: 24, borderTop: `0.5px solid ${C.border}`, paddingTop: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Your electronic acknowledgement</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>
+                        Full Name <span style={{ color: C.danger }}>*</span>
+                      </label>
+                      <input
+                        type="text" value={ackName}
+                        onChange={e => { setAckName(e.target.value); setAckError('') }}
+                        placeholder="Enter your full name"
+                        style={{ ...inputStyle }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>
+                        Employee ID <span style={{ color: C.danger }}>*</span>
+                      </label>
+                      <input
+                        type="text" value={ackId}
+                        onChange={e => { setAckId(e.target.value); setAckError('') }}
+                        placeholder="Enter your Employee ID"
+                        style={{ ...inputStyle }}
+                      />
+                    </div>
+                  </div>
+                  {ackError && (
+                    <div style={{ fontSize: 12, color: C.danger, marginBottom: 10 }}>{ackError}</div>
+                  )}
+                </div>
+              )}
+
+              {/* Acknowledged confirmation */}
+              {isLast && acknowledged && (
+                <div style={{ marginTop: 24, borderTop: `0.5px solid ${C.border}`, paddingTop: 20, display: 'flex', alignItems: 'center', gap: 10, background: `${C.success}08`, borderRadius: 8, padding: 16, border: `0.5px solid ${C.success}40` }}>
+                  <CheckCircle2 size={20} color={C.success} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Orientation acknowledged</div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Your acknowledgement has been recorded. Thank you.</div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* section navigation */}
@@ -1057,11 +1137,11 @@ function OrientationScreen({ onBack }: { onBack: () => void }) {
               {isLast ? (
                 <button
                   onClick={acknowledge}
-                  disabled={acknowledged}
-                  style={{ ...primaryBtn, opacity: acknowledged ? 0.7 : 1, cursor: acknowledged ? 'default' : 'pointer', background: C.success }}
+                  disabled={acknowledged || ackSubmitting}
+                  style={{ ...primaryBtn, opacity: (acknowledged || ackSubmitting) ? 0.7 : 1, cursor: (acknowledged || ackSubmitting) ? 'default' : 'pointer', background: C.success }}
                 >
                   <CheckCircle2 size={14} />
-                  {acknowledged ? 'Acknowledged' : 'Acknowledge & Complete'}
+                  {ackSubmitting ? 'Saving…' : acknowledged ? 'Acknowledged' : 'Acknowledge & Complete'}
                 </button>
               ) : (
                 <button
