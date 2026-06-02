@@ -9,7 +9,7 @@ import { TRAINING_SECTIONS } from '@/lib/training-manual'
 import {
   PlayCircle, Award, ClipboardCheck, ArrowRight, Lock, CheckCircle2,
   FileText, VideoOff, BookOpen, Download, ArrowLeft, RotateCcw,
-  Printer, ChevronRight, LayoutGrid,
+  Printer, ChevronRight, LayoutGrid, GraduationCap,
 } from 'lucide-react'
 
 // ─── colour tokens (matching yayracare brand) ───────────────────────────────
@@ -180,6 +180,11 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
   const [date, setDate] = useState(todayISO)
   const [adminEmail, setAdminEmail] = useState('')
   const [errors, setErrors] = useState<{ name?: string; empId?: string; adminEmail?: string }>({})
+  const enrollRef = useRef<HTMLDivElement>(null)
+
+  function scrollToEnroll() {
+    enrollRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   function begin() {
     const errs: typeof errors = {}
@@ -201,40 +206,86 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
   }
 
   const featureCards = [
-    { Icon: PlayCircle,    title: '12 training modules',   desc: 'Video-gated curriculum covering ethics, safety, rights, and documentation.' },
+    { Icon: GraduationCap, title: '12 training modules',    desc: 'Video-gated curriculum covering ethics, safety, rights, and documentation.' },
     { Icon: ClipboardCheck, title: '32-question assessment', desc: 'Randomized from a 60-question bank. 80% to pass.' },
-    { Icon: Award,         title: 'Certificate on pass',   desc: 'Branded certificate of completion issued immediately.' },
+    { Icon: Award,          title: 'Certificate on pass',   desc: 'Branded certificate of completion issued immediately.' },
   ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f0f4f8', overflowY: 'auto' }}>
-      {/* minimal top bar */}
-      <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <button onClick={onBack} style={{ fontSize: 12, padding: '6px 12px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
-          <ArrowLeft size={13} /> Exit
-        </button>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.15em', textTransform: 'uppercase' }}>RCS DSP Academy</div>
+    <div style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+
+      {/* ══ Section 1: Dark hero ══════════════════════════════════════════════ */}
+      <div style={{ flexShrink: 0, minHeight: '88%', display: 'flex', flexDirection: 'column', background: HERO_NAVY, backgroundImage: 'radial-gradient(ellipse at 80% 15%, rgba(26,96,230,0.18) 0%, transparent 50%), radial-gradient(ellipse at 10% 90%, rgba(0,64,80,0.4) 0%, transparent 45%)' }}>
+
+        {/* top nav (white bar) */}
+        <div style={{ background: 'white', padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: HERO_NAVY, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <GraduationCap size={21} color="white" />
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: HERO_NAVY, letterSpacing: '-0.3px', lineHeight: 1.2 }}>RCS DSP Academy</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.18em' }}>Reliance Care Services</div>
+          </div>
+          <div style={{ flex: 1 }} />
+          <button onClick={onBack} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #e2e8f0', background: 'transparent', color: '#64748b', cursor: 'pointer', fontFamily: 'inherit', marginRight: 8 }}>
+            ← Exit
+          </button>
+          <button onClick={scrollToEnroll} style={{ fontSize: 14, padding: '10px 22px', borderRadius: 10, border: 'none', background: HERO_NAVY, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700 }}>
+            Start training
+          </button>
+        </div>
+
+        {/* hero content */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(48px, 7%, 80px) clamp(36px, 7%, 96px)' }}>
+          {/* badge */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 16px', borderRadius: 24, border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(255,255,255,0.06)', marginBottom: 28, alignSelf: 'flex-start' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: HERO_BLUE, flexShrink: 0, boxShadow: `0 0 6px ${HERO_BLUE}` }} />
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.18em', color: 'rgba(255,255,255,0.85)' }}>Direct Support Professional Training</span>
+          </div>
+
+          {/* headline */}
+          <h1 style={{ fontSize: 'clamp(36px, 5.5vw, 72px)', fontWeight: 800, color: '#ffffff', lineHeight: 1.04, letterSpacing: '-2px', margin: '0 0 20px', maxWidth: 860 }}>
+            Training that honors the<br />people you support.
+          </h1>
+
+          {/* subtext */}
+          <p style={{ fontSize: 'clamp(14px, 1.4vw, 18px)', color: 'rgba(255,255,255,0.65)', lineHeight: 1.65, margin: '0 0 44px', maxWidth: 540 }}>
+            Twelve video-gated modules followed by a final assessment. Complete it and earn your RCS Certificate of Completion.
+          </p>
+
+          {/* CTAs */}
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={scrollToEnroll}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 10, fontSize: 15, padding: '14px 28px', borderRadius: 12, border: 'none', background: HERO_BLUE, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, boxShadow: `0 4px 20px rgba(26,96,230,0.45)` }}>
+              <PlayCircle size={19} /> Begin training →
+            </button>
+            <button onClick={onAssessment}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 15, padding: '13px 26px', borderRadius: 12, border: '1.5px solid rgba(255,255,255,0.28)', background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.92)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, backdropFilter: 'blur(4px)' }}>
+              Go to assessment
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '16px 24px 48px' }}>
-        {/* headline */}
-        <div style={{ textAlign: 'center', marginBottom: 28, maxWidth: 640 }}>
+      {/* ══ Section 2: Enrollment form ════════════════════════════════════════ */}
+      <div ref={enrollRef} style={{ background: '#f0f4f8', padding: '64px 24px 48px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+
+        {/* heading */}
+        <div style={{ textAlign: 'center', marginBottom: 32, maxWidth: 640 }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.22em', color: '#64748b', marginBottom: 10 }}>Get Started</div>
-          <h1 style={{ fontSize: 'clamp(26px, 4vw, 44px)', fontWeight: 800, color: HERO_NAVY, margin: '0 0 12px', lineHeight: 1.1, letterSpacing: '-0.5px' }}>
+          <h2 style={{ fontSize: 'clamp(26px, 4vw, 44px)', fontWeight: 800, color: HERO_NAVY, margin: '0 0 12px', letterSpacing: '-0.5px' }}>
             Enroll & begin your training
-          </h1>
+          </h2>
           <p style={{ fontSize: 15, color: '#64748b', lineHeight: 1.6, margin: 0 }}>
             Enter your details below to begin the 12-module training program.
           </p>
         </div>
 
-        {/* enrollment form card */}
+        {/* form card */}
         <div style={{ background: '#ffffff', borderRadius: 20, border: '1px solid #e2e8f0', padding: '36px 40px', width: '100%', maxWidth: 700, boxShadow: '0 2px 14px rgba(0,0,0,0.06)', marginBottom: 28 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, marginBottom: 28 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>
-                Employee Full Name <span style={{ color: C.danger }}>*</span>
-              </label>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>Employee Full Name <span style={{ color: C.danger }}>*</span></label>
               <input type="text" value={name}
                 onChange={e => { setName(e.target.value); setErrors(r => ({ ...r, name: undefined })) }}
                 placeholder="Enter your full name"
@@ -242,9 +293,7 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
               {errors.name && <div style={{ fontSize: 12, color: C.danger, marginTop: 4 }}>{errors.name}</div>}
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>
-                Employee ID <span style={{ color: C.danger }}>*</span>
-              </label>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>Employee ID <span style={{ color: C.danger }}>*</span></label>
               <input type="text" value={empId}
                 onChange={e => { setEmpId(e.target.value); setErrors(r => ({ ...r, empId: undefined })) }}
                 placeholder="Enter your Employee ID"
@@ -267,7 +316,6 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
               }
             </div>
           </div>
-
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <button onClick={begin} style={{ fontSize: 15, padding: '14px 44px', borderRadius: 12, border: 'none', background: HERO_NAVY, color: 'white', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 4px 18px rgba(13,27,46,0.32)' }}>
               Begin Training <ArrowRight size={18} />
