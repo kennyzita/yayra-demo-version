@@ -12,8 +12,8 @@ export default async function Home() {
   const { data: user } = await supabase
     .from('users')
     .select('role:roles(name)')
-    .eq('id', authUser.id)
-    .single()
+    .eq('id', authUser!.id)
+    .maybeSingle()
 
   const roleName = (user?.role as { name: string } | null)?.name
   if (roleName === 'Deactivate') redirect('/deactivated')

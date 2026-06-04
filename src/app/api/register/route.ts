@@ -38,10 +38,10 @@ export async function POST(req: NextRequest) {
 
   const userId = authData.user.id
 
-  // Get DSP role ID and tenant_id (copied from an existing admin — single-tenant app)
-  const [{ data: role, error: roleErr }, { data: adminUser, error: tenantErr }] = await Promise.all([
+  // Get DSP role ID and tenant_id in parallel
+  const [{ data: role, error: roleErr }, { data: tenantRows }] = await Promise.all([
     db.from('roles').select('id').eq('name', 'DSP').single(),
-    db.from('users').select('tenant_id').not('tenant_id', 'is', null).limit(1).single(),
+    db.from('users').select('tenant_id').not('tenant_id', 'is', null).limit(1),
   ])
 
   if (roleErr || !role) {
@@ -49,16 +49,21 @@ export async function POST(req: NextRequest) {
     await db.auth.admin.deleteUser(userId)
     return NextResponse.json({ error: 'Server configuration error — DSP role not found.' }, { status: 500 })
   }
-  if (tenantErr || !adminUser?.tenant_id) {
-    console.error('[register] Could not resolve tenant_id:', tenantErr?.message)
+
+  const tenantId = tenantRows?.[0]?.tenant_id
+  if (!tenantId) {
+    console.error('[register] Could not resolve tenant_id — no existing users with tenant_id found')
     await db.auth.admin.deleteUser(userId)
     return NextResponse.json({ error: 'Server configuration error — tenant not found.' }, { status: 500 })
   }
 
+  // Remove any stale public.users row with the same email (from a previous failed registration)
+  await db.from('users').delete().eq('email', email.trim().toLowerCase())
+
   // Insert into users table
   const { error: insertErr } = await db.from('users').insert({
     id:         userId,
-    tenant_id:  adminUser.tenant_id,
+    tenant_id:  tenantId,
     first_name: firstName.trim(),
     last_name:  lastName.trim(),
     email:      email.trim().toLowerCase(),
