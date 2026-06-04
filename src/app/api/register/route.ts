@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
   const { data: linkData } = await db.auth.admin.generateLink({
     type: 'signup',
     email: email.trim().toLowerCase(),
-    options: { redirectTo: `${appUrl}/` },
+    options: { redirectTo: `${appUrl}/auth/callback?next=/staff/application` },
   })
   const confirmUrl = linkData?.properties?.action_link ?? `${appUrl}/login`
 
