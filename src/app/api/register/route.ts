@@ -38,17 +38,27 @@ export async function POST(req: NextRequest) {
 
   const userId = authData.user.id
 
-  // Get DSP role ID
-  const { data: role, error: roleErr } = await db.from('roles').select('id').eq('name', 'DSP').single()
+  // Get DSP role ID and tenant_id (copied from an existing admin — single-tenant app)
+  const [{ data: role, error: roleErr }, { data: adminUser, error: tenantErr }] = await Promise.all([
+    db.from('roles').select('id').eq('name', 'DSP').single(),
+    db.from('users').select('tenant_id').not('tenant_id', 'is', null).limit(1).single(),
+  ])
+
   if (roleErr || !role) {
     console.error('[register] Could not find DSP role:', roleErr?.message)
     await db.auth.admin.deleteUser(userId)
     return NextResponse.json({ error: 'Server configuration error — DSP role not found.' }, { status: 500 })
   }
+  if (tenantErr || !adminUser?.tenant_id) {
+    console.error('[register] Could not resolve tenant_id:', tenantErr?.message)
+    await db.auth.admin.deleteUser(userId)
+    return NextResponse.json({ error: 'Server configuration error — tenant not found.' }, { status: 500 })
+  }
 
   // Insert into users table
   const { error: insertErr } = await db.from('users').insert({
     id:         userId,
+    tenant_id:  adminUser.tenant_id,
     first_name: firstName.trim(),
     last_name:  lastName.trim(),
     email:      email.trim().toLowerCase(),
