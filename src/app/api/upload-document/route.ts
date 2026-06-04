@@ -13,8 +13,10 @@ const ALLOWED_MIMES = [
 
 // F15: allowlist of valid docKey values — prevents path traversal
 const ALLOWED_DOC_KEYS = [
-  'photo_id', 'ssn', 'resume', 'ead', 'i9', 'w4', 'nj_w4',
-  'direct_deposit', 'cro_consent', 'drivers_license', 'cpr_cert',
+  'photo_id', 'ssn', 'resume', 'ead', 'ead-front', 'ead-back',
+  'i9', 'w4', 'nj_w4', 'direct_deposit', 'cro_consent',
+  'drivers_license', 'dl-front', 'dl-back',
+  'cpr', 'cpr_cert',
   'danielles_law', 'stephen_komninos', 'appendix_a', 'cari',
   'background_check', 'identogo', 'reference_letter', 'other',
 ]
