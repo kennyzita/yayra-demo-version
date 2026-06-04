@@ -70,7 +70,7 @@ export async function middleware(request: NextRequest) {
     .from('users')
     .select('role:roles(name)')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   const roleName = (profile?.role as { name: string } | null)?.name
 
