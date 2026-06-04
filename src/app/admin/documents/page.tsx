@@ -94,9 +94,10 @@ export default function AdminDocumentsPage() {
   const [dragOver,       setDragOver]       = useState(false)
 
   // All-documents section
-  const [allDocs,        setAllDocs]        = useState<AllDocEntry[]>([])
-  const [loadingAllDocs, setLoadingAllDocs] = useState(false)
-  const [allDocsFilter,  setAllDocsFilter]  = useState('')
+  const [allDocs,         setAllDocs]         = useState<AllDocEntry[]>([])
+  const [loadingAllDocs,  setLoadingAllDocs]  = useState(false)
+  const [allDocsFilter,   setAllDocsFilter]   = useState('')
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     supabase
@@ -421,8 +422,8 @@ export default function AdminDocumentsPage() {
         </div>
       )}
 
-      {/* ── All uploaded documents (Admin-only) ─────────────────────────────────── */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+      {/* ── All uploaded documents — only shown when no staff is selected ─────── */}
+      {!selectedStaff && <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 10 }}>
           <i className="ti ti-files" style={{ fontSize: 18, color: '#008080' }} />
           <span style={{ fontSize: 15, fontWeight: 600, color: '#111', flex: 1 }}>All uploaded documents</span>
@@ -475,21 +476,26 @@ export default function AdminDocumentsPage() {
                 return acc
               }, {})
 
+              const isCollapsed = collapsedGroups[key] !== false  // default collapsed
               return (
                 <div key={key}>
-                  {/* Staff group header */}
-                  <div style={{ padding: '10px 20px', background: '#f3f4f6', borderBottom: '1px solid #e5e7eb', borderTop: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {/* Staff group header — click to expand/collapse */}
+                  <div
+                    onClick={() => setCollapsedGroups(prev => ({ ...prev, [key]: !isCollapsed }))}
+                    style={{ padding: '10px 20px', background: '#f3f4f6', borderBottom: '1px solid #e5e7eb', borderTop: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}
+                  >
                     <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#004050', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'white', flexShrink: 0 }}>
                       {staffName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                     </div>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{staffName}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#111', flex: 1 }}>{staffName}</span>
                     <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 20, background: 'rgba(0,64,80,0.1)', color: '#004050', fontWeight: 600 }}>
                       {entries.length} file{entries.length !== 1 ? 's' : ''}
                     </span>
+                    <i className={`ti ti-chevron-${isCollapsed ? 'down' : 'up'}`} style={{ fontSize: 14, color: '#6b7280' }} />
                   </div>
 
-                  {/* Doc type sub-groups */}
-                  {Object.entries(byDocType).map(([docType, docEntries]) => (
+                  {/* Doc type sub-groups — hidden when collapsed */}
+                  {!isCollapsed && Object.entries(byDocType).map(([docType, docEntries]) => (
                     <div key={docType}>
                       <div style={{ padding: '8px 20px 8px 58px', background: '#fafafa', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 8 }}>
                         <i className="ti ti-tag" style={{ fontSize: 12, color: '#008080' }} />
@@ -544,6 +550,7 @@ export default function AdminDocumentsPage() {
         )}
       </div>
 
+      }
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )

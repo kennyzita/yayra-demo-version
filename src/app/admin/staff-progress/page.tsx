@@ -181,6 +181,8 @@ export default function StaffProgressPage() {
   const [formsSignedAt,    setFormsSignedAt]    = useState<string | null>(null)
   const [formsSigned,      setFormsSigned]      = useState(false)
   const [eadFromDocs,      setEadFromDocs]      = useState(false)
+  const [dlFromDocs,       setDlFromDocs]       = useState(false)
+  const [cprFromDocs,      setCprFromDocs]      = useState(false)
   const [isCitizen,        setIsCitizen]        = useState(false)
   const [isAuthorizedWork, setIsAuthorizedWork] = useState(false)
   const [appCitizenValue,  setAppCitizenValue]  = useState('')          // raw value from application form
@@ -333,6 +335,13 @@ export default function StaffProgressPage() {
       const docEad = !!(formData?.docEADFront) || !!(formData?.docEADBack) || allFiles.some(f => EAD_FOLDERS.includes(f.folder))
       setEadFromDocs(docEad)
 
+      const DL_FOLDERS = [
+        "Driver's License / Identification - Front", "Driver's License / Identification - Back",
+        "Driver's License - Front", "Driver's License - Back", "Driver's License",
+      ]
+      setDlFromDocs(!!(formData?.docDLFront) || !!(formData?.docDLBack) || allFiles.some(f => DL_FOLDERS.includes(f.folder)))
+      setCprFromDocs(!!(formData?.docCPR) || allFiles.some(f => f.folder === 'CPR Certificate'))
+
       // Manually stored expiry dates take precedence over upload-date calculation
       const storedExpiries = (extra.docExpiries ?? {}) as Record<string, string>
       const nowMs = Date.now()
@@ -467,8 +476,8 @@ export default function StaffProgressPage() {
     { done: true,                            label: 'DSP application submitted'    },
     { done: formsSigned, warn: !formsSigned, label: 'W4 completed'                 },
     { done: formsSigned, warn: !formsSigned, label: 'Form I-9 submitted'           },
-    { done: true,                            label: "Driver's license uploaded"    },
-    { done: true,                            label: 'CPR certificate uploaded'     },
+    { done: dlFromDocs,  warn: !dlFromDocs,  label: "Driver's license uploaded"    },
+    { done: cprFromDocs, warn: !cprFromDocs, label: 'CPR certificate uploaded'     },
     { done: formsSigned, warn: !formsSigned, label: 'CRO consent signed'           },
     { done: formsSigned, warn: !formsSigned, label: 'Direct deposit form'          },
     { done: formsSigned, warn: !formsSigned, label: 'NJ W4'                        },
