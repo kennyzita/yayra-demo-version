@@ -33,11 +33,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 400 })
   }
 
-  // Create the auth user in unconfirmed state; we generate + send the confirmation link ourselves below
+  // Create the auth user — email_confirm:true skips the PKCE verification flow,
+  // which breaks for server-generated links (no browser-stored code verifier).
+  // We send a branded welcome email with a direct login link instead.
   const { data: authData, error: authErr } = await db.auth.admin.createUser({
     email:         normalizedEmail,
     password,
-    email_confirm: false,
+    email_confirm: true,
     user_metadata: { first_name: firstName.trim(), last_name: lastName.trim() },
   })
 
@@ -86,15 +88,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create user profile. Please try again.' }, { status: 500 })
   }
 
-  // Generate a Supabase confirmation link — admin.createUser does NOT auto-send it,
-  // so we embed it in our own Resend welcome email.
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://yourdomain.com'
-  const { data: linkData } = await db.auth.admin.generateLink({
-    type: 'signup',
-    email: normalizedEmail,
-    options: { redirectTo: `${appUrl}/auth/callback` },
-  })
-  const confirmUrl = linkData?.properties?.action_link ?? `${appUrl}/login`
+  const loginUrl = `${appUrl}/login`
 
   const welcomeHtml = `
     <div style="font-family:sans-serif;max-width:540px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
@@ -107,20 +102,14 @@ export async function POST(req: NextRequest) {
       <div style="padding:32px">
         <h2 style="margin:0 0 8px;font-size:22px;color:#111">Welcome, ${firstName.trim()}!</h2>
         <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px">
-          Your DSP account has been created. Click the button below to confirm your email address and activate your account.
+          Your DSP account has been created and is ready to use. Click the button below to log in and get started.
         </p>
-        <a href="${confirmUrl}" style="display:inline-block;padding:12px 28px;background:#008080;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600">
-          Confirm your email
+        <a href="${loginUrl}" style="display:inline-block;padding:12px 28px;background:#008080;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600">
+          Log in to your account
         </a>
         <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:24px 0 0">
-          Once confirmed you can log in to access your onboarding forms, schedule, case notes, and more.
-          If you did not create this account, you can safely ignore this email.
-        </p>
-      </div>
-      <div style="padding:20px 32px;border-top:1px solid #f3f4f6;background:#f9fafb">
-        <p style="color:#9ca3af;font-size:12px;margin:0">
-          If the button above does not work, copy and paste this link into your browser:<br/>
-          <a href="${confirmUrl}" style="color:#008080;word-break:break-all">${confirmUrl}</a>
+          Use the email and password you registered with. Once logged in you can access your onboarding forms, schedule, case notes, and more.
+          If you did not create this account, please ignore this email.
         </p>
       </div>
     </div>
