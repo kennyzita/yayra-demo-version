@@ -39,18 +39,28 @@ export async function POST(req: NextRequest) {
   const userId = authData.user.id
 
   // Get DSP role ID
-  const { data: role } = await db.from('roles').select('id').eq('name', 'DSP').single()
+  const { data: role, error: roleErr } = await db.from('roles').select('id').eq('name', 'DSP').single()
+  if (roleErr || !role) {
+    console.error('[register] Could not find DSP role:', roleErr?.message)
+    await db.auth.admin.deleteUser(userId)
+    return NextResponse.json({ error: 'Server configuration error — DSP role not found.' }, { status: 500 })
+  }
 
   // Insert into users table
-  await db.from('users').insert({
+  const { error: insertErr } = await db.from('users').insert({
     id:         userId,
     first_name: firstName.trim(),
     last_name:  lastName.trim(),
     email:      email.trim().toLowerCase(),
     phone:      phone?.trim() || null,
-    role_id:    role?.id ?? null,
+    role_id:    role.id,
     status:     'active',
   })
+  if (insertErr) {
+    console.error('[register] Failed to insert into public.users:', insertErr.message)
+    await db.auth.admin.deleteUser(userId)
+    return NextResponse.json({ error: 'Failed to create user profile. Please try again.' }, { status: 500 })
+  }
 
   // Generate a Supabase confirmation link — admin.createUser does NOT auto-send it,
   // so we embed it in our own Resend welcome email.
