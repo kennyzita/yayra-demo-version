@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendEmail } from '@/lib/resend'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
     .map(u => u.email)
     .filter(Boolean) as string[]
 
-  if (adminEmails.length > 0 && process.env.RESEND_API_KEY) {
+  if (adminEmails.length > 0) {
     const fmt = (t: string) => {
       const [h, m] = t.slice(0, 5).split(':').map(Number)
       const ampm = h >= 12 ? 'PM' : 'AM'
@@ -88,19 +89,14 @@ export async function POST(req: NextRequest) {
         </div>
       </div>`
 
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Reliance Care Services <onboarding@resend.dev>',
-        to: adminEmails,
-        subject: `${dspName} ${status === 'accepted' ? 'accepted' : 'rejected'} a scheduled shift`,
-        html,
-      }),
+    const emailResult = await sendEmail({
+      to: adminEmails,
+      subject: `${dspName} ${status === 'accepted' ? 'accepted' : 'rejected'} a scheduled shift`,
+      html,
     })
+    if (!emailResult.ok && !emailResult.skipped) {
+      console.error('[schedules/respond] Admin notification email failed:', emailResult.error)
+    }
   }
 
   return NextResponse.json({ ok: true })

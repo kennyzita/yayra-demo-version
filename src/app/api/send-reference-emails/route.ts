@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { sendEmail } from '@/lib/resend'
 
 export async function POST(req: NextRequest) {
   const serverClient = createServerClient()
@@ -11,15 +12,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) {
-    console.warn('[send-reference-emails] RESEND_API_KEY not configured — emails skipped')
-    return NextResponse.json({ ok: true, skipped: true })
-  }
-
   const referenceFormUrl = 'https://pdf.ac/Qf9FkkG'
 
-  const results: { email: string; ok: boolean }[] = []
+  const results: { email: string; ok: boolean; error?: string }[] = []
 
   for (const ref of references) {
     if (!ref.email || !ref.name) continue
@@ -48,32 +43,24 @@ export async function POST(req: NextRequest) {
           </p>
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0"/>
           <p style="font-size:12px;color:#9ca3af;margin:0">
-            This email was sent by Reliance Care Services · admin@reliancecareservicesllc.com<br/>
+            This email was sent by Reliance Care Services.<br/>
             If you believe you received this in error, please disregard this message.
           </p>
         </div>
       </div>
     `
 
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: 'Reliance Care Services <admin@reliancecareservicesllc.com>',
-        to: [ref.email],
-        subject: `Reference Request for ${applicantName} — Reliance Care Services`,
-        html,
-      }),
+    const result = await sendEmail({
+      to: ref.email,
+      subject: `Reference Request for ${applicantName} — Reliance Care Services`,
+      html,
     })
+    results.push({ email: ref.email, ok: result.ok, error: result.error })
+  }
 
-    results.push({ email: ref.email, ok: res.ok })
-    if (!res.ok) {
-      const err = await res.text()
-      console.error(`[send-reference-emails] Resend error for ${ref.email}:`, err)
-    }
+  const allSkipped = results.every(r => !r.ok)
+  if (allSkipped && results.length > 0) {
+    return NextResponse.json({ error: 'Email service not configured' }, { status: 503 })
   }
 
   return NextResponse.json({ ok: true, results })

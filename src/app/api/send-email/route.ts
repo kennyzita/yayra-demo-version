@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { sendEmail } from '@/lib/resend'
 
 export async function POST(req: NextRequest) {
   const serverClient = createServerClient()
@@ -19,30 +20,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
-  const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) {
-    console.warn('[send-email] RESEND_API_KEY not configured — email skipped')
-    return NextResponse.json({ ok: true, skipped: true })
+  const result = await sendEmail({ to, subject, html })
+  if (result.skipped) {
+    return NextResponse.json({ error: 'Email service not configured' }, { status: 503 })
   }
-
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: 'Reliance Care Services <onboarding@resend.dev>',
-      to: Array.isArray(to) ? to : [to],
-      subject,
-      html,
-    }),
-  })
-
-  if (!res.ok) {
-    const err = await res.text()
-    console.error('[send-email] Resend error:', err)
-    return NextResponse.json({ error: err }, { status: 502 })
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: 502 })
   }
 
   return NextResponse.json({ ok: true })
