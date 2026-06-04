@@ -114,15 +114,14 @@ export function LoginForm() {
     const roleName = (user?.role as unknown as { name: string } | null)?.name
 
     if (roleName === 'Deactivate') {
-      router.push('/deactivated')
+      window.location.href = '/deactivated'
     } else if (roleName === 'Admin' || roleName === 'HR') {
-      router.push('/admin/dashboard')
+      window.location.href = '/admin/dashboard'
     } else if (roleName === 'DSP') {
-      router.push('/staff/application')
+      window.location.href = '/staff/application'
     } else {
-      router.push('/staff/dashboard')
+      window.location.href = '/staff/dashboard'
     }
-    router.refresh()
   }
 
   // ── MFA step ──────────────────────────────────────────────────────────────────
