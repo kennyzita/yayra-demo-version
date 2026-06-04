@@ -424,6 +424,7 @@ export default function ApplicationPage() {
   const [step,     setStep]      = useState(0)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [toast,    setToast]     = useState<string | null>(null)
   const [userId,   setUserId]    = useState<string | null>(null) // used for submit only
@@ -470,8 +471,9 @@ export default function ApplicationPage() {
       const saved = bsd?.data as Record<string, unknown> | null
       if (saved?.application_submitted === 'true') {
         setSubmitted(true)
-        if (saved.form) setForm(p => ({ ...p, ...(saved.form as Partial<AppFormState>) }))
       }
+      // Restore saved form data for both submitted and draft states
+      if (saved?.form) setForm(p => ({ ...p, ...(saved.form as Partial<AppFormState>) }))
     }
     init()
   }, [])
@@ -503,6 +505,21 @@ export default function ApplicationPage() {
       }
     }
     setSubmitting(false)
+  }
+
+  async function handleSaveDraft() {
+    if (!userId) return
+    setSavingDraft(true)
+    const { data: existing } = await supabase.from('billing_staff_data').select('data').eq('staff_id', userId).maybeSingle()
+    const merged = {
+      ...((existing?.data as Record<string, unknown>) ?? {}),
+      form,
+    }
+    const { error } = await supabase.from('billing_staff_data').upsert({ staff_id: userId, data: merged })
+    if (error) setToast('Error saving draft. Please try again.')
+    else setToast('Draft saved.')
+    setTimeout(() => setToast(null), 3000)
+    setSavingDraft(false)
   }
 
   async function handleDownload() {
@@ -809,7 +826,9 @@ export default function ApplicationPage() {
         <div style={{ width: '0.5px', height: 16, background: '#e5e7eb' }} />
         <span style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>DSP job application</span>
         <div style={{ flex: 1 }} />
-        <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>Save draft</button>
+        <button onClick={handleSaveDraft} disabled={savingDraft || submitted} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: submitted ? '#9ca3af' : '#374151', cursor: savingDraft || submitted ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: savingDraft ? 0.7 : 1 }}>
+          {savingDraft ? 'Saving…' : 'Save draft'}
+        </button>
         <button onClick={handleDownload} disabled={downloading} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #008080', background: 'transparent', color: '#008080', cursor: downloading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', opacity: downloading ? 0.6 : 1 }}>
           <i className={downloading ? 'ti ti-loader-2' : 'ti ti-download'} /> {downloading ? 'Loading…' : 'Download PDF'}
         </button>
