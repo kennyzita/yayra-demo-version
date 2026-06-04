@@ -182,6 +182,7 @@ export default function StaffProgressPage() {
   const [formsSigned,      setFormsSigned]      = useState(false)
   const [eadFromDocs,      setEadFromDocs]      = useState(false)
   const [isCitizen,        setIsCitizen]        = useState(false)
+  const [isAuthorizedWork, setIsAuthorizedWork] = useState(false)
   const [appCitizenValue,  setAppCitizenValue]  = useState('')          // raw value from application form
   const [citizenOverride,  setCitizenOverride]  = useState<boolean | null>(null) // null = not overridden
   const [savingCitizen,    setSavingCitizen]    = useState(false)
@@ -327,6 +328,7 @@ export default function StaffProgressPage() {
       setAppCitizenValue(formData?.isCitizen ?? '')
       setCitizenOverride(override)
       setIsCitizen(effectiveCitizen)
+      setIsAuthorizedWork(formData?.isAuthorizedWork === 'Yes')
 
       const docEad = !!(formData?.docEADFront) || !!(formData?.docEADBack) || allFiles.some(f => EAD_FOLDERS.includes(f.folder))
       setEadFromDocs(docEad)
@@ -451,7 +453,7 @@ export default function StaffProgressPage() {
   // ── Derived values ────────────────────────────────────────────────────────────
 
   const selectedStaff = staffList.find(s => s.id === selectedId)
-  const workAuthSatisfied = isCitizen || eadFromDocs
+  const workAuthSatisfied = isCitizen || (isAuthorizedWork && eadFromDocs)
 
   const signedDate = formsSignedAt
     ? new Date(formsSignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })

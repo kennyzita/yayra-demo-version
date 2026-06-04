@@ -71,7 +71,7 @@ export default function HiringPage() {
   const [docFiles,       setDocFiles]       = useState<StaffDocFile[]>([])
   const [docsLoading,    setDocsLoading]    = useState(false)
   const [progressId,       setProgressId]       = useState<string | null>(null)
-  const [progressData,     setProgressData]     = useState<{ formsSigned: boolean; formsSignedAt: string | null; eadUploaded: boolean } | null>(null)
+  const [progressData,     setProgressData]     = useState<{ formsSigned: boolean; formsSignedAt: string | null; eadUploaded: boolean; isCitizen: boolean; isAuthorizedWork: boolean } | null>(null)
   const [progressLoading,  setProgressLoading]  = useState(false)
   const [sendingReminder,  setSendingReminder]  = useState(false)
   const [ssnCountdown,     setSsnCountdown]     = useState(0)
@@ -188,10 +188,13 @@ export default function HiringPage() {
       const signed = extra.onboarding_forms_signed === 'true'
       const formData = extra.form as AppFormState | undefined
       const allFiles: { folder: string }[] = (docsJson as any).files ?? []
+      const EAD_FOLDERS = ['EAD / Green card', 'EAD / Green card - Front', 'EAD / Green card - Back']
       setProgressData({
         formsSigned: signed,
         formsSignedAt: signed ? ((extra.onboarding_forms_signed_at as string) ?? null) : null,
-        eadUploaded: !!(formData?.docEADFront) || allFiles.some(f => f.folder === 'EAD / Green card'),
+        eadUploaded: !!(formData?.docEADFront) || !!(formData?.docEADBack) || allFiles.some(f => EAD_FOLDERS.includes(f.folder)),
+        isCitizen: formData?.isCitizen === 'Yes',
+        isAuthorizedWork: formData?.isAuthorizedWork === 'Yes',
       })
       setProgressLoading(false)
     })
@@ -542,9 +545,12 @@ export default function HiringPage() {
         if (!r) return null
 
         const pd = progressData
-        const formsSigned  = pd?.formsSigned  ?? false
-        const formsSignedAt = pd?.formsSignedAt ?? null
-        const eadUploaded  = pd?.eadUploaded  ?? false
+        const formsSigned      = pd?.formsSigned      ?? false
+        const formsSignedAt    = pd?.formsSignedAt    ?? null
+        const eadUploaded      = pd?.eadUploaded      ?? false
+        const isCitizen        = pd?.isCitizen        ?? false
+        const isAuthorizedWork = pd?.isAuthorizedWork ?? false
+        const workAuthSatisfied = isCitizen || (isAuthorizedWork && eadUploaded)
 
         const signedDate = formsSignedAt
           ? new Date(formsSignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -562,7 +568,7 @@ export default function HiringPage() {
           { done: formsSigned, warn: !formsSigned,   label: "Danielle's Law sign-off"     },
           { done: formsSigned, warn: !formsSigned,   label: "Stephen Komnino's Law"       },
           { done: formsSigned, warn: !formsSigned,   label: 'Appendix A'                  },
-          { done: eadUploaded, warn: !eadUploaded,   label: 'Work authorization uploaded' },
+          { done: workAuthSatisfied, warn: !workAuthSatisfied, label: isCitizen ? 'Work authorization (US citizen)' : 'Work authorization uploaded' },
         ]
 
         const completedCount = onboardItems.filter(i => i.done).length
