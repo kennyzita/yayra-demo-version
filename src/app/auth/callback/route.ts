@@ -10,10 +10,15 @@ export async function GET(request: Request) {
   const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/'
 
   if (code) {
-    const supabase = createClient()
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      if (!error) {
+        return NextResponse.redirect(`${origin}${next}`)
+      }
+      console.error('[auth/callback] exchangeCodeForSession error:', error.message)
+    } catch (err) {
+      console.error('[auth/callback] unexpected error:', err)
     }
   }
 
