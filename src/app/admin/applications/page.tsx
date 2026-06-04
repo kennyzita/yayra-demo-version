@@ -77,6 +77,15 @@ export default function HiringPage() {
   const [ssnCountdown,     setSsnCountdown]     = useState(0)
   const ssnTimerRef = useRef<number | null>(null)
 
+  // Edit-application state
+  const [editMode,         setEditMode]         = useState(false)
+  const [editForm,         setEditForm]         = useState<AppFormState | null>(null)
+  const [docUsedText,      setDocUsedText]      = useState('')
+  const [docUsedSignedUrl, setDocUsedSignedUrl] = useState('')
+  const [savingEdit,       setSavingEdit]       = useState(false)
+  const [docUsedUploading, setDocUsedUploading] = useState(false)
+  const docUsedFileRef = useRef<HTMLInputElement>(null)
+
   function revealSsn() {
     setSsnCountdown(10)
     if (ssnTimerRef.current) window.clearInterval(ssnTimerRef.current)
@@ -167,6 +176,28 @@ export default function HiringPage() {
   // Reset SSN reveal when the user changes or closes the application view
   useEffect(() => { hideSsn() }, [viewingId])
 
+  // Load documentationUsed and reset edit state whenever the drawer opens
+  useEffect(() => {
+    if (!viewingId) {
+      setEditMode(false); setEditForm(null)
+      setDocUsedText(''); setDocUsedSignedUrl('')
+      return
+    }
+    setEditMode(false); setEditForm(null)
+    supabase.from('billing_staff_data').select('data').eq('staff_id', viewingId).maybeSingle()
+      .then(async ({ data }) => {
+        const extra = (data?.data ?? {}) as Record<string, unknown>
+        setDocUsedText((extra.documentationUsedText as string) ?? '')
+        const storedPath = (extra.documentationUsedPath as string) ?? ''
+        if (storedPath) {
+          const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(storedPath, 3600)
+          setDocUsedSignedUrl(signed?.signedUrl ?? '')
+        } else {
+          setDocUsedSignedUrl('')
+        }
+      })
+  }, [viewingId])
+
   useEffect(() => {
     if (!docsViewingId) return
     setDocFiles([])
@@ -256,6 +287,47 @@ export default function HiringPage() {
       setStatusMap(prev => ({ ...prev, [staffId]: newStatus }))
       showToast(`Application ${newStatus === 'approved' ? 'approved' : newStatus === 'rejected' ? 'rejected' : 'updated'} successfully.`)
     }
+  }
+
+  async function handleSaveEdit() {
+    if (!viewingId || !editForm) return
+    setSavingEdit(true)
+    const { data: existing } = await supabase.from('billing_staff_data').select('data').eq('staff_id', viewingId).maybeSingle()
+    const merged = {
+      ...((existing?.data as Record<string, unknown>) ?? {}),
+      form: editForm,
+      documentationUsedText: docUsedText,
+    }
+    const { error } = await supabase.from('billing_staff_data').upsert({ staff_id: viewingId, data: merged })
+    if (error) showToast('Error saving changes.')
+    else {
+      setRecords(prev => prev.map(r => r.staffId === viewingId ? { ...r, formData: editForm } : r))
+      setEditMode(false)
+      showToast('Application updated.')
+    }
+    setSavingEdit(false)
+  }
+
+  async function handleDocUsedUpload(file: File) {
+    if (!viewingId) return
+    setDocUsedUploading(true)
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('docType', 'Documentation Used')
+    fd.append('staffId', viewingId)
+    const res = await fetch('/api/admin/upload-staff-document', { method: 'POST', body: fd })
+    const json = await res.json()
+    setDocUsedUploading(false)
+    if (!res.ok) { showToast(json.error ?? 'Upload failed.'); return }
+    // Persist the path alongside any existing data
+    const { data: existing } = await supabase.from('billing_staff_data').select('data').eq('staff_id', viewingId).maybeSingle()
+    await supabase.from('billing_staff_data').upsert({
+      staff_id: viewingId,
+      data: { ...((existing?.data as Record<string, unknown>) ?? {}), documentationUsedPath: json.path, documentationUsedText: docUsedText },
+    })
+    const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(json.path, 3600)
+    setDocUsedSignedUrl(signed?.signedUrl ?? '')
+    showToast('Document uploaded.')
   }
 
   const filtered = records.filter(r => {
@@ -707,11 +779,27 @@ export default function HiringPage() {
             <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(420px, 100vw)', background: '#fff', zIndex: 50, boxShadow: '-4px 0 32px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
               {/* Drawer header */}
-              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ padding: '16px 20px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>Application Details</div>
                   <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Submitted {formatDate(r.submittedAt)}</div>
                 </div>
+                {r.formData && !editMode && (
+                  <button
+                    onClick={() => { setEditForm({ ...r.formData! }); setEditMode(true) }}
+                    style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #008080', background: 'transparent', color: '#008080', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <i className="ti ti-edit" style={{ fontSize: 13 }} /> Edit
+                  </button>
+                )}
+                {editMode && (
+                  <button
+                    onClick={() => setEditMode(false)}
+                    style={{ padding: '5px 12px', borderRadius: 7, border: '1px solid #d1d5db', background: '#f9fafb', color: '#374151', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Cancel
+                  </button>
+                )}
                 <button
                   onClick={() => setViewingId(null)}
                   style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 16, color: '#6b7280' }}
@@ -719,6 +807,10 @@ export default function HiringPage() {
                   <i className="ti ti-x" />
                 </button>
               </div>
+              <input ref={docUsedFileRef} type="file" style={{ display: 'none' }}
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleDocUsedUpload(f) }}
+              />
 
               {/* Drawer body */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
@@ -756,15 +848,50 @@ export default function HiringPage() {
                       </div>
                     )
                   }
+                  const inStyle = { fontSize: 12, color: '#111', border: '1px solid #d1d5db', borderRadius: 4, padding: '3px 6px', background: '#fff', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const }
+                  const EditRow = ({ label, field, type = 'text' }: { label: string; field: keyof AppFormState; type?: string }) => {
+                    if (!editMode || !editForm) return <Row label={label} value={fd[field] as string} />
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
+                        <input type={type} style={inStyle} value={(editForm[field] as string) ?? ''}
+                          onChange={e => setEditForm(p => p ? { ...p, [field]: e.target.value } : p)} />
+                      </div>
+                    )
+                  }
+                  const EditSelectRow = ({ label, field, options }: { label: string; field: keyof AppFormState; options: string[] }) => {
+                    if (!editMode || !editForm) return <Row label={label} value={fd[field] as string} />
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
+                        <select style={{ ...inStyle, cursor: 'pointer' }} value={(editForm[field] as string) ?? ''}
+                          onChange={e => setEditForm(p => p ? { ...p, [field]: e.target.value } : p)}>
+                          <option value="">—</option>
+                          {options.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                    )
+                  }
 
                   return (
                     <>
                       <Section title="Personal Information" />
                       <Card>
-                        <Row label="Full name" value={[fd.firstName, fd.middleName, fd.lastName].filter(Boolean).join(' ')} />
-                        <Row label="Email" value={fd.email} />
-                        <Row label="Phone" value={fd.phone} />
-                        <Row label="Date of birth" value={fd.dob} />
+                        {editMode && editForm ? (
+                          <>
+                            <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+                              <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Name</span>
+                              <input placeholder="First" style={inStyle} value={editForm.firstName} onChange={e => setEditForm(p => p ? { ...p, firstName: e.target.value } : p)} />
+                              <input placeholder="Last" style={inStyle} value={editForm.lastName} onChange={e => setEditForm(p => p ? { ...p, lastName: e.target.value } : p)} />
+                            </div>
+                            <EditRow label="Middle name" field="middleName" />
+                          </>
+                        ) : (
+                          <Row label="Full name" value={[fd.firstName, fd.middleName, fd.lastName].filter(Boolean).join(' ')} />
+                        )}
+                        <EditRow label="Email" field="email" type="email" />
+                        <EditRow label="Phone" field="phone" />
+                        <EditRow label="Date of birth" field="dob" type="date" />
                         <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
                           {docUrls['SSN Card'] && ssnCountdown === 0 ? (
                             <button onClick={revealSsn} style={{ fontSize: 11, color: '#0891b2', fontWeight: 600, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -790,31 +917,44 @@ export default function HiringPage() {
                             )}
                           </div>
                         </div>
-                        <Row label="Address" value={[fd.address1, fd.address2, fd.city, fd.state, fd.zip].filter(Boolean).join(', ')} />
+                        {editMode && editForm ? (
+                          <>
+                            <EditRow label="Address 1" field="address1" />
+                            <EditRow label="Address 2" field="address2" />
+                            <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 60px 80px', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+                              <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>City/St/Zip</span>
+                              <input placeholder="City" style={inStyle} value={editForm.city} onChange={e => setEditForm(p => p ? { ...p, city: e.target.value } : p)} />
+                              <input placeholder="ST" style={inStyle} value={editForm.state} onChange={e => setEditForm(p => p ? { ...p, state: e.target.value } : p)} />
+                              <input placeholder="ZIP" style={inStyle} value={editForm.zip} onChange={e => setEditForm(p => p ? { ...p, zip: e.target.value } : p)} />
+                            </div>
+                          </>
+                        ) : (
+                          <Row label="Address" value={[fd.address1, fd.address2, fd.city, fd.state, fd.zip].filter(Boolean).join(', ')} />
+                        )}
                       </Card>
 
                       <Section title="Availability" />
                       <Card>
                         <Row label="Allergies" value={fd.allergies} />
-                        <Row label="Work holidays" value={fd.canWorkHolidays} />
+                        <EditSelectRow label="Work holidays" field="canWorkHolidays" options={['Yes', 'No']} />
                         <Row label="Days available" value={fd.daysAvailable} />
                         <Row label="Preferred shifts" value={fd.preferredShifts} />
-                        <Row label="Start date" value={fd.dateAvailable} />
-                        <Row label="Heard about us" value={fd.heardAbout} />
-                        <Row label="Position" value={fd.positionApplying} />
+                        <EditRow label="Start date" field="dateAvailable" type="date" />
+                        <EditRow label="Heard about us" field="heardAbout" />
+                        <EditRow label="Position" field="positionApplying" />
                         <Row label="Assignment type" value={fd.assignmentType} />
                       </Card>
 
                       <Section title="Eligibility" />
                       <Card>
-                        <Row label="US citizen" value={fd.isCitizen} />
-                        {fd.isCitizen === 'No' && <Row label="Authorized to work" value={fd.isAuthorizedWork} />}
-                        <Row label="Worked here before" value={fd.workedBefore} />
-                        {fd.workedBefore === 'Yes' && <Row label="When" value={fd.workedBeforeWhen} />}
-                        <Row label="BG check consent" value={fd.bgCheck} />
-                        {fd.bgCheckExplain && <Row label="BG explanation" value={fd.bgCheckExplain} />}
-                        <Row label="Malpractice ins." value={fd.malpractice} />
-                        {fd.malpracticeCarrier && <Row label="Carrier" value={fd.malpracticeCarrier} />}
+                        <EditSelectRow label="US citizen" field="isCitizen" options={['Yes', 'No']} />
+                        {(editForm ?? fd).isCitizen === 'No' && <EditSelectRow label="Authorized to work" field="isAuthorizedWork" options={['Yes', 'No']} />}
+                        <EditSelectRow label="Worked here before" field="workedBefore" options={['Yes', 'No']} />
+                        {(editForm ?? fd).workedBefore === 'Yes' && <EditRow label="When" field="workedBeforeWhen" />}
+                        <EditSelectRow label="BG check consent" field="bgCheck" options={['Yes', 'No']} />
+                        {(editMode || fd.bgCheckExplain) && <EditRow label="BG explanation" field="bgCheckExplain" />}
+                        <EditSelectRow label="Malpractice ins." field="malpractice" options={['Yes', 'No']} />
+                        {(editMode || fd.malpracticeCarrier) && <EditRow label="Carrier" field="malpracticeCarrier" />}
                       </Card>
 
                       {fd.schools?.length > 0 && (
@@ -861,16 +1001,56 @@ export default function HiringPage() {
 
                       <Section title="Emergency Contact" />
                       <Card>
-                        <Row label="Name" value={fd.emergencyName} />
-                        <Row label="Relationship" value={fd.emergencyRelationship} />
-                        <Row label="Phone" value={fd.emergencyPhone} />
+                        <EditRow label="Name" field="emergencyName" />
+                        <EditRow label="Relationship" field="emergencyRelationship" />
+                        <EditRow label="Phone" field="emergencyPhone" />
                       </Card>
 
                       <Section title="Document Expiry Dates" />
                       <Card>
-                        <Row label="DL expiry" value={fd.dlExpiry} />
-                        <Row label="EAD expiry" value={fd.eadExpiry} />
-                        <Row label="CPR expiry" value={fd.cprExpiry} />
+                        <EditRow label="DL expiry" field="dlExpiry" type="date" />
+                        <EditRow label="EAD expiry" field="eadExpiry" type="date" />
+                        <EditRow label="CPR expiry" field="cprExpiry" type="date" />
+                      </Card>
+
+                      <Section title="Documentation Used" />
+                      <Card>
+                        <div style={{ marginBottom: 10 }}>
+                          <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, marginBottom: 4 }}>DOCUMENTS PRESENTED (I-9 VERIFICATION)</div>
+                          <textarea
+                            value={docUsedText}
+                            onChange={e => setDocUsedText(e.target.value)}
+                            placeholder="e.g. Driver's License + Social Security Card, U.S. Passport, Employment Authorization Document…"
+                            rows={3}
+                            style={{ width: '100%', fontSize: 12, color: '#111', border: '1px solid #d1d5db', borderRadius: 6, padding: '7px 9px', background: '#fff', outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <button
+                            onClick={() => docUsedFileRef.current?.click()}
+                            disabled={docUsedUploading}
+                            style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#f9fafb', color: '#374151', cursor: docUsedUploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', opacity: docUsedUploading ? 0.6 : 1 }}
+                          >
+                            <i className="ti ti-upload" style={{ fontSize: 13 }} />
+                            {docUsedUploading ? 'Uploading…' : 'Upload scanned document'}
+                          </button>
+                          {docUsedSignedUrl && (
+                            <a href={docUsedSignedUrl} target="_blank" rel="noreferrer"
+                              style={{ fontSize: 12, color: '#008080', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', border: '1px solid rgba(0,128,128,0.3)', borderRadius: 6 }}>
+                              <i className="ti ti-external-link" style={{ fontSize: 12 }} /> View uploaded doc
+                            </a>
+                          )}
+                        </div>
+                        {(docUsedText || docUsedSignedUrl) && (
+                          <button
+                            onClick={handleSaveEdit}
+                            disabled={savingEdit}
+                            style={{ marginTop: 10, fontSize: 12, padding: '5px 14px', borderRadius: 6, border: 'none', background: '#008080', color: '#fff', cursor: savingEdit ? 'default' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, opacity: savingEdit ? 0.6 : 1 }}
+                          >
+                            <i className="ti ti-device-floppy" style={{ fontSize: 13 }} />
+                            {savingEdit ? 'Saving…' : 'Save documentation'}
+                          </button>
+                        )}
                       </Card>
 
                       <Section title="Uploaded Documents" />
@@ -935,7 +1115,24 @@ export default function HiringPage() {
 
               {/* Drawer footer actions */}
               <div style={{ padding: '14px 20px', borderTop: '1px solid #e5e7eb', background: '#f9fafb', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {effectiveStatus === 'pending' && (
+                {editMode && (
+                  <>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={savingEdit}
+                      style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#008080', color: '#fff', fontSize: 13, fontWeight: 600, cursor: savingEdit ? 'default' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: savingEdit ? 0.7 : 1 }}
+                    >
+                      <i className="ti ti-device-floppy" /> {savingEdit ? 'Saving…' : 'Save changes'}
+                    </button>
+                    <button
+                      onClick={() => setEditMode(false)}
+                      style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                )}
+                {!editMode && effectiveStatus === 'pending' && (
                   <>
                     <button
                       onClick={() => { updateStatus(r.staffId, 'approved'); setViewingId(null) }}
@@ -951,7 +1148,7 @@ export default function HiringPage() {
                     </button>
                   </>
                 )}
-                {effectiveStatus === 'approved' && (
+                {!editMode && effectiveStatus === 'approved' && (
                   <button
                     onClick={() => { updateStatus(r.staffId, 'pending'); setViewingId(null) }}
                     style={{ flex: 1, padding: '9px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
@@ -959,7 +1156,7 @@ export default function HiringPage() {
                     Revoke approval
                   </button>
                 )}
-                {effectiveStatus === 'rejected' && (
+                {!editMode && effectiveStatus === 'rejected' && (
                   <button
                     onClick={() => { updateStatus(r.staffId, 'approved'); setViewingId(null) }}
                     style={{ flex: 1, padding: '9px', borderRadius: 8, border: 'none', background: '#059669', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}

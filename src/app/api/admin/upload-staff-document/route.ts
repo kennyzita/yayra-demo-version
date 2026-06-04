@@ -22,7 +22,7 @@ const ALLOWED_DOC_TYPES = [
   "Stephen Komnino's Law", 'Appendix A', 'CARI Clearance',
   'Background Check', 'IdentoGO', 'Reference Letter',
   'Onboarding Forms', 'MRO', 'CRO', 'CARI', 'FARA', 'Everify', 'CDS',
-  'Other', 'application',
+  'Documentation Used', 'Other', 'application',
 ]
 
 const MAX_SIZE = 20 * 1024 * 1024 // 20 MB

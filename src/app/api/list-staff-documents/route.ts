@@ -19,7 +19,7 @@ const SUBFOLDERS = [
   'Background Check', 'IdentoGO', 'Reference Letter',
   // Admin-only document types
   'Onboarding Forms', 'MRO', 'CRO', 'CARI', 'FARA', 'Everify', 'CDS',
-  'Other',
+  'Documentation Used', 'Other',
 ]
 
 export interface StaffDocFile {
