@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  // Create the auth user — email_confirm:false means Supabase sends a confirmation email
+  // Create the auth user in unconfirmed state; we generate + send the confirmation link ourselves below
   const { data: authData, error: authErr } = await db.auth.admin.createUser({
     email:          email.trim().toLowerCase(),
     password,
@@ -52,8 +52,16 @@ export async function POST(req: NextRequest) {
     status:     'active',
   })
 
-  // Send welcome email — registration succeeds even if email fails
-  const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://yourdomain.com'}/login`
+  // Generate a Supabase confirmation link — admin.createUser does NOT auto-send it,
+  // so we embed it in our own Resend welcome email.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://yourdomain.com'
+  const { data: linkData } = await db.auth.admin.generateLink({
+    type: 'signup',
+    email: email.trim().toLowerCase(),
+    options: { redirectTo: `${appUrl}/` },
+  })
+  const confirmUrl = linkData?.properties?.action_link ?? `${appUrl}/login`
+
   const welcomeHtml = `
     <div style="font-family:sans-serif;max-width:540px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
       <div style="background:#002830;padding:28px 32px;display:flex;align-items:center;gap:12px">
@@ -65,29 +73,31 @@ export async function POST(req: NextRequest) {
       <div style="padding:32px">
         <h2 style="margin:0 0 8px;font-size:22px;color:#111">Welcome, ${firstName.trim()}!</h2>
         <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px">
-          Your DSP account has been created. Please confirm your email address by clicking the link in the verification email we just sent to <strong>${email.trim()}</strong>.
+          Your DSP account has been created. Click the button below to confirm your email address and activate your account.
         </p>
-        <p style="color:#374151;font-size:14px;line-height:1.7;margin:0 0 24px">
-          Once confirmed, you can log in to access your onboarding forms, schedule, case notes, and more.
-        </p>
-        <a href="${loginUrl}" style="display:inline-block;padding:12px 28px;background:#008080;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600">
-          Go to Login
+        <a href="${confirmUrl}" style="display:inline-block;padding:12px 28px;background:#008080;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600">
+          Confirm your email
         </a>
+        <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:24px 0 0">
+          Once confirmed you can log in to access your onboarding forms, schedule, case notes, and more.
+          If you did not create this account, you can safely ignore this email.
+        </p>
       </div>
       <div style="padding:20px 32px;border-top:1px solid #f3f4f6;background:#f9fafb">
         <p style="color:#9ca3af;font-size:12px;margin:0">
-          Reliance Care Services · If you did not create this account, please ignore this email.
+          If the button above does not work, copy and paste this link into your browser:<br/>
+          <a href="${confirmUrl}" style="color:#008080;word-break:break-all">${confirmUrl}</a>
         </p>
       </div>
     </div>
   `
   const emailResult = await sendEmail({
     to: email.trim().toLowerCase(),
-    subject: 'Welcome to Reliance Care Services — confirm your account',
+    subject: 'Confirm your Reliance Care Services account',
     html: welcomeHtml,
   })
   if (!emailResult.ok && !emailResult.skipped) {
-    console.error('[register] Welcome email failed:', emailResult.error)
+    console.error('[register] Confirmation email failed:', emailResult.error)
   }
 
   return NextResponse.json({ success: true })
