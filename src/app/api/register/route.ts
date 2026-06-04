@@ -21,12 +21,24 @@ export async function POST(req: NextRequest) {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
+  const normalizedEmail = email.trim().toLowerCase()
+
+  // Block registration if email already exists in public.users
+  const { data: existing } = await db
+    .from('users')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .maybeSingle()
+  if (existing) {
+    return NextResponse.json({ error: 'An account with this email already exists.' }, { status: 400 })
+  }
+
   // Create the auth user in unconfirmed state; we generate + send the confirmation link ourselves below
   const { data: authData, error: authErr } = await db.auth.admin.createUser({
-    email:          email.trim().toLowerCase(),
+    email:         normalizedEmail,
     password,
-    email_confirm:  false,
-    user_metadata:  { first_name: firstName.trim(), last_name: lastName.trim() },
+    email_confirm: false,
+    user_metadata: { first_name: firstName.trim(), last_name: lastName.trim() },
   })
 
   if (authErr) {
@@ -57,16 +69,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Server configuration error — tenant not found.' }, { status: 500 })
   }
 
-  // Remove any stale public.users row with the same email (from a previous failed registration)
-  await db.from('users').delete().eq('email', email.trim().toLowerCase())
-
   // Insert into users table
   const { error: insertErr } = await db.from('users').insert({
     id:         userId,
     tenant_id:  tenantId,
     first_name: firstName.trim(),
     last_name:  lastName.trim(),
-    email:      email.trim().toLowerCase(),
+    email:      normalizedEmail,
     phone:      phone?.trim() || null,
     role_id:    role.id,
     status:     'active',
@@ -82,7 +91,7 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://yourdomain.com'
   const { data: linkData } = await db.auth.admin.generateLink({
     type: 'signup',
-    email: email.trim().toLowerCase(),
+    email: normalizedEmail,
     options: { redirectTo: `${appUrl}/auth/callback` },
   })
   const confirmUrl = linkData?.properties?.action_link ?? `${appUrl}/login`
@@ -117,7 +126,7 @@ export async function POST(req: NextRequest) {
     </div>
   `
   const emailResult = await sendEmail({
-    to: email.trim().toLowerCase(),
+    to: normalizedEmail,
     subject: 'Confirm your Reliance Care Services account',
     html: welcomeHtml,
   })
