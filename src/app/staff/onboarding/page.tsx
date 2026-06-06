@@ -19,6 +19,19 @@ export default function OnboardingFormsPage() {
   const [confirmed,     setConfirmed]     = useState(false)
   const [hasOpenedForm, setHasOpenedForm] = useState(false)
 
+  // Detect when user clicks inside the cross-origin PDFiller iframe:
+  // clicking the iframe steals focus from the parent window, so we listen
+  // for window blur and check that the active element is the iframe.
+  useEffect(() => {
+    function onWindowBlur() {
+      if (document.activeElement?.tagName === 'IFRAME') {
+        setHasOpenedForm(true)
+      }
+    }
+    window.addEventListener('blur', onWindowBlur)
+    return () => window.removeEventListener('blur', onWindowBlur)
+  }, [])
+
   function showToast(msg: string) {
     setToast(msg)
     setTimeout(() => setToast(null), 3500)
@@ -192,8 +205,7 @@ export default function OnboardingFormsPage() {
       )}
 
       {/* Form embed */}
-      {/* onMouseDown fires before the iframe captures focus, marking the form as opened */}
-      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }} onMouseDown={() => setHasOpenedForm(true)}>
+      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
         <iframe
           src={FORM_URL}
           style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
