@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 interface SidebarProps {
@@ -16,8 +16,6 @@ interface NavItem {
   href: string
   label: string
   icon: string
-  badge?: number
-  warnBadge?: number
   externalUrl?: string
 }
 
@@ -37,16 +35,16 @@ const adminSections: NavSection[] = [
   {
     label: 'Applications',
     items: [
-      { href: '/admin/applications', label: 'Hiring', icon: 'ti-briefcase', badge: 3 },
+      { href: '/admin/applications', label: 'Hiring', icon: 'ti-briefcase' },
       { href: '/admin/documents', label: 'Upload documents', icon: 'ti-upload' },
     ],
   },
   {
     label: 'Work',
     items: [
-      { href: '/admin/timesheets',  label: 'Time sheet',  icon: 'ti-clock',    warnBadge: 5 },
-      { href: '/admin/case-notes',  label: 'Case notes',  icon: 'ti-notes',    warnBadge: 3 },
-      { href: '/admin/scheduling',  label: 'Scheduling',  icon: 'ti-calendar'               },
+      { href: '/admin/timesheets',  label: 'Time sheet',  icon: 'ti-clock'    },
+      { href: '/admin/case-notes',  label: 'Case notes',  icon: 'ti-notes'    },
+      { href: '/admin/scheduling',  label: 'Scheduling',  icon: 'ti-calendar' },
     ],
   },
   {
@@ -71,8 +69,8 @@ const adminSections: NavSection[] = [
   {
     label: 'Administration',
     items: [
-      { href: '/admin/users',  label: 'User Accounts',   icon: 'ti-users'    },
-      { href: '/admin/roles',  label: 'Role Management', icon: 'ti-shield'   },
+      { href: '/admin/users',  label: 'User Accounts',   icon: 'ti-users'  },
+      { href: '/admin/roles',  label: 'Role Management', icon: 'ti-shield' },
     ],
   },
   {
@@ -100,8 +98,8 @@ const staffSections: NavSection[] = [
   {
     label: 'Applications',
     items: [
-      { href: '/staff/application', label: 'DSP application',  icon: 'ti-file-text'        },
-      { href: '/staff/onboarding',  label: 'Onboarding forms', icon: 'ti-clipboard-list', warnBadge: 2 },
+      { href: '/staff/application', label: 'DSP application',  icon: 'ti-file-text'       },
+      { href: '/staff/onboarding',  label: 'Onboarding forms', icon: 'ti-clipboard-list'  },
     ],
   },
   {
@@ -115,8 +113,8 @@ const staffSections: NavSection[] = [
   {
     label: 'Resources',
     items: [
-      { href: '/staff/training',  label: 'My training', icon: 'ti-certificate', warnBadge: 1 },
-      { href: '/staff/documents', label: 'My documents', icon: 'ti-folder' },
+      { href: '/staff/training',  label: 'My training',   icon: 'ti-certificate' },
+      { href: '/staff/documents', label: 'My documents',  icon: 'ti-folder'      },
       { href: '#', externalUrl: '/resources/employee-handbook-2025.pdf', label: 'Staff Hand Book', icon: 'ti-book' },
     ],
   },
@@ -153,11 +151,88 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile,   setIsMobile]   = useState(false)
 
+  // Live badge counts — 0 means hidden
+  const [hiringBadge,     setHiringBadge]     = useState(0)
+  const [timesheetBadge,  setTimesheetBadge]  = useState(0)
+  const [caseNotesBadge,  setCaseNotesBadge]  = useState(0)
+  const [onboardingBadge, setOnboardingBadge] = useState(0)
+
   const sections = role === 'admin'
     ? (userRole === 'HR' ? adminSections.filter(s => s.label !== 'Billing') : adminSections)
     : getStaffSections(userRole)
 
-  // Detect mobile
+  // ── Badge fetchers ────────────────────────────────────────────────────────────
+
+  const fetchHiring = useCallback(async () => {
+    const { data } = await supabase
+      .from('billing_staff_data')
+      .select('data')
+      .filter('data->>application_submitted', 'eq', 'true')
+    const n = (data ?? []).filter((row: { data: Record<string, string> }) => {
+      const s = row.data?.application_status
+      return s === 'pending' || !s
+    }).length
+    setHiringBadge(n)
+  }, [supabase])
+
+  const fetchTimesheets = useCallback(async () => {
+    const { count } = await supabase
+      .from('timesheets')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'submitted')
+    setTimesheetBadge(count ?? 0)
+  }, [supabase])
+
+  const fetchCaseNotes = useCallback(async () => {
+    const { count } = await supabase
+      .from('case_notes')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'submitted')
+    setCaseNotesBadge(count ?? 0)
+  }, [supabase])
+
+  const fetchOnboarding = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data } = await supabase
+      .from('billing_staff_data')
+      .select('data')
+      .eq('staff_id', user.id)
+      .maybeSingle()
+    const d = (data?.data ?? {}) as Record<string, string>
+    setOnboardingBadge(d.onboarding_forms_signed === 'true' ? 0 : 1)
+  }, [supabase])
+
+  // ── Initial fetch + real-time subscriptions ───────────────────────────────────
+
+  useEffect(() => {
+    if (role === 'admin') {
+      fetchHiring()
+      fetchTimesheets()
+      fetchCaseNotes()
+
+      const channel = supabase
+        .channel('sidebar-admin-badges')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'billing_staff_data' }, fetchHiring)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'timesheets' }, fetchTimesheets)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'case_notes' }, fetchCaseNotes)
+        .subscribe()
+
+      return () => { supabase.removeChannel(channel) }
+    } else {
+      fetchOnboarding()
+
+      const channel = supabase
+        .channel('sidebar-staff-badges')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'billing_staff_data' }, fetchOnboarding)
+        .subscribe()
+
+      return () => { supabase.removeChannel(channel) }
+    }
+  }, [role])
+
+  // ── Mobile ────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
@@ -165,7 +240,6 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
     return () => window.removeEventListener('resize', check)
   }, [])
 
-  // Close drawer on navigation
   useEffect(() => { setMobileOpen(false) }, [pathname])
 
   async function handleSignOut() {
@@ -173,6 +247,20 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
     router.push('/login')
     router.refresh()
   }
+
+  // ── Badge map — keyed by href ─────────────────────────────────────────────────
+
+  const badgeMap: Record<string, number> = role === 'admin'
+    ? {
+        '/admin/applications': hiringBadge,
+        '/admin/timesheets':   timesheetBadge,
+        '/admin/case-notes':   caseNotesBadge,
+      }
+    : {
+        '/staff/onboarding': onboardingBadge,
+      }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   const sidebarStyle: React.CSSProperties = isMobile ? {
     position:  'fixed',
@@ -285,6 +373,7 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
             )}
             {section.items.map((item) => {
               const isActive = !item.externalUrl && (pathname === item.href || pathname.startsWith(item.href + '/'))
+              const badge = !item.externalUrl ? (badgeMap[item.href] ?? 0) : 0
               const linkStyle: React.CSSProperties = {
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '9px 10px', fontSize: 13, borderRadius: 8,
@@ -299,11 +388,10 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
                   {item.externalUrl && (
                     <i className="ti ti-external-link" style={{ fontSize: 12, opacity: 0.5, flexShrink: 0 }} />
                   )}
-                  {item.badge != null && (
-                    <span style={{ background: '#f97316', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>{item.badge}</span>
-                  )}
-                  {item.warnBadge != null && (
-                    <span style={{ background: '#f97316', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 600 }}>{item.warnBadge}</span>
+                  {badge > 0 && (
+                    <span style={{ background: '#f97316', color: 'white', fontSize: 10, padding: '2px 6px', borderRadius: 10, fontWeight: 600, flexShrink: 0 }}>
+                      {badge}
+                    </span>
                   )}
                 </>
               )
