@@ -872,6 +872,22 @@ export default function HiringPage() {
                       </div>
                     )
                   }
+                  const EditArrayRow = ({ label, field }: { label: string; field: keyof AppFormState }) => {
+                    if (!editMode || !editForm) return <Row label={label} value={fd[field] as string[]} />
+                    const arr = (editForm[field] as string[]) ?? []
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
+                        <input type="text" style={inStyle} placeholder="comma-separated" value={arr.join(', ')}
+                          onChange={e => setEditForm(p => p ? { ...p, [field]: e.target.value.split(',').map(v => v.trim()).filter(Boolean) } : p)} />
+                      </div>
+                    )
+                  }
+                  const updateSchool   = (i: number, f: string, v: string) => setEditForm(p => { if (!p) return p; const a = [...p.schools];   a[i] = { ...a[i], [f]: v }; return { ...p, schools: a } })
+                  const updateEmployer = (i: number, f: string, v: string) => setEditForm(p => { if (!p) return p; const a = [...p.employers]; a[i] = { ...a[i], [f]: v }; return { ...p, employers: a } })
+                  const updateRef      = (i: number, f: string, v: string) => setEditForm(p => { if (!p) return p; const a = [...p.references]; a[i] = { ...a[i], [f]: v }; return { ...p, references: a } })
+                  const nestedIn = { ...inStyle, marginBottom: 3 }
+                  const nestedLabel = { fontSize: 11, color: '#9ca3af', fontWeight: 500 as const, minWidth: 90 }
 
                   return (
                     <>
@@ -935,14 +951,14 @@ export default function HiringPage() {
 
                       <Section title="Availability" />
                       <Card>
-                        <Row label="Allergies" value={fd.allergies} />
+                        <EditArrayRow label="Allergies" field="allergies" />
                         <EditSelectRow label="Work holidays" field="canWorkHolidays" options={['Yes', 'No']} />
-                        <Row label="Days available" value={fd.daysAvailable} />
-                        <Row label="Preferred shifts" value={fd.preferredShifts} />
+                        <EditArrayRow label="Days available" field="daysAvailable" />
+                        <EditArrayRow label="Preferred shifts" field="preferredShifts" />
                         <EditRow label="Start date" field="dateAvailable" type="date" />
                         <EditRow label="Heard about us" field="heardAbout" />
                         <EditRow label="Position" field="positionApplying" />
-                        <Row label="Assignment type" value={fd.assignmentType} />
+                        <EditArrayRow label="Assignment type" field="assignmentType" />
                       </Card>
 
                       <Section title="Eligibility" />
@@ -957,43 +973,98 @@ export default function HiringPage() {
                         {(editMode || fd.malpracticeCarrier) && <EditRow label="Carrier" field="malpracticeCarrier" />}
                       </Card>
 
-                      {fd.schools?.length > 0 && (
+                      {((editMode ? editForm?.schools : fd.schools) ?? []).length > 0 && (
                         <>
                           <Section title="Education History" />
-                          {fd.schools.filter(s => s.name).map((s, i) => (
-                            <Card key={i}>
-                              <Row label="School" value={s.name} />
-                              <Row label="Period" value={`${s.from || '?'} – ${s.to || '?'}`} />
-                              <Row label="Graduated" value={s.graduated} />
-                              <Row label="Diploma / GED" value={s.diploma} />
-                              <Row label="Degree" value={s.degree} />
-                            </Card>
+                          {((editMode && editForm ? editForm.schools : fd.schools) ?? []).map((s, i) => (
+                            (!editMode && !s.name) ? null : (
+                              <Card key={i}>
+                                {editMode && editForm ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    {[['School', 'name'], ['From', 'from'], ['To', 'to'], ['Diploma/GED', 'diploma'], ['Degree', 'degree']].map(([lbl, fld]) => (
+                                      <div key={fld} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={nestedLabel}>{lbl}</span>
+                                        <input style={nestedIn} value={(s as any)[fld] ?? ''} onChange={e => updateSchool(i, fld, e.target.value)} />
+                                      </div>
+                                    ))}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <span style={nestedLabel}>Graduated</span>
+                                      <select style={{ ...nestedIn, cursor: 'pointer' }} value={s.graduated ?? ''} onChange={e => updateSchool(i, 'graduated', e.target.value)}>
+                                        <option value="">—</option><option>Yes</option><option>No</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <Row label="School" value={s.name} />
+                                    <Row label="Period" value={`${s.from || '?'} – ${s.to || '?'}`} />
+                                    <Row label="Graduated" value={s.graduated} />
+                                    <Row label="Diploma / GED" value={s.diploma} />
+                                    <Row label="Degree" value={s.degree} />
+                                  </>
+                                )}
+                              </Card>
+                            )
                           ))}
                         </>
                       )}
 
-                      {fd.employers?.length > 0 && (
+                      {((editMode ? editForm?.employers : fd.employers) ?? []).length > 0 && (
                         <>
                           <Section title="Employment History" />
-                          {fd.employers.filter(e => e.company).map((e, i) => (
-                            <Card key={i}>
-                              <Row label="Company" value={e.company} />
-                              <Row label="Title" value={e.title} />
-                              <Row label="Supervisor" value={e.supervisor} />
-                              <Row label="Responsibilities" value={e.responsibilities} />
-                              <Row label="Reason left" value={e.reasonLeaving} />
-                              <Row label="Can contact" value={e.canContact} />
-                            </Card>
+                          {((editMode && editForm ? editForm.employers : fd.employers) ?? []).map((e, i) => (
+                            (!editMode && !e.company) ? null : (
+                              <Card key={i}>
+                                {editMode && editForm ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                    {[['Company', 'company'], ['Title', 'title'], ['Supervisor', 'supervisor'], ['Responsibilities', 'responsibilities'], ['Reason left', 'reasonLeaving']].map(([lbl, fld]) => (
+                                      <div key={fld} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={nestedLabel}>{lbl}</span>
+                                        <input style={nestedIn} value={(e as any)[fld] ?? ''} onChange={ev => updateEmployer(i, fld, ev.target.value)} />
+                                      </div>
+                                    ))}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <span style={nestedLabel}>Can contact</span>
+                                      <select style={{ ...nestedIn, cursor: 'pointer' }} value={e.canContact ?? ''} onChange={ev => updateEmployer(i, 'canContact', ev.target.value)}>
+                                        <option value="">—</option><option>Yes</option><option>No</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <Row label="Company" value={e.company} />
+                                    <Row label="Title" value={e.title} />
+                                    <Row label="Supervisor" value={e.supervisor} />
+                                    <Row label="Responsibilities" value={e.responsibilities} />
+                                    <Row label="Reason left" value={e.reasonLeaving} />
+                                    <Row label="Can contact" value={e.canContact} />
+                                  </>
+                                )}
+                              </Card>
+                            )
                           ))}
                         </>
                       )}
 
-                      {fd.references?.length > 0 && (
+                      {((editMode ? editForm?.references : fd.references) ?? []).length > 0 && (
                         <>
                           <Section title="References" />
                           <Card>
-                            {fd.references.filter(r => r.name).map((r, i) => (
-                              <Row key={i} label={`Ref ${i + 1}`} value={`${r.name} · ${r.years}`} />
+                            {((editMode && editForm ? editForm.references : fd.references) ?? []).map((ref, i) => (
+                              (!editMode && !ref.name) ? null : (
+                                editMode && editForm ? (
+                                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 0', borderBottom: '1px solid #f9fafb' }}>
+                                    {[['Name', 'name'], ['Years known', 'years'], ['Email', 'email']].map(([lbl, fld]) => (
+                                      <div key={fld} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span style={nestedLabel}>{lbl}</span>
+                                        <input style={nestedIn} value={(ref as any)[fld] ?? ''} onChange={e => updateRef(i, fld, e.target.value)} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <Row key={i} label={`Ref ${i + 1}`} value={`${ref.name} · ${ref.years}`} />
+                                )
+                              )
                             ))}
                           </Card>
                         </>
@@ -1013,7 +1084,7 @@ export default function HiringPage() {
                         <EditRow label="CPR expiry" field="cprExpiry" type="date" />
                       </Card>
 
-                      <Section title="Documentation Used" />
+                      <Section title="Documentation Used for App Updates by Admin" />
                       <Card>
                         <div style={{ marginBottom: 10 }}>
                           <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, marginBottom: 4 }}>DOCUMENTS PRESENTED (I-9 VERIFICATION)</div>
@@ -1074,8 +1145,8 @@ export default function HiringPage() {
 
                       <Section title="Signature" />
                       <Card>
-                        <Row label="Signed name" value={fd.signatureName} />
-                        <Row label="Date signed" value={fd.signatureDate} />
+                        <EditRow label="Signed name" field="signatureName" />
+                        <EditRow label="Date signed" field="signatureDate" type="date" />
                         {fd.signatureData && (
                           <div style={{ marginTop: 8 }}>
                             <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, marginBottom: 4 }}>DRAWN SIGNATURE</div>
