@@ -8,15 +8,16 @@ const FORM_URL = 'https://pdf.ac/y7ftbzlyGj'
 export default function OnboardingFormsPage() {
   const supabase = createClient()
 
-  const [loading,      setLoading]      = useState(true)
-  const [completed,    setCompleted]    = useState(false)
-  const [completedAt,  setCompletedAt]  = useState<string | null>(null)
-  const [revoked,      setRevoked]      = useState(false)
-  const [saving,       setSaving]       = useState(false)
-  const [toast,        setToast]        = useState<string | null>(null)
-  const [appSubmitted, setAppSubmitted] = useState(false)
-  const [checkingApp,  setCheckingApp]  = useState(true)
-  const [confirmed,    setConfirmed]    = useState(false)
+  const [loading,       setLoading]       = useState(true)
+  const [completed,     setCompleted]     = useState(false)
+  const [completedAt,   setCompletedAt]   = useState<string | null>(null)
+  const [revoked,       setRevoked]       = useState(false)
+  const [saving,        setSaving]        = useState(false)
+  const [toast,         setToast]         = useState<string | null>(null)
+  const [appSubmitted,  setAppSubmitted]  = useState(false)
+  const [checkingApp,   setCheckingApp]   = useState(true)
+  const [confirmed,     setConfirmed]     = useState(false)
+  const [hasOpenedForm, setHasOpenedForm] = useState(false)
 
   function showToast(msg: string) {
     setToast(msg)
@@ -166,6 +167,7 @@ export default function OnboardingFormsPage() {
           href={FORM_URL}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => setHasOpenedForm(true)}
           style={{ fontSize: 13, padding: '8px 16px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', color: '#374151', cursor: 'pointer', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}
         >
           <i className="ti ti-external-link" style={{ fontSize: 15 }} /> Open in new tab
@@ -190,7 +192,8 @@ export default function OnboardingFormsPage() {
       )}
 
       {/* Form embed */}
-      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+      {/* onMouseDown fires before the iframe captures focus, marking the form as opened */}
+      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }} onMouseDown={() => setHasOpenedForm(true)}>
         <iframe
           src={FORM_URL}
           style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
@@ -200,27 +203,38 @@ export default function OnboardingFormsPage() {
       </div>
 
       {/* Confirmation footer */}
-      <div style={{ background: '#fff', borderTop: '1px solid #e5e7eb', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0, flexWrap: 'wrap' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flex: 1, minWidth: 260 }}>
-          <input
-            type="checkbox"
-            checked={confirmed}
-            onChange={e => setConfirmed(e.target.checked)}
-            style={{ width: 17, height: 17, accentColor: '#008080', cursor: 'pointer', flexShrink: 0 }}
-          />
-          <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>
-            I confirm I have read, completed, and signed all fields in the form above
-          </span>
-        </label>
-        <button
-          onClick={markComplete}
-          disabled={saving || !confirmed}
-          title={!confirmed ? 'Please confirm you have completed the form first' : undefined}
-          style={{ padding: '11px 24px', background: !confirmed ? '#d1d5db' : saving ? '#6b7280' : '#008080', color: !confirmed ? '#9ca3af' : '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: !confirmed || saving ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', transition: 'all 0.2s', fontFamily: 'inherit' }}
-        >
-          <i className={`ti ${saving ? 'ti-loader-2' : 'ti-circle-check'}`} />
-          {saving ? 'Saving…' : "I've completed and signed all forms"}
-        </button>
+      <div style={{ background: '#fff', borderTop: '1px solid #e5e7eb', padding: '14px 24px', display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
+        {!hasOpenedForm && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.25)', borderRadius: 8 }}>
+            <i className="ti ti-lock" style={{ fontSize: 14, color: '#d97706', flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: '#92400e' }}>
+              You must open and sign the PDFiller form above before you can confirm submission.
+            </span>
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: hasOpenedForm ? 'pointer' : 'not-allowed', flex: 1, minWidth: 260, opacity: hasOpenedForm ? 1 : 0.45 }}>
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={e => hasOpenedForm && setConfirmed(e.target.checked)}
+              disabled={!hasOpenedForm}
+              style={{ width: 17, height: 17, accentColor: '#008080', cursor: hasOpenedForm ? 'pointer' : 'not-allowed', flexShrink: 0 }}
+            />
+            <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>
+              I confirm I have read, completed, and signed all fields in the form above
+            </span>
+          </label>
+          <button
+            onClick={markComplete}
+            disabled={saving || !confirmed || !hasOpenedForm}
+            title={!hasOpenedForm ? 'Open and sign the form above first' : !confirmed ? 'Please confirm you have completed the form first' : undefined}
+            style={{ padding: '11px 24px', background: (!confirmed || !hasOpenedForm) ? '#d1d5db' : saving ? '#6b7280' : '#008080', color: (!confirmed || !hasOpenedForm) ? '#9ca3af' : '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: (!confirmed || !hasOpenedForm || saving) ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', transition: 'all 0.2s', fontFamily: 'inherit' }}
+          >
+            <i className={`ti ${saving ? 'ti-loader-2' : 'ti-circle-check'}`} />
+            {saving ? 'Saving…' : "I've completed and signed all forms"}
+          </button>
+        </div>
       </div>
     </div>
   )
