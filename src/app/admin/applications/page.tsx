@@ -89,6 +89,7 @@ export default function HiringPage() {
   const [editForm,         setEditForm]         = useState<AppFormState | null>(null)
   const [docUsedText,      setDocUsedText]      = useState('')
   const [docUsedSignedUrl, setDocUsedSignedUrl] = useState('')
+  const [adminEditedAt,    setAdminEditedAt]    = useState<string | null>(null)
   const [savingEdit,       setSavingEdit]       = useState(false)
   const [docUsedUploading, setDocUsedUploading] = useState(false)
   const docUsedFileRef = useRef<HTMLInputElement>(null)
@@ -183,11 +184,11 @@ export default function HiringPage() {
   // Reset SSN reveal when the user changes or closes the application view
   useEffect(() => { hideSsn() }, [viewingId])
 
-  // Load documentationUsed and reset edit state whenever the drawer opens
+  // Load admin-only fields and reset edit state whenever the drawer opens
   useEffect(() => {
     if (!viewingId) {
       setEditMode(false); setEditForm(null)
-      setDocUsedText(''); setDocUsedSignedUrl('')
+      setDocUsedText(''); setDocUsedSignedUrl(''); setAdminEditedAt(null)
       return
     }
     setEditMode(false); setEditForm(null)
@@ -195,6 +196,7 @@ export default function HiringPage() {
       .then(async ({ data }) => {
         const extra = (data?.data ?? {}) as Record<string, unknown>
         setDocUsedText((extra.documentationUsedText as string) ?? '')
+        setAdminEditedAt((extra.adminEditedAt as string) ?? null)
         const storedPath = (extra.documentationUsedPath as string) ?? ''
         if (storedPath) {
           const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(storedPath, 3600)
@@ -311,16 +313,19 @@ export default function HiringPage() {
   async function handleSaveEdit() {
     if (!viewingId || !editForm) return
     setSavingEdit(true)
+    const now = new Date().toISOString()
     const { data: existing } = await supabase.from('billing_staff_data').select('data').eq('staff_id', viewingId).maybeSingle()
     const merged = {
       ...((existing?.data as Record<string, unknown>) ?? {}),
       form: editForm,
       documentationUsedText: docUsedText,
+      adminEditedAt: now,
     }
     const { error } = await supabase.from('billing_staff_data').upsert({ staff_id: viewingId, data: merged })
     if (error) showToast('Error saving changes.')
     else {
       setRecords(prev => prev.map(r => r.staffId === viewingId ? { ...r, formData: editForm } : r))
+      setAdminEditedAt(now)
       setEditMode(false)
       showToast('Application updated.')
     }
@@ -813,6 +818,9 @@ export default function HiringPage() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>Application Details</div>
                   <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>Submitted {formatDate(r.submittedAt)}</div>
+                  {adminEditedAt && (
+                    <div style={{ fontSize: 11, color: '#d97706', marginTop: 1 }}>Edited {formatDate(adminEditedAt)}</div>
+                  )}
                 </div>
                 {r.formData && !editMode && (
                   <button
@@ -1116,41 +1124,41 @@ export default function HiringPage() {
 
                       <Section title="Documentation Used for App Updates by Admin" />
                       <Card>
-                        <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, marginBottom: 4 }}>DOCUMENTS PRESENTED (I-9 VERIFICATION)</div>
-                          <textarea
-                            value={docUsedText}
-                            onChange={e => setDocUsedText(e.target.value)}
-                            placeholder="e.g. Driver's License + Social Security Card, U.S. Passport, Employment Authorization Document…"
-                            rows={3}
-                            style={{ width: '100%', fontSize: 12, color: '#111', border: '1px solid #d1d5db', borderRadius: 6, padding: '7px 9px', background: '#fff', outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
-                          />
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                          <button
-                            onClick={() => docUsedFileRef.current?.click()}
-                            disabled={docUsedUploading}
-                            style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#f9fafb', color: '#374151', cursor: docUsedUploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', opacity: docUsedUploading ? 0.6 : 1 }}
-                          >
-                            <i className="ti ti-upload" style={{ fontSize: 13 }} />
-                            {docUsedUploading ? 'Uploading…' : 'Upload scanned document'}
-                          </button>
-                          {docUsedSignedUrl && (
-                            <a href={docUsedSignedUrl} target="_blank" rel="noreferrer"
-                              style={{ fontSize: 12, color: '#008080', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, padding: '5px 12px', border: '1px solid rgba(0,128,128,0.3)', borderRadius: 6 }}>
-                              <i className="ti ti-external-link" style={{ fontSize: 12 }} /> View uploaded doc
-                            </a>
-                          )}
-                        </div>
-                        {(docUsedText || docUsedSignedUrl) && (
-                          <button
-                            onClick={handleSaveEdit}
-                            disabled={savingEdit}
-                            style={{ marginTop: 10, fontSize: 12, padding: '5px 14px', borderRadius: 6, border: 'none', background: '#008080', color: '#fff', cursor: savingEdit ? 'default' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4, opacity: savingEdit ? 0.6 : 1 }}
-                          >
-                            <i className="ti ti-device-floppy" style={{ fontSize: 13 }} />
-                            {savingEdit ? 'Saving…' : 'Save documentation'}
-                          </button>
+                        {editMode ? (
+                          <>
+                            <div style={{ marginBottom: 10 }}>
+                              <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, marginBottom: 4 }}>DOCUMENTS PRESENTED</div>
+                              <textarea
+                                value={docUsedText}
+                                onChange={e => setDocUsedText(e.target.value)}
+                                placeholder="e.g. Driver's License + Social Security Card, U.S. Passport, Employment Authorization Document…"
+                                rows={3}
+                                style={{ width: '100%', fontSize: 12, color: '#111', border: '1px solid #d1d5db', borderRadius: 6, padding: '7px 9px', background: '#fff', outline: 'none', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+                              />
+                            </div>
+                            <button
+                              onClick={() => docUsedFileRef.current?.click()}
+                              disabled={docUsedUploading}
+                              style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '1px solid #d1d5db', background: '#f9fafb', color: '#374151', cursor: docUsedUploading ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', opacity: docUsedUploading ? 0.6 : 1 }}
+                            >
+                              <i className="ti ti-upload" style={{ fontSize: 13 }} />
+                              {docUsedUploading ? 'Uploading…' : 'Upload scanned document'}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {docUsedText ? (
+                              <div style={{ fontSize: 12, color: '#111', marginBottom: docUsedSignedUrl ? 8 : 0, whiteSpace: 'pre-wrap' }}>{docUsedText}</div>
+                            ) : (
+                              <div style={{ fontSize: 12, color: '#9ca3af' }}>No documentation notes.</div>
+                            )}
+                            {docUsedSignedUrl && (
+                              <a href={docUsedSignedUrl} target="_blank" rel="noreferrer"
+                                style={{ fontSize: 12, color: '#008080', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 12px', border: '1px solid rgba(0,128,128,0.3)', borderRadius: 6 }}>
+                                <i className="ti ti-external-link" style={{ fontSize: 12 }} /> View uploaded doc
+                              </a>
+                            )}
+                          </>
                         )}
                       </Card>
 
@@ -1193,6 +1201,7 @@ export default function HiringPage() {
                       <Card>
                         <Row label="Account created" value={formatDate(r.createdAt)} />
                         <Row label="App submitted" value={formatDate(r.submittedAt)} />
+                        {adminEditedAt && <Row label="Admin edited" value={formatDate(adminEditedAt)} />}
                         <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0' }}>
                           <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>Status</span>
                           <StatusPill status={effectiveStatus} />
