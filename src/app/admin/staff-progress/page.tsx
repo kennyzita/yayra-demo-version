@@ -180,11 +180,19 @@ export default function StaffProgressPage() {
   // Staff onboarding data loaded per-selection
   const [formsSignedAt,    setFormsSignedAt]    = useState<string | null>(null)
   const [formsSigned,      setFormsSigned]      = useState(false)
-  const [eadFromDocs,      setEadFromDocs]      = useState(false)
-  const [dlFromDocs,       setDlFromDocs]       = useState(false)
-  const [cprFromDocs,      setCprFromDocs]      = useState(false)
-  const [isCitizen,        setIsCitizen]        = useState(false)
-  const [isAuthorizedWork, setIsAuthorizedWork] = useState(false)
+  const [eadFromDocs,              setEadFromDocs]              = useState(false)
+  const [dlFromDocs,               setDlFromDocs]               = useState(false)
+  const [cprFromDocs,              setCprFromDocs]              = useState(false)
+  const [w4Uploaded,               setW4Uploaded]               = useState(false)
+  const [njW4Uploaded,             setNjW4Uploaded]             = useState(false)
+  const [i9Uploaded,               setI9Uploaded]               = useState(false)
+  const [directDepositUploaded,    setDirectDepositUploaded]    = useState(false)
+  const [croConsentUploaded,       setCroConsentUploaded]       = useState(false)
+  const [daniellesLawUploaded,     setDaniellesLawUploaded]     = useState(false)
+  const [stephenKomninosUploaded,  setStephenKomninosUploaded]  = useState(false)
+  const [appendixAUploaded,        setAppendixAUploaded]        = useState(false)
+  const [isCitizen,                setIsCitizen]                = useState(false)
+  const [isAuthorizedWork,         setIsAuthorizedWork]         = useState(false)
   const [appCitizenValue,  setAppCitizenValue]  = useState('')          // raw value from application form
   const [citizenOverride,  setCitizenOverride]  = useState<boolean | null>(null) // null = not overridden
   const [savingCitizen,    setSavingCitizen]    = useState(false)
@@ -293,7 +301,11 @@ export default function StaffProgressPage() {
   useEffect(() => {
     if (!selectedId) {
       setFormsSigned(false); setFormsSignedAt(null)
-      setEadFromDocs(false); setIsCitizen(false); setAppCitizenValue(''); setCitizenOverride(null); setLastLogin(null)
+      setEadFromDocs(false); setDlFromDocs(false); setCprFromDocs(false)
+      setW4Uploaded(false); setNjW4Uploaded(false); setI9Uploaded(false)
+      setDirectDepositUploaded(false); setCroConsentUploaded(false)
+      setDaniellesLawUploaded(false); setStephenKomninosUploaded(false); setAppendixAUploaded(false)
+      setIsCitizen(false); setAppCitizenValue(''); setCitizenOverride(null); setLastLogin(null)
       setExpiringCerts([])
       setRevokeOnboarding(false)
       return
@@ -341,6 +353,16 @@ export default function StaffProgressPage() {
       ]
       setDlFromDocs(!!(formData?.docDLFront) || !!(formData?.docDLBack) || allFiles.some(f => DL_FOLDERS.includes(f.folder)))
       setCprFromDocs(!!(formData?.docCPR) || allFiles.some(f => f.folder === 'CPR Certificate'))
+
+      const hasFolder = (folder: string) => allFiles.some(f => f.folder === folder)
+      setW4Uploaded(hasFolder('W4'))
+      setNjW4Uploaded(hasFolder('NJ W4'))
+      setI9Uploaded(hasFolder('Form I-9'))
+      setDirectDepositUploaded(hasFolder('Direct Deposit Form'))
+      setCroConsentUploaded(hasFolder('CRO Consent'))
+      setDaniellesLawUploaded(hasFolder("Danielle's Law Sign-off"))
+      setStephenKomninosUploaded(hasFolder("Stephen Komnino's Law"))
+      setAppendixAUploaded(hasFolder('Appendix A'))
 
       // Manually stored expiry dates take precedence over upload-date calculation
       const storedExpiries = (extra.docExpiries ?? {}) as Record<string, string>
@@ -472,18 +494,19 @@ export default function StaffProgressPage() {
     ? new Date(lastLogin).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
     : 'Never'
 
-  const onboardItems = [
-    { done: true,                            label: 'DSP application submitted'    },
-    { done: formsSigned, warn: !formsSigned, label: 'W4 completed'                 },
-    { done: formsSigned, warn: !formsSigned, label: 'Form I-9 submitted'           },
-    { done: dlFromDocs,  warn: !dlFromDocs,  label: "Driver's license uploaded"    },
-    { done: cprFromDocs, warn: !cprFromDocs, label: 'CPR certificate uploaded'     },
-    { done: formsSigned, warn: !formsSigned, label: 'CRO consent signed'           },
-    { done: formsSigned, warn: !formsSigned, label: 'Direct deposit form'          },
-    { done: formsSigned, warn: !formsSigned, label: 'NJ W4'                        },
-    { done: formsSigned, warn: !formsSigned, label: "Danielle's Law sign-off"      },
-    { done: formsSigned, warn: !formsSigned, label: "Stephen Komnino's Law"        },
-    { done: formsSigned, warn: !formsSigned, label: 'Appendix A'                   },
+  const ok  = (a: boolean, b: boolean) => ({ done: a || b, warn: !a && !b })
+  const onboardItems: { done: boolean; warn: boolean; label: string }[] = [
+    { done: true,  warn: false,                                                        label: 'DSP application submitted'    },
+    { ...ok(formsSigned, w4Uploaded),                                                  label: 'W4 completed'                 },
+    { ...ok(formsSigned, i9Uploaded),                                                  label: 'Form I-9 submitted'           },
+    { done: dlFromDocs,  warn: !dlFromDocs,                                            label: "Driver's license uploaded"    },
+    { done: cprFromDocs, warn: !cprFromDocs,                                           label: 'CPR certificate uploaded'     },
+    { ...ok(formsSigned, croConsentUploaded),                                          label: 'CRO consent signed'           },
+    { ...ok(formsSigned, directDepositUploaded),                                       label: 'Direct deposit form'          },
+    { ...ok(formsSigned, njW4Uploaded),                                                label: 'NJ W4'                        },
+    { ...ok(formsSigned, daniellesLawUploaded),                                        label: "Danielle's Law sign-off"      },
+    { ...ok(formsSigned, stephenKomninosUploaded),                                     label: "Stephen Komnino's Law"        },
+    { ...ok(formsSigned, appendixAUploaded),                                           label: 'Appendix A'                   },
     { done: workAuthSatisfied, warn: !workAuthSatisfied, label: isCitizen ? 'Work authorization (US citizen)' : 'Work authorization uploaded' },
   ]
 

@@ -71,7 +71,14 @@ export default function HiringPage() {
   const [docFiles,       setDocFiles]       = useState<StaffDocFile[]>([])
   const [docsLoading,    setDocsLoading]    = useState(false)
   const [progressId,       setProgressId]       = useState<string | null>(null)
-  const [progressData,     setProgressData]     = useState<{ formsSigned: boolean; formsSignedAt: string | null; eadUploaded: boolean; isCitizen: boolean; isAuthorizedWork: boolean } | null>(null)
+  const [progressData,     setProgressData]     = useState<{
+    formsSigned: boolean; formsSignedAt: string | null
+    dlUploaded: boolean; cprUploaded: boolean; eadUploaded: boolean
+    isCitizen: boolean; isAuthorizedWork: boolean
+    w4Uploaded: boolean; njW4Uploaded: boolean; i9Uploaded: boolean
+    directDepositUploaded: boolean; croConsentUploaded: boolean
+    daniellesLawUploaded: boolean; stephenKomninosUploaded: boolean; appendixAUploaded: boolean
+  } | null>(null)
   const [progressLoading,  setProgressLoading]  = useState(false)
   const [sendingReminder,  setSendingReminder]  = useState(false)
   const [ssnCountdown,     setSsnCountdown]     = useState(0)
@@ -220,12 +227,24 @@ export default function HiringPage() {
       const formData = extra.form as AppFormState | undefined
       const allFiles: { folder: string }[] = (docsJson as any).files ?? []
       const EAD_FOLDERS = ['EAD / Green card', 'EAD / Green card - Front', 'EAD / Green card - Back']
+      const DL_FOLDERS  = ["Driver's License / Identification - Front", "Driver's License / Identification - Back", "Driver's License - Front", "Driver's License - Back", "Driver's License"]
+      const has = (folder: string) => allFiles.some(f => f.folder === folder)
       setProgressData({
         formsSigned: signed,
         formsSignedAt: signed ? ((extra.onboarding_forms_signed_at as string) ?? null) : null,
+        dlUploaded:  !!(formData?.docDLFront) || !!(formData?.docDLBack) || allFiles.some(f => DL_FOLDERS.includes(f.folder)),
+        cprUploaded: !!(formData?.docCPR) || has('CPR Certificate'),
         eadUploaded: !!(formData?.docEADFront) || !!(formData?.docEADBack) || allFiles.some(f => EAD_FOLDERS.includes(f.folder)),
-        isCitizen: formData?.isCitizen === 'Yes',
+        isCitizen:   formData?.isCitizen === 'Yes',
         isAuthorizedWork: formData?.isAuthorizedWork === 'Yes',
+        w4Uploaded:              has('W4'),
+        njW4Uploaded:            has('NJ W4'),
+        i9Uploaded:              has('Form I-9'),
+        directDepositUploaded:   has('Direct Deposit Form'),
+        croConsentUploaded:      has('CRO Consent'),
+        daniellesLawUploaded:    has("Danielle's Law Sign-off"),
+        stephenKomninosUploaded: has("Stephen Komnino's Law"),
+        appendixAUploaded:       has('Appendix A'),
       })
       setProgressLoading(false)
     })
@@ -617,29 +636,40 @@ export default function HiringPage() {
         if (!r) return null
 
         const pd = progressData
-        const formsSigned      = pd?.formsSigned      ?? false
-        const formsSignedAt    = pd?.formsSignedAt    ?? null
-        const eadUploaded      = pd?.eadUploaded      ?? false
-        const isCitizen        = pd?.isCitizen        ?? false
-        const isAuthorizedWork = pd?.isAuthorizedWork ?? false
+        const formsSigned             = pd?.formsSigned             ?? false
+        const formsSignedAt           = pd?.formsSignedAt           ?? null
+        const dlUploaded              = pd?.dlUploaded              ?? false
+        const cprUploaded             = pd?.cprUploaded             ?? false
+        const eadUploaded             = pd?.eadUploaded             ?? false
+        const isCitizen               = pd?.isCitizen               ?? false
+        const isAuthorizedWork        = pd?.isAuthorizedWork        ?? false
+        const w4Uploaded              = pd?.w4Uploaded              ?? false
+        const njW4Uploaded            = pd?.njW4Uploaded            ?? false
+        const i9Uploaded              = pd?.i9Uploaded              ?? false
+        const directDepositUploaded   = pd?.directDepositUploaded   ?? false
+        const croConsentUploaded      = pd?.croConsentUploaded      ?? false
+        const daniellesLawUploaded    = pd?.daniellesLawUploaded    ?? false
+        const stephenKomninosUploaded = pd?.stephenKomninosUploaded ?? false
+        const appendixAUploaded       = pd?.appendixAUploaded       ?? false
         const workAuthSatisfied = isCitizen || (isAuthorizedWork && eadUploaded)
 
         const signedDate = formsSignedAt
           ? new Date(formsSignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
           : null
 
-        const onboardItems = [
-          { done: true,                              label: 'DSP application submitted'   },
-          { done: formsSigned, warn: !formsSigned,   label: 'W4 completed'                },
-          { done: formsSigned, warn: !formsSigned,   label: 'Form I-9 submitted'          },
-          { done: true,                              label: "Driver's license uploaded"   },
-          { done: true,                              label: 'CPR certificate uploaded'    },
-          { done: formsSigned, warn: !formsSigned,   label: 'CRO consent signed'          },
-          { done: formsSigned, warn: !formsSigned,   label: 'Direct deposit form'         },
-          { done: formsSigned, warn: !formsSigned,   label: 'NJ W4'                       },
-          { done: formsSigned, warn: !formsSigned,   label: "Danielle's Law sign-off"     },
-          { done: formsSigned, warn: !formsSigned,   label: "Stephen Komnino's Law"       },
-          { done: formsSigned, warn: !formsSigned,   label: 'Appendix A'                  },
+        const ok = (a: boolean, b: boolean) => ({ done: a || b, warn: !a && !b })
+        const onboardItems: { done: boolean; warn: boolean; label: string }[] = [
+          { done: true,  warn: false,                                                       label: 'DSP application submitted'   },
+          { ...ok(formsSigned, w4Uploaded),                                                 label: 'W4 completed'                },
+          { ...ok(formsSigned, i9Uploaded),                                                 label: 'Form I-9 submitted'          },
+          { done: dlUploaded,  warn: !dlUploaded,                                           label: "Driver's license uploaded"   },
+          { done: cprUploaded, warn: !cprUploaded,                                          label: 'CPR certificate uploaded'    },
+          { ...ok(formsSigned, croConsentUploaded),                                         label: 'CRO consent signed'          },
+          { ...ok(formsSigned, directDepositUploaded),                                      label: 'Direct deposit form'         },
+          { ...ok(formsSigned, njW4Uploaded),                                               label: 'NJ W4'                       },
+          { ...ok(formsSigned, daniellesLawUploaded),                                       label: "Danielle's Law sign-off"     },
+          { ...ok(formsSigned, stephenKomninosUploaded),                                    label: "Stephen Komnino's Law"       },
+          { ...ok(formsSigned, appendixAUploaded),                                          label: 'Appendix A'                  },
           { done: workAuthSatisfied, warn: !workAuthSatisfied, label: isCitizen ? 'Work authorization (US citizen)' : 'Work authorization uploaded' },
         ]
 
