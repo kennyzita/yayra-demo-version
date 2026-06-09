@@ -1,11 +1,90 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { AppFormState } from '@/app/staff/application/page'
 import type { StaffDocFile } from '@/app/api/list-staff-documents/route'
 
 const BUCKET = 'staff-documents'
+
+// ── Module-level drawer components ────────────────────────────────────────────
+// These MUST be defined outside HiringPage. Components defined inside a render
+// function get a new reference on every render, so React unmounts and remounts
+// them on each keystroke — causing inputs to jump and lose focus.
+
+interface DrawerEditCtx {
+  editMode: boolean
+  editForm: AppFormState | null
+  fd: AppFormState
+  setEditForm: React.Dispatch<React.SetStateAction<AppFormState | null>>
+}
+const DrawerEditContext = createContext<DrawerEditCtx | null>(null)
+
+const fieldInStyle: React.CSSProperties = {
+  fontSize: 12, color: '#111', border: '1px solid #d1d5db', borderRadius: 4,
+  padding: '3px 6px', background: '#fff', outline: 'none', fontFamily: 'inherit',
+  width: '100%', boxSizing: 'border-box',
+}
+
+function Row({ label, value }: { label: string; value?: string | boolean | string[] }) {
+  const display = Array.isArray(value)
+    ? (value.length ? value.join(', ') : '—')
+    : value === true ? 'Yes' : value === false ? 'No' : value || '—'
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+      <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 12, color: '#111', wordBreak: 'break-word' }}>{display}</span>
+    </div>
+  )
+}
+function Section({ title }: { title: string }) {
+  return <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8, marginTop: 4 }}>{title}</div>
+}
+function Card({ children }: { children: React.ReactNode }) {
+  return <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px', marginBottom: 16 }}>{children}</div>
+}
+
+function EditRow({ label, field, type = 'text' }: { label: string; field: keyof AppFormState; type?: string }) {
+  const ctx = useContext(DrawerEditContext)!
+  if (!ctx.editMode || !ctx.editForm) return <Row label={label} value={ctx.fd[field] as string} />
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+      <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
+      <input type={type} style={fieldInStyle}
+        value={(ctx.editForm[field] as string) ?? ''}
+        onChange={e => { const v = e.target.value; ctx.setEditForm(p => p ? { ...p, [field]: v } : p) }}
+      />
+    </div>
+  )
+}
+function EditSelectRow({ label, field, options }: { label: string; field: keyof AppFormState; options: string[] }) {
+  const ctx = useContext(DrawerEditContext)!
+  if (!ctx.editMode || !ctx.editForm) return <Row label={label} value={ctx.fd[field] as string} />
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+      <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
+      <select style={{ ...fieldInStyle, cursor: 'pointer' }}
+        value={(ctx.editForm[field] as string) ?? ''}
+        onChange={e => { const v = e.target.value; ctx.setEditForm(p => p ? { ...p, [field]: v } : p) }}>
+        <option value="">—</option>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  )
+}
+function EditArrayRow({ label, field }: { label: string; field: keyof AppFormState }) {
+  const ctx = useContext(DrawerEditContext)!
+  if (!ctx.editMode || !ctx.editForm) return <Row label={label} value={ctx.fd[field] as string[]} />
+  const arr = (ctx.editForm[field] as string[]) ?? []
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
+      <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
+      <input type="text" style={fieldInStyle} placeholder="comma-separated" value={arr.join(', ')}
+        onChange={e => { const v = e.target.value; ctx.setEditForm(p => p ? { ...p, [field]: v.split(',').map(s => s.trim()).filter(Boolean) } : p) }}
+      />
+    </div>
+  )
+}
 
 interface AppRecord {
   staffId: string
@@ -870,64 +949,15 @@ export default function HiringPage() {
 
                 {r.formData ? (() => {
                   const fd = r.formData!
-
-                  const Section = ({ title }: { title: string }) => (
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8, marginTop: 4 }}>{title}</div>
-                  )
-                  const Card = ({ children }: { children: React.ReactNode }) => (
-                    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 10, padding: '12px', marginBottom: 16 }}>{children}</div>
-                  )
-                  const Row = ({ label, value }: { label: string; value?: string | boolean | string[] }) => {
-                    const display = Array.isArray(value) ? (value.length ? value.join(', ') : '—') : value === true ? 'Yes' : value === false ? 'No' : value || '—'
-                    return (
-                      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
-                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
-                        <span style={{ fontSize: 12, color: '#111', wordBreak: 'break-word' }}>{display}</span>
-                      </div>
-                    )
-                  }
-                  const inStyle = { fontSize: 12, color: '#111', border: '1px solid #d1d5db', borderRadius: 4, padding: '3px 6px', background: '#fff', outline: 'none', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' as const }
-                  const EditRow = ({ label, field, type = 'text' }: { label: string; field: keyof AppFormState; type?: string }) => {
-                    if (!editMode || !editForm) return <Row label={label} value={fd[field] as string} />
-                    return (
-                      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
-                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
-                        <input type={type} style={inStyle} value={(editForm[field] as string) ?? ''}
-                          onChange={e => setEditForm(p => p ? { ...p, [field]: e.target.value } : p)} />
-                      </div>
-                    )
-                  }
-                  const EditSelectRow = ({ label, field, options }: { label: string; field: keyof AppFormState; options: string[] }) => {
-                    if (!editMode || !editForm) return <Row label={label} value={fd[field] as string} />
-                    return (
-                      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
-                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
-                        <select style={{ ...inStyle, cursor: 'pointer' }} value={(editForm[field] as string) ?? ''}
-                          onChange={e => setEditForm(p => p ? { ...p, [field]: e.target.value } : p)}>
-                          <option value="">—</option>
-                          {options.map(o => <option key={o} value={o}>{o}</option>)}
-                        </select>
-                      </div>
-                    )
-                  }
-                  const EditArrayRow = ({ label, field }: { label: string; field: keyof AppFormState }) => {
-                    if (!editMode || !editForm) return <Row label={label} value={fd[field] as string[]} />
-                    const arr = (editForm[field] as string[]) ?? []
-                    return (
-                      <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8, padding: '5px 0', borderBottom: '1px solid #f9fafb' }}>
-                        <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500 }}>{label}</span>
-                        <input type="text" style={inStyle} placeholder="comma-separated" value={arr.join(', ')}
-                          onChange={e => setEditForm(p => p ? { ...p, [field]: e.target.value.split(',').map(v => v.trim()).filter(Boolean) } : p)} />
-                      </div>
-                    )
-                  }
+                  const inStyle = fieldInStyle
                   const updateSchool   = (i: number, f: string, v: string) => setEditForm(p => { if (!p) return p; const a = [...p.schools];   a[i] = { ...a[i], [f]: v }; return { ...p, schools: a } })
                   const updateEmployer = (i: number, f: string, v: string) => setEditForm(p => { if (!p) return p; const a = [...p.employers]; a[i] = { ...a[i], [f]: v }; return { ...p, employers: a } })
                   const updateRef      = (i: number, f: string, v: string) => setEditForm(p => { if (!p) return p; const a = [...p.references]; a[i] = { ...a[i], [f]: v }; return { ...p, references: a } })
-                  const nestedIn = { ...inStyle, marginBottom: 3 }
+                  const nestedIn = { ...fieldInStyle, marginBottom: 3 }
                   const nestedLabel = { fontSize: 11, color: '#9ca3af', fontWeight: 500 as const, minWidth: 90 }
 
                   return (
+                    <DrawerEditContext.Provider value={{ editMode, editForm, fd, setEditForm }}>
                     <>
                       <Section title="Personal Information" />
                       <Card>
@@ -1208,6 +1238,7 @@ export default function HiringPage() {
                         </div>
                       </Card>
                     </>
+                    </DrawerEditContext.Provider>
                   )
                 })() : (
                   <>
