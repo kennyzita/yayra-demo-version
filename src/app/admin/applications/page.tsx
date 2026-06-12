@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, createContext, useContext } from 'r
 import { createClient } from '@/lib/supabase/client'
 import type { AppFormState } from '@/app/staff/application/page'
 import type { StaffDocFile } from '@/app/api/list-staff-documents/route'
+import { EmployeeOnboardingSection } from '@/components/onboarding/EmployeeOnboardingSection'
 
 const BUCKET = 'staff-documents'
 
@@ -1237,6 +1238,12 @@ export default function HiringPage() {
                           <StatusPill status={effectiveStatus} />
                         </div>
                       </Card>
+
+                      <Section title="Onboarding Document" />
+                      <EmployeeOnboardingSection
+                        employeeId={r.staffId}
+                        mode="admin"
+                      />
                     </>
                     </DrawerEditContext.Provider>
                   )
