@@ -106,7 +106,7 @@ export default function AdminDocumentsPage() {
       .order('first_name')
       .then(({ data }) => {
         const staff = (data ?? []).filter(u =>
-          (u.role as unknown as { name: string } | null)?.name !== 'DSP'
+          (u.role as unknown as { name: string } | null)?.name === 'DSP Staff'
         )
         const list = staff as StaffUser[]
         setStaffList(list)
