@@ -260,7 +260,9 @@ export const EmployeeOnboardingDocument = forwardRef<HTMLElement, Props>(
         try {
           const pdfjs = await import("pdfjs-dist/build/pdf.mjs");
           if (cancelled) return;
-          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+          // Use CDN worker so we don't need to ship the binary in public/
+          pdfjs.GlobalWorkerOptions.workerSrc =
+            `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
           const doc = (await pdfjs.getDocument({ url: FILLABLE_PDF_URL }).promise) as PdfDocumentLike & {
             annotationStorage: AnnotationStorageLike;
