@@ -849,8 +849,8 @@ export default function HiringPage() {
                 )}
                 <button
                   onClick={() => sendReminder(r.name, r.email)}
-                  disabled={sendingReminder}
-                  style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #3b82f6', background: 'transparent', color: '#2563eb', fontSize: 13, fontWeight: 500, cursor: sendingReminder ? 'wait' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, opacity: sendingReminder ? 0.7 : 1 }}
+                  disabled={sendingReminder || onboardItems.every(i => i.done)}
+                  style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #3b82f6', background: 'transparent', color: '#2563eb', fontSize: 13, fontWeight: 500, cursor: (sendingReminder || onboardItems.every(i => i.done)) ? 'default' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5, opacity: (sendingReminder || onboardItems.every(i => i.done)) ? 0.4 : 1 }}
                 >
                   <i className={`ti ${sendingReminder ? 'ti-loader-2' : 'ti-mail'}`} />
                   {sendingReminder ? 'Sending…' : 'Send Reminder Email'}
