@@ -135,7 +135,11 @@ function buildDayRecords(notes: HistoryNote[]): DayRecord[] {
       }
     }
   }
-  return [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
+  const result = [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
+  for (const day of result) {
+    day.entries.sort((a, b) => (a.start || '').localeCompare(b.start || ''))
+  }
+  return result
 }
 
 function addOneHour(t: string): string {
@@ -418,6 +422,10 @@ export default function CaseNotesPage() {
       }
 
       pages.sort((a, b) => a.date.localeCompare(b.date) || a.clientName.localeCompare(b.clientName))
+      // Sort entries within each page ascending by start time
+      for (const p of pages) {
+        p.entries.sort((a, b) => (a.start || '').localeCompare(b.start || ''))
+      }
 
       if (pages.length === 0) { showToast('No entries to download'); return }
 
@@ -499,8 +507,10 @@ export default function CaseNotesPage() {
         doc.text('ISP Outcome:', LM, y + 3.5)
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(8.5)
-        const ispLines = doc.splitTextToSize(page.ispOutcome || '', usable - 30)
-        if (ispLines.length > 0) doc.text(ispLines[0] as string, LM + 28, y + 3.5)
+        if (page.ispOutcome) {
+          const ispLines = doc.splitTextToSize(page.ispOutcome, usable - 30)
+          if (ispLines.length > 0) doc.text(ispLines[0] as string, LM + 28, y + 3.5)
+        }
         doc.setLineWidth(0.25)
         doc.line(LM + 27, y + 4.5, PW - RM, y + 4.5)
         y += 10
@@ -585,6 +595,7 @@ export default function CaseNotesPage() {
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(8)
         doc.setLineWidth(0.2)
+        doc.setTextColor(0, 0, 0)
 
         const dateStr = fmtMDY(page.date)
         const ROW_H = 7.5
@@ -599,20 +610,28 @@ export default function CaseNotesPage() {
 
           if (entry) {
             const midY = y + ROW_H / 2 + 1.2
-            if (!dateRendered) {
+            if (!dateRendered && dateStr) {
               doc.setFontSize(7.5)
               doc.text(dateStr, colX[0] + 1, midY)
               dateRendered = true
             }
             doc.setFontSize(8)
-            doc.text(formatTimePDF(entry.start), colX[1] + C_START / 2, midY, { align: 'center' })
-            doc.text(formatTimePDF(entry.end), colX[2] + C_END / 2, midY, { align: 'center' })
+            const startTxt = formatTimePDF(entry.start ?? '')
+            const endTxt   = formatTimePDF(entry.end ?? '')
+            if (startTxt) doc.text(startTxt, colX[1] + C_START / 2, midY, { align: 'center' })
+            if (endTxt)   doc.text(endTxt,   colX[2] + C_END   / 2, midY, { align: 'center' })
 
-            const actLines = doc.splitTextToSize(entry.strategy || '', C_ACT - 2) as string[]
-            doc.text(actLines[0] || '', colX[3] + 1, midY)
+            const actTxt = (entry.strategy ?? '').trim()
+            if (actTxt) {
+              const actLines = doc.splitTextToSize(actTxt, C_ACT - 2) as string[]
+              if (actLines[0]) doc.text(actLines[0], colX[3] + 1, midY)
+            }
 
-            const descLines = doc.splitTextToSize(entry.desc || '', C_DESC - 2) as string[]
-            doc.text(descLines[0] || '', colX[4] + 1, midY)
+            const descTxt = (entry.desc ?? '').trim()
+            if (descTxt) {
+              const descLines = doc.splitTextToSize(descTxt, C_DESC - 2) as string[]
+              if (descLines[0]) doc.text(descLines[0], colX[4] + 1, midY)
+            }
           }
           y += ROW_H
         }
