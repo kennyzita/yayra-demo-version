@@ -3,6 +3,51 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
+// ── PDF helpers ──────────────────────────────────────────────────────────────
+
+const STRATEGIES_PDF = [
+  'Assistance with Activities of Daily Living (such as getting dressed, eating, personal hygiene, etc.)',
+  'Assistance with Increasing Community Participation (such as daily errands, attending events, restaurant, purchasing items, travel training, etc.)',
+  'Assistance with Increasing Independence (such as helping the individual learn to do laundry, cook, clean, dress, grocery shop, pay for items, etc.)',
+  'Assistance with On-The-Job Support (such as safety awareness, using the restroom, attending to task, lunch/breaks, etc.)',
+  'Assistance with Learning Activities (such as basic tutoring – math, reading, writing; support in attending a class; etc.)',
+]
+const STRATEGIES_TITLES = [
+  'Assistance with Activities of Daily Living',
+  'Assistance with Increasing Community Participation',
+  'Assistance with Increasing Independence',
+  'Assistance with On-The-Job Support',
+  'Assistance with Learning Activities',
+]
+
+function parseWeekRange(label: string): { start: Date; end: Date } | null {
+  const parts = label.split('–').map(s => s.trim())
+  if (parts.length !== 2) return null
+  const start = new Date(parts[0]), end = new Date(parts[1])
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null
+  return { start, end }
+}
+
+function formatTimePDF(t: string): string {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  return `${h % 12 || 12}.${String(m).padStart(2, '0')}`
+}
+
+function fmtMDY(dateStr: string): string {
+  if (!dateStr || dateStr === '_nodate') return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}/${d.getFullYear()}`
+}
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+type ClientCnRecord = {
+  id: string; dsp_id: string; staff_name: string
+  week_label: string; status: string; submitted_at: string | null
+  strategies: string[]; entries: any[]
+}
+
 const NJ_COUNTIES = ['Atlantic','Bergen','Burlington','Camden','Cape May','Cumberland','Essex','Gloucester','Hudson','Hunterdon','Mercer','Middlesex','Monmouth','Morris','Ocean','Passaic','Salem','Somerset','Sussex','Union','Warren']
 
 const EMPTY_FORM = { full_name: '', dob: '', sex: '', county: '', medicaid_id: '', dx: '', isp_outcome: '' }
@@ -107,12 +152,179 @@ export default function ClientsPage() {
   const [approvingId,    setApprovingId]    = useState<string | null>(null)
   const [rejectingId,    setRejectingId]    = useState<string | null>(null)
 
+  // ── Case notes modal ─────────────────────────────────────────────────────────
+  const [cnModal,         setCnModal]         = useState<ClientRow | null>(null)
+  const [cnNotes,         setCnNotes]         = useState<ClientCnRecord[]>([])
+  const [cnLoading,       setCnLoading]       = useState(false)
+  const [cnExpandedWeek,  setCnExpandedWeek]  = useState<string | null>(null)
+  const [cnDownloadingWk, setCnDownloadingWk] = useState<string | null>(null)
+
   // ── Shared ───────────────────────────────────────────────────────────────────
   const [toast, setToast] = useState<string | null>(null)
 
   function showToast(msg: string) {
     setToast(msg)
     setTimeout(() => setToast(null), 3500)
+  }
+
+  async function openCnModal(client: ClientRow) {
+    setCnModal(client); setCnNotes([]); setCnLoading(true); setCnExpandedWeek(null)
+    const [{ data: notesData }, { data: usersData }] = await Promise.all([
+      supabase.from('case_notes').select('id, dsp_id, week_label, status, submitted_at, strategies, entries').eq('client_id', client.id).order('submitted_at', { ascending: false }),
+      supabase.from('users').select('id, first_name, last_name'),
+    ])
+    const nameMap = new Map((usersData ?? []).map((u: any) => [u.id, `${u.first_name} ${u.last_name}`]))
+    setCnNotes((notesData ?? []).map((n: any) => ({
+      id: n.id, dsp_id: n.dsp_id,
+      staff_name: nameMap.get(n.dsp_id) ?? 'Unknown staff',
+      week_label: n.week_label, status: n.status ?? 'submitted',
+      submitted_at: n.submitted_at,
+      strategies: n.strategies ?? [], entries: n.entries ?? [],
+    })))
+    setCnLoading(false)
+  }
+
+  async function downloadClientWeekPDF(weekLabel: string, weekRecords: ClientCnRecord[], client: ClientRow) {
+    setCnDownloadingWk(weekLabel)
+    try {
+      type PageData = { staffName: string; date: string; strategies: string[]; entries: any[] }
+      const pages: PageData[] = []
+
+      for (const record of weekRecords) {
+        const byDate = new Map<string, any[]>()
+        for (const e of record.entries) {
+          const d = e.date || '_nodate'
+          if (!byDate.has(d)) byDate.set(d, [])
+          byDate.get(d)!.push(e)
+        }
+        for (const [date, dateEntries] of byDate) {
+          const existing = pages.find(p => p.staffName === record.staff_name && p.date === date)
+          if (existing) {
+            existing.entries.push(...dateEntries)
+            for (const s of record.strategies) { if (!existing.strategies.includes(s)) existing.strategies.push(s) }
+          } else {
+            pages.push({ staffName: record.staff_name, date, strategies: [...record.strategies], entries: [...dateEntries] })
+          }
+        }
+      }
+      pages.sort((a, b) => a.date.localeCompare(b.date) || a.staffName.localeCompare(b.staffName))
+      for (const p of pages) p.entries.sort((a: any, b: any) => (a.start || '').localeCompare(b.start || ''))
+
+      if (pages.length === 0) { showToast('No entries to download'); return }
+
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'mm', format: 'letter' })
+      const LM = 14, RM = 14, PW = 215.9, usable = PW - LM - RM
+
+      let njSealB64 = '', dddLogoB64 = ''
+      try {
+        const toB64 = async (path: string) => {
+          const r = await fetch(path); if (!r.ok) return ''
+          const buf = await r.arrayBuffer()
+          return btoa(String.fromCharCode(...new Uint8Array(buf)))
+        }
+        ;[njSealB64, dddLogoB64] = await Promise.all([toB64('/nj-seal.jpeg'), toB64('/ddd-logo.jpeg')])
+      } catch {}
+
+      pages.forEach((page, idx) => {
+        if (idx > 0) doc.addPage()
+        let y = 8; const cx = PW / 2
+
+        if (njSealB64) { doc.addImage(`data:image/jpeg;base64,${njSealB64}`, 'JPEG', LM, y, 22, 22) }
+        else { doc.setDrawColor(150,150,150); doc.setLineWidth(0.25); doc.rect(LM,y,22,22,'S'); doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(130,130,130); doc.text('[NJ Seal]',LM+11,y+12,{align:'center'}) }
+        if (dddLogoB64) { doc.addImage(`data:image/jpeg;base64,${dddLogoB64}`, 'JPEG', PW-RM-14, y, 14, 22) }
+        else { doc.setDrawColor(150,150,150); doc.setLineWidth(0.25); doc.rect(PW-RM-14,y,14,22,'S'); doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(130,130,130); doc.text('[DDD]',PW-RM-7,y+12,{align:'center'}) }
+
+        doc.setTextColor(0,0,0); doc.setFont('helvetica','normal'); doc.setFontSize(8.5)
+        doc.text('New Jersey Department of Human Services', cx, y+6, {align:'center'})
+        doc.text('Division of Developmental Disabilities', cx, y+11, {align:'center'})
+        doc.setTextColor(0,0,200); doc.text('www.nj.gov/humanservices/ddd', cx, y+16, {align:'center'})
+        doc.setTextColor(0,0,0)
+
+        y = 36
+        doc.setFont('helvetica','bold'); doc.setFontSize(12)
+        doc.text('Community Based / Individual Supports', cx, y, {align:'center'}); y += 5
+        doc.setFont('helvetica','bolditalic'); doc.setFontSize(7)
+        doc.text('(Not applicable when delivering daily rate version of Individual Supports. Only used for 15 minute unit version)', cx, y, {align:'center', maxWidth: usable-40}); y += 7
+
+        const spYear = page.date && page.date !== '_nodate' ? String(new Date(page.date+'T00:00:00').getFullYear()) : String(new Date().getFullYear())
+        doc.setFont('helvetica','bold'); doc.setFontSize(9.5)
+        doc.text('Name:', LM, y+3.5)
+        doc.setFont('helvetica','normal'); doc.text(client.full_name, LM+13, y+3.5)
+        doc.setLineWidth(0.25); doc.setDrawColor(0,0,0)
+        doc.line(LM+12, y+4.5, LM+93, y+4.5)
+        doc.setFont('helvetica','bold'); doc.text('Service Plan Year:', LM+103, y+3.5)
+        doc.setFont('helvetica','normal'); doc.text(spYear, LM+137, y+3.5)
+        doc.line(LM+136, y+4.5, PW-RM, y+4.5); y += 9
+
+        doc.setFont('helvetica','bold'); doc.setFontSize(9.5); doc.text('ISP Outcome:', LM, y+3.5)
+        doc.setFont('helvetica','normal'); doc.setFontSize(8.5)
+        if (client.isp_outcome) {
+          const isp = doc.splitTextToSize(client.isp_outcome, usable-30) as string[]
+          if (isp[0]) doc.text(isp[0], LM+28, y+3.5)
+        }
+        doc.setLineWidth(0.25); doc.line(LM+27, y+4.5, PW-RM, y+4.5); y += 10
+
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('Service Strategies (check all that apply):', LM, y); y += 5
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setLineWidth(0.25)
+        STRATEGIES_PDF.forEach((fullText, si) => {
+          const isChecked = page.strategies.some(s => s.trim() === STRATEGIES_TITLES[si])
+          doc.setDrawColor(0,0,0); doc.rect(LM, y-2.8, 3.2, 3.2, 'S')
+          if (isChecked) { doc.setLineWidth(0.5); doc.line(LM+0.4,y-1.2,LM+1.5,y-0.2); doc.line(LM+1.5,y-0.2,LM+3,y-2.5); doc.setLineWidth(0.25) }
+          const lines = doc.splitTextToSize(fullText, usable-5) as string[]
+          doc.text(lines, LM+5, y); y += lines.length*3.6+0.5
+        }); y += 2
+
+        const C_DATE=22, C_START=14, C_END=14, C_ACT=58, C_DESC=usable-22-14-14-58
+        const colX = [LM, LM+C_DATE, LM+C_DATE+C_START, LM+C_DATE+C_START+C_END, LM+C_DATE+C_START+C_END+C_ACT]
+        const drawCols = (ry: number, rh: number) => { for (let ci=1;ci<colX.length;ci++) doc.line(colX[ci],ry,colX[ci],ry+rh) }
+
+        const HDR_H = 10
+        doc.setDrawColor(0,0,0); doc.setLineWidth(0.3); doc.rect(LM,y,usable,HDR_H,'S'); drawCols(y,HDR_H)
+        doc.setFont('helvetica','bold'); doc.setFontSize(7.5)
+        doc.text('Date', colX[0]+C_DATE/2, y+HDR_H/2+1, {align:'center'})
+        doc.text('Start', colX[1]+C_START/2, y+3.5, {align:'center'}); doc.text('Time', colX[1]+C_START/2, y+7, {align:'center'})
+        doc.text('End',  colX[2]+C_END/2,  y+3.5, {align:'center'}); doc.text('Time', colX[2]+C_END/2,  y+7, {align:'center'})
+        const actHdr = doc.splitTextToSize('Individualized Activity', C_ACT-2) as string[]
+        doc.text(actHdr, colX[3]+C_ACT/2, y+3, {align:'center'})
+        const descHdr = doc.splitTextToSize('Tell us about the day, and how the activities will help the individual reach the above outcome', C_DESC-2) as string[]
+        doc.text(descHdr, colX[4]+C_DESC/2, y+2, {align:'center'})
+        y += HDR_H
+
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setLineWidth(0.2); doc.setTextColor(0,0,0)
+        const dateStr = fmtMDY(page.date)
+        const ROW_H = 7.5, totalRows = Math.max(10, page.entries.length+2)
+        let dateRendered = false
+        for (let ri=0; ri<totalRows; ri++) {
+          const entry = page.entries[ri]
+          doc.setDrawColor(0,0,0); doc.rect(LM,y,usable,ROW_H,'S'); drawCols(y,ROW_H)
+          if (entry) {
+            const midY = y+ROW_H/2+1.2
+            if (!dateRendered && dateStr) { doc.setFontSize(7.5); doc.text(dateStr,colX[0]+1,midY); dateRendered=true }
+            doc.setFontSize(8)
+            const st=formatTimePDF(entry.start??''), et=formatTimePDF(entry.end??'')
+            if (st) doc.text(st, colX[1]+C_START/2, midY, {align:'center'})
+            if (et) doc.text(et, colX[2]+C_END/2,   midY, {align:'center'})
+            const actTxt=(entry.strategy??'').trim()
+            if (actTxt) { const al=doc.splitTextToSize(actTxt,C_ACT-2) as string[]; if(al[0]) doc.text(al[0],colX[3]+1,midY) }
+            const descTxt=(entry.desc??'').trim()
+            if (descTxt) { const dl=doc.splitTextToSize(descTxt,C_DESC-2) as string[]; if(dl[0]) doc.text(dl[0],colX[4]+1,midY) }
+          }
+          y += ROW_H
+        }
+        y += 7
+        doc.setFont('helvetica','normal'); doc.setFontSize(9)
+        doc.text('Completed By:', LM, y); doc.text(page.staffName, LM+31, y)
+        doc.setLineWidth(0.3); doc.line(LM+30, y+1, PW-RM, y+1)
+      })
+
+      const range = parseWeekRange(weekLabel)
+      const fmtD = (d: Date) => `${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`
+      const safeName = client.full_name.replace(/\s+/g, '_')
+      const weekStr = range ? `${fmtD(range.start)}-${fmtD(range.end)}` : 'week'
+      doc.save(`${safeName}_Week_${weekStr}.pdf`)
+    } catch (e) { showToast('Failed to generate PDF'); console.error(e) }
+    finally { setCnDownloadingWk(null) }
   }
 
   function setField(field: string, value: string) {
@@ -500,7 +712,7 @@ export default function ClientsPage() {
 
             {/* Clients table */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 120px', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 156px', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
                 {['Name', 'Medicaid ID', 'Date of Birth', 'County', 'Sex', 'Diagnosis', 'Actions'].map(h => (
                   <div key={h} style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
                 ))}
@@ -517,7 +729,7 @@ export default function ClientsPage() {
                 </div>
               ) : (
                 filtered.map((c, i) => (
-                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 120px', padding: '13px 20px', borderBottom: i < filtered.length - 1 ? '1px solid #f9fafb' : 'none', alignItems: 'center' }}>
+                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 156px', padding: '13px 20px', borderBottom: i < filtered.length - 1 ? '1px solid #f9fafb' : 'none', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#004050', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{initials(c.full_name)}</div>
                       <div>
@@ -531,7 +743,8 @@ export default function ClientsPage() {
                     <div style={{ fontSize: 13, color: '#374151' }}>{c.sex === 'M' ? 'Male' : c.sex === 'F' ? 'Female' : '—'}</div>
                     <div style={{ fontSize: 12, color: c.dx ? '#374151' : '#d1d5db', fontFamily: 'monospace' }}>{c.dx || '—'}</div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button onClick={() => setViewModal(c)} title="View" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}><i className="ti ti-eye" /></button>
+                      <button onClick={() => setViewModal(c)} title="View profile" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}><i className="ti ti-eye" /></button>
+                      <button onClick={() => openCnModal(c)} title="View case notes" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(0,64,80,0.25)', background: 'rgba(0,64,80,0.05)', color: '#004050', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}><i className="ti ti-notes" /></button>
                       <button onClick={() => openEdit(c)} title="Edit" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#008080', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}><i className="ti ti-edit" /></button>
                       <button onClick={() => setDeleteTarget(c)} title="Delete" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(220,38,38,0.2)', background: 'rgba(220,38,38,0.04)', color: '#dc2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}><i className="ti ti-trash" /></button>
                     </div>
@@ -769,6 +982,130 @@ export default function ClientsPage() {
                   </>
                 )}
                 <button onClick={() => setViewIntake(null)} style={{ padding: '8px 16px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── Client case notes modal ─────────────────────────────────────────── */}
+      {cnModal && (() => {
+        const cnWeekGroups = cnNotes.reduce((acc, n) => {
+          if (!acc[n.week_label]) acc[n.week_label] = []
+          acc[n.week_label].push(n); return acc
+        }, {} as Record<string, ClientCnRecord[]>)
+        const cnWeeksSorted = Object.keys(cnWeekGroups).sort((a, b) => {
+          const ra = parseWeekRange(a), rb = parseWeekRange(b)
+          if (!ra || !rb) return 0
+          return rb.start.getTime() - ra.start.getTime()
+        })
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }} onClick={() => setCnModal(null)}>
+            <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 740, maxHeight: '88vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.28)' }} onClick={e => e.stopPropagation()}>
+
+              {/* Header */}
+              <div style={{ padding: '18px 22px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#004050', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>{initials(cnModal.full_name)}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>{cnModal.full_name}</div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                    {cnLoading ? 'Loading case notes…' : `${cnNotes.length} case note${cnNotes.length !== 1 ? 's' : ''} across ${cnWeeksSorted.length} week${cnWeeksSorted.length !== 1 ? 's' : ''}`}
+                  </div>
+                </div>
+                <button onClick={() => setCnModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 20, display: 'flex', alignItems: 'center' }}><i className="ti ti-x" /></button>
+              </div>
+
+              {/* Body */}
+              <div style={{ overflowY: 'auto', flex: 1, padding: '16px 20px', background: '#f5f5f2' }}>
+                {cnLoading ? (
+                  <div style={{ padding: '48px 0', textAlign: 'center', color: '#9ca3af' }}>
+                    <i className="ti ti-loader-2" style={{ fontSize: 28, display: 'block', marginBottom: 10 }} />Loading case notes…
+                  </div>
+                ) : cnNotes.length === 0 ? (
+                  <div style={{ padding: '48px 0', textAlign: 'center', color: '#9ca3af' }}>
+                    <i className="ti ti-notes-off" style={{ fontSize: 36, display: 'block', marginBottom: 10 }} />
+                    <div style={{ fontSize: 14 }}>No case notes found for this client.</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {cnWeeksSorted.map(weekLabel => {
+                      const weekRecords = cnWeekGroups[weekLabel]
+                      const isOpen = cnExpandedWeek === weekLabel
+                      const isDownloading = cnDownloadingWk === weekLabel
+                      const totalEntries = weekRecords.reduce((n, r) => n + (r.entries?.length ?? 0), 0)
+                      const staffNames = [...new Set(weekRecords.map(r => r.staff_name))]
+
+                      return (
+                        <div key={weekLabel} style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e5e7eb', overflow: 'hidden' }}>
+                          {/* Week row */}
+                          <div
+                            onClick={() => setCnExpandedWeek(isOpen ? null : weekLabel)}
+                            style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', background: isOpen ? '#f9fafb' : 'white' }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 3 }}>{weekLabel}</div>
+                              <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                                <span>{totalEntries} {totalEntries === 1 ? 'entry' : 'entries'}</span>
+                                <span>·</span>
+                                <span>{staffNames.slice(0, 2).join(', ')}{staffNames.length > 2 ? ` +${staffNames.length - 2} more` : ''}</span>
+                              </div>
+                            </div>
+                            <button
+                              onClick={e => { e.stopPropagation(); downloadClientWeekPDF(weekLabel, weekRecords, cnModal) }}
+                              disabled={isDownloading}
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#004050', color: 'white', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: isDownloading ? 'wait' : 'pointer', opacity: isDownloading ? 0.6 : 1, fontFamily: 'inherit', flexShrink: 0 }}
+                            >
+                              <i className={`ti ${isDownloading ? 'ti-loader-2' : 'ti-download'}`} />
+                              {isDownloading ? 'Generating…' : 'Download PDF'}
+                            </button>
+                            <i className={`ti ${isOpen ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 14, color: '#9ca3af', flexShrink: 0 }} />
+                          </div>
+
+                          {/* Expanded notes */}
+                          {isOpen && (
+                            <div style={{ borderTop: '1px solid #f3f4f6', padding: '10px 14px', background: '#fafafa' }}>
+                              {weekRecords.map(r => (
+                                <div key={r.id} style={{ background: '#fff', borderRadius: 10, border: '0.5px solid #e5e7eb', padding: '12px 16px', marginBottom: 10 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: r.entries.length > 0 ? 10 : 0 }}>
+                                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(0,64,80,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, color: '#004050', flexShrink: 0 }}>
+                                      {initials(r.staff_name)}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{r.staff_name}</div>
+                                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.entries.length} {r.entries.length === 1 ? 'entry' : 'entries'}</div>
+                                    </div>
+                                    <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 20, fontWeight: 600,
+                                      background: r.status === 'approved' ? 'rgba(22,163,74,0.1)' : r.status === 'rejected' ? 'rgba(220,38,38,0.1)' : 'rgba(234,179,8,0.12)',
+                                      color: r.status === 'approved' ? '#16a34a' : r.status === 'rejected' ? '#dc2626' : '#854d0e' }}>
+                                      {r.status === 'approved' ? 'Approved' : r.status === 'rejected' ? 'Rejected' : 'Pending'}
+                                    </span>
+                                  </div>
+                                  {r.entries.map((e: any, ei: number) => (
+                                    <div key={ei} style={{ background: '#f9fafb', borderRadius: 8, padding: '9px 12px', marginBottom: 6, border: '0.5px solid #e5e7eb' }}>
+                                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: e.desc ? 5 : 0 }}>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>
+                                          {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
+                                        </span>
+                                        <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
+                                        {e.strategy && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy.split('Assistance with ')[1] ?? e.strategy}</span>}
+                                      </div>
+                                      {e.desc && <div style={{ fontSize: 12, color: '#374151', lineHeight: 1.6 }}>{e.desc}</div>}
+                                    </div>
+                                  ))}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '12px 20px', borderTop: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end', flexShrink: 0, background: '#fafafa' }}>
+                <button onClick={() => setCnModal(null)} style={{ padding: '8px 18px', borderRadius: 7, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>Close</button>
               </div>
             </div>
           </div>
