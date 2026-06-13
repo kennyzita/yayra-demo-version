@@ -22,10 +22,14 @@ const STRATEGIES_PDF = [
 function parseWeekRange(weekLabel: string): { start: Date; end: Date } | null {
   const parts = weekLabel.split('–').map(s => s.trim())
   if (parts.length !== 2) return null
-  const start = new Date(parts[0] + 'T00:00:00')
-  const end = new Date(parts[1] + 'T00:00:00')
+  const start = new Date(parts[0])
+  const end = new Date(parts[1])
   if (isNaN(start.getTime()) || isNaN(end.getTime())) return null
   return { start, end }
+}
+
+function toLocalISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function formatTimePDF(t: string): string {
@@ -157,8 +161,8 @@ export default function CaseNotesPage() {
 
   // Date range for selected service week (constrains date inputs)
   const weekRange = parseWeekRange(week)
-  const minDate = weekRange ? weekRange.start.toISOString().slice(0, 10) : undefined
-  const maxDate = weekRange ? weekRange.end.toISOString().slice(0, 10) : undefined
+  const minDate = weekRange ? toLocalISO(weekRange.start) : undefined
+  const maxDate = weekRange ? toLocalISO(weekRange.end) : undefined
 
   useEffect(() => {
     if (!userId) return
