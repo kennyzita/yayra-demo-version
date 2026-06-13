@@ -136,15 +136,11 @@ export default function CaseNotesPage() {
 
   useEffect(() => {
     if (!clientId) { setIspOutcome(''); return }
-    let cancelled = false;
-    (async () => {
-      const { data } = await supabase
-        .from('billing_client_data')
-        .select('data')
-        .eq('client_id', clientId)
-        .maybeSingle()
-      if (!cancelled) setIspOutcome((data?.data as Record<string, string> | null)?.isp_outcome ?? '')
-    })()
+    let cancelled = false
+    fetch(`/api/client-isp-outcome?clientId=${clientId}`)
+      .then(r => r.json())
+      .then(json => { if (!cancelled) setIspOutcome(json.isp_outcome ?? '') })
+      .catch(() => {})
     return () => { cancelled = true }
   }, [clientId])
 
