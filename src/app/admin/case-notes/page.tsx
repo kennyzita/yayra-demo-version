@@ -23,8 +23,8 @@ const STRATEGIES_TITLES = [
 function parseWeekRange(weekLabel: string): { start: Date; end: Date } | null {
   const parts = weekLabel.split('–').map(s => s.trim())
   if (parts.length !== 2) return null
-  const start = new Date(parts[0] + 'T00:00:00')
-  const end   = new Date(parts[1] + 'T00:00:00')
+  const start = new Date(parts[0])
+  const end   = new Date(parts[1])
   if (isNaN(start.getTime()) || isNaN(end.getTime())) return null
   return { start, end }
 }
@@ -94,6 +94,7 @@ export default function AdminCaseNotesPage() {
   const [search,          setSearch]          = useState('')
   const [filterStatus,    setFilterStatus]    = useState('All')
   const [expandedId,      setExpandedId]      = useState<string | null>(null)
+  const [expandedWeek,    setExpandedWeek]    = useState<string | null>(null)
   const [actioning,       setActioning]       = useState<string | null>(null)
   const [rejectingId,     setRejectingId]     = useState<string | null>(null)
   const [toast,           setToast]           = useState('')
@@ -270,8 +271,10 @@ export default function AdminCaseNotesPage() {
 
         doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.text('ISP Outcome:', LM, y + 3.5)
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
-        const ispLines = doc.splitTextToSize(page.ispOutcome || '', usable - 30) as string[]
-        if (ispLines.length > 0) doc.text(ispLines[0], LM + 28, y + 3.5)
+        if (page.ispOutcome) {
+          const ispLines = doc.splitTextToSize(page.ispOutcome, usable - 30) as string[]
+          if (ispLines.length > 0) doc.text(ispLines[0], LM + 28, y + 3.5)
+        }
         doc.setLineWidth(0.25); doc.line(LM + 27, y + 4.5, PW - RM, y + 4.5)
         y += 10
 
@@ -313,6 +316,9 @@ export default function AdminCaseNotesPage() {
         y += HDR_H
 
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setLineWidth(0.2)
+        doc.setTextColor(0, 0, 0)
+        // Sort entries ascending by start time
+        page.entries.sort((a: any, b: any) => (a.start || '').localeCompare(b.start || ''))
         const dateStr = fmtMDY(page.date)
         const ROW_H = 7.5
         const totalRows = Math.max(10, page.entries.length + 2)
@@ -323,16 +329,24 @@ export default function AdminCaseNotesPage() {
           doc.setDrawColor(0, 0, 0); doc.rect(LM, y, usable, ROW_H, 'S'); drawCols(y, ROW_H)
           if (entry) {
             const midY = y + ROW_H / 2 + 1.2
-            if (!dateRendered) {
+            if (!dateRendered && dateStr) {
               doc.setFontSize(7.5); doc.text(dateStr, colX[0] + 1, midY); dateRendered = true
             }
             doc.setFontSize(8)
-            doc.text(formatTimePDF(entry.start), colX[1] + C_START / 2, midY, { align: 'center' })
-            doc.text(formatTimePDF(entry.end),   colX[2] + C_END  / 2, midY, { align: 'center' })
-            const actL  = doc.splitTextToSize(entry.strategy || '', C_ACT  - 2) as string[]
-            const descL = doc.splitTextToSize(entry.desc     || '', C_DESC - 2) as string[]
-            doc.text(actL[0]  || '', colX[3] + 1, midY)
-            doc.text(descL[0] || '', colX[4] + 1, midY)
+            const startTxt = formatTimePDF(entry.start ?? '')
+            const endTxt   = formatTimePDF(entry.end   ?? '')
+            if (startTxt) doc.text(startTxt, colX[1] + C_START / 2, midY, { align: 'center' })
+            if (endTxt)   doc.text(endTxt,   colX[2] + C_END   / 2, midY, { align: 'center' })
+            const actTxt = (entry.strategy ?? '').trim()
+            if (actTxt) {
+              const actL = doc.splitTextToSize(actTxt, C_ACT - 2) as string[]
+              if (actL[0]) doc.text(actL[0], colX[3] + 1, midY)
+            }
+            const descTxt = (entry.desc ?? '').trim()
+            if (descTxt) {
+              const descL = doc.splitTextToSize(descTxt, C_DESC - 2) as string[]
+              if (descL[0]) doc.text(descL[0], colX[4] + 1, midY)
+            }
           }
           y += ROW_H
         }
@@ -561,56 +575,71 @@ export default function AdminCaseNotesPage() {
           ))}
         </div>
 
-        {/* List */}
+        {/* List — always week-grouped */}
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
             <i className="ti ti-loader-2" style={{ fontSize: 28, display: 'block', marginBottom: 10 }} />Loading…
           </div>
-        ) : filtered.length === 0 ? (
+        ) : weeksSorted.length === 0 ? (
           <div style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e5e7eb', padding: 40, textAlign: 'center', color: '#9ca3af' }}>
             <i className="ti ti-notes-off" style={{ fontSize: 32, display: 'block', marginBottom: 8 }} />
             <div style={{ fontSize: 14 }}>No case notes found</div>
           </div>
-        ) : selectedStaffId ? (
-          /* ── Grouped by week (staff selected) ────────────────────── */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {weeksSorted.map(weekLabel => {
-              const weekRecords  = weekGroups[weekLabel]
+              const weekRecords   = weekGroups[weekLabel]
+              const isWeekOpen    = expandedWeek === weekLabel
               const isDownloading = downloadingWeek === weekLabel
+              const pendingCount  = weekRecords.filter(r => r.status === 'submitted').length
+              const staffNames    = [...new Set(weekRecords.map(r => r.staff_name))]
+              const totalEntries  = weekRecords.reduce((n, r) => n + (r.entries?.length ?? 0), 0)
+
               return (
-                <div key={weekLabel}>
-                  {/* Week header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#004050', borderRadius: 10, padding: '12px 18px', marginBottom: 10 }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>{weekLabel}</div>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
-                        {selectedStaffName} · {weekRecords.length} {weekRecords.length === 1 ? 'note' : 'notes'}
+                <div key={weekLabel} style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e5e7eb', overflow: 'hidden' }}>
+                  {/* Week row — clickable */}
+                  <div
+                    onClick={() => { setExpandedWeek(isWeekOpen ? null : weekLabel); setExpandedId(null); setRejectingId(null) }}
+                    style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer', background: isWeekOpen ? '#f9fafb' : 'white' }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 4 }}>{weekLabel}</div>
+                      <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <span>{weekRecords.length} {weekRecords.length === 1 ? 'note' : 'notes'}</span>
+                        <span>·</span>
+                        <span>{totalEntries} {totalEntries === 1 ? 'entry' : 'entries'}</span>
+                        {!selectedStaffId && (
+                          <span>· {staffNames.slice(0, 2).join(', ')}{staffNames.length > 2 ? ` +${staffNames.length - 2} more` : ''}</span>
+                        )}
+                        {pendingCount > 0 && (
+                          <span style={{ color: '#854d0e', fontWeight: 600 }}>· {pendingCount} pending review</span>
+                        )}
                       </div>
                     </div>
-                    <button
-                      onClick={() => downloadWeekPDF(weekLabel, weekRecords, selectedStaffName)}
-                      disabled={isDownloading}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.15)', color: 'white', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: isDownloading ? 'wait' : 'pointer', opacity: isDownloading ? 0.6 : 1, fontFamily: 'inherit' }}
-                    >
-                      <i className={`ti ${isDownloading ? 'ti-loader-2' : 'ti-download'}`} />
-                      {isDownloading ? 'Generating…' : 'Download PDF'}
-                    </button>
+                    {selectedStaffId && (
+                      <button
+                        onClick={e => { e.stopPropagation(); downloadWeekPDF(weekLabel, weekRecords, selectedStaffName) }}
+                        disabled={isDownloading}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#004050', color: 'white', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: isDownloading ? 'wait' : 'pointer', opacity: isDownloading ? 0.6 : 1, fontFamily: 'inherit', flexShrink: 0 }}
+                      >
+                        <i className={`ti ${isDownloading ? 'ti-loader-2' : 'ti-download'}`} />
+                        {isDownloading ? 'Generating…' : 'Download PDF'}
+                      </button>
+                    )}
+                    <i className={`ti ${isWeekOpen ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 15, color: '#9ca3af', flexShrink: 0 }} />
                   </div>
 
-                  {/* Note cards */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {weekRecords.map(r => <NoteCard key={r.id} r={r} expandedId={expandedId} setExpandedId={setExpandedId} rejectingId={rejectingId} setRejectingId={setRejectingId} actioning={actioning} editingEntry={editingEntry} setEditingEntry={setEditingEntry} handleApprove={handleApprove} handleReject={handleReject} saveEntryEdit={saveEntryEdit} />)}
-                  </div>
+                  {/* Expanded note cards */}
+                  {isWeekOpen && (
+                    <div style={{ borderTop: '1px solid #f3f4f6', padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10, background: '#fafafa' }}>
+                      {weekRecords.map(r => (
+                        <NoteCard key={r.id} r={r} expandedId={expandedId} setExpandedId={setExpandedId} rejectingId={rejectingId} setRejectingId={setRejectingId} actioning={actioning} editingEntry={editingEntry} setEditingEntry={setEditingEntry} handleApprove={handleApprove} handleReject={handleReject} saveEntryEdit={saveEntryEdit} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
-          </div>
-        ) : (
-          /* ── Flat list (all staff) ────────────────────────────────── */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {filtered.map(r => (
-              <NoteCard key={r.id} r={r} expandedId={expandedId} setExpandedId={setExpandedId} rejectingId={rejectingId} setRejectingId={setRejectingId} actioning={actioning} editingEntry={editingEntry} setEditingEntry={setEditingEntry} handleApprove={handleApprove} handleReject={handleReject} saveEntryEdit={saveEntryEdit} />
-            ))}
           </div>
         )}
       </div>
