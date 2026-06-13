@@ -229,16 +229,41 @@ export default function AdminCaseNotesPage() {
       const LM = 14, RM = 14, PW = 215.9
       const usable = PW - LM - RM
 
+      // Fetch logos from /public (same-origin, no CORS)
+      let njSealB64 = '', dddLogoB64 = ''
+      try {
+        const toB64 = async (path: string) => {
+          const r = await fetch(path)
+          if (!r.ok) return ''
+          const buf = await r.arrayBuffer()
+          return btoa(String.fromCharCode(...new Uint8Array(buf)))
+        }
+        ;[njSealB64, dddLogoB64] = await Promise.all([toB64('/nj-seal.jpeg'), toB64('/ddd-logo.jpeg')])
+      } catch { /* logos optional — fall back to placeholders */ }
+
       pages.forEach((page, pageIdx) => {
         if (pageIdx > 0) doc.addPage()
         let y  = 8
         const cx = PW / 2
 
-        doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.25)
-        doc.rect(LM, y, 22, 20, 'S'); doc.rect(PW - RM - 22, y, 22, 20, 'S')
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(130, 130, 130)
-        doc.text('[NJ Seal]', LM + 11, y + 11, { align: 'center' })
-        doc.text('[DDD]', PW - RM - 11, y + 11, { align: 'center' })
+        // Logo boxes — NJ Seal (left) and DDD logo (right)
+        if (njSealB64) {
+          doc.addImage(`data:image/jpeg;base64,${njSealB64}`, 'JPEG', LM, y, 22, 22)
+        } else {
+          doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.25)
+          doc.rect(LM, y, 22, 22, 'S')
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(130, 130, 130)
+          doc.text('[NJ Seal]', LM + 11, y + 12, { align: 'center' })
+        }
+        // DDD logo is portrait (165×261) — display at 14×22mm to preserve ratio
+        if (dddLogoB64) {
+          doc.addImage(`data:image/jpeg;base64,${dddLogoB64}`, 'JPEG', PW - RM - 14, y, 14, 22)
+        } else {
+          doc.setDrawColor(150, 150, 150); doc.setLineWidth(0.25)
+          doc.rect(PW - RM - 14, y, 14, 22, 'S')
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(130, 130, 130)
+          doc.text('[DDD]', PW - RM - 7, y + 12, { align: 'center' })
+        }
 
         doc.setTextColor(0, 0, 0); doc.setFontSize(8.5)
         doc.text('New Jersey Department of Human Services', cx, y + 6, { align: 'center' })
@@ -247,7 +272,7 @@ export default function AdminCaseNotesPage() {
         doc.text('www.nj.gov/humanservices/ddd', cx, y + 16, { align: 'center' })
         doc.setTextColor(0, 0, 0)
 
-        y = 34
+        y = 36
         doc.setFont('helvetica', 'bold'); doc.setFontSize(12)
         doc.text('Community Based / Individual Supports', cx, y, { align: 'center' })
         y += 5
