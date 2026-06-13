@@ -217,6 +217,16 @@ export const EmployeeOnboardingDocument = forwardRef<HTMLElement, Props>(
     }, [value, ready]);
     useEffect(() => { editableRef.current = editable; });
 
+    const getStoredFieldValue = (key: string) => {
+      const entry = valueRef.current.pdfFields?.[key] as
+        | { value?: unknown }
+        | string
+        | boolean
+        | undefined;
+      if (entry && typeof entry === "object" && "value" in entry) return entry.value;
+      return entry ?? "";
+    };
+
     const updateStoredFieldValue = (key: string, fieldValue: string | boolean) => {
       if (!onChangeRef.current) return;
       const pdfFields = {
@@ -419,16 +429,40 @@ export const EmployeeOnboardingDocument = forwardRef<HTMLElement, Props>(
             }
           }
 
+          const collectFieldValues = () => {
+            const out: Record<string, unknown> = {};
+            const all = storageRef.current?.getAll?.() ?? {};
+            for (const [k, v] of Object.entries(all)) {
+              const val =
+                v && typeof v === "object" && "value" in (v as object)
+                  ? (v as { value?: unknown }).value
+                  : v;
+              out[k] = { value: val };
+            }
+            viewer
+              .querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
+                ".annotationLayer input, .annotationLayer textarea, .annotationLayer select",
+              )
+              .forEach((el) => {
+                const id = el.getAttribute("data-element-id") || el.id;
+                if (!id) return;
+                if (
+                  el instanceof HTMLInputElement &&
+                  (el.type === "checkbox" || el.type === "radio")
+                ) {
+                  out[id] = { value: el.checked };
+                } else {
+                  out[id] = {
+                    value: (el as HTMLInputElement | HTMLTextAreaElement).value,
+                  };
+                }
+              });
+            return out;
+          };
+
           const persist = () => {
             if (!onChangeRef.current || !editableRef.current) return;
-            const all = storageRef.current?.getAll?.() ?? {};
-            const serializable: Record<string, unknown> = {};
-            for (const [k, v] of Object.entries(all)) {
-              const val = v && typeof v === "object" && "value" in (v as object)
-                ? (v as { value?: unknown }).value
-                : v;
-              serializable[k] = { value: val };
-            }
+            const serializable = collectFieldValues();
             const next = {
               ...valueRef.current,
               pdfFields: { ...(valueRef.current.pdfFields ?? {}), ...serializable },
@@ -465,6 +499,7 @@ export const EmployeeOnboardingDocument = forwardRef<HTMLElement, Props>(
 
     void pageCount;
     void hasFormFields;
+    void getStoredFieldValue;
 
     const set = <K extends keyof EmployeeOnboardingData>(k: K, v: EmployeeOnboardingData[K]) =>
       onChange?.({ ...value, [k]: v });
