@@ -108,6 +108,7 @@ export default function CaseNotesPage() {
 
   // Form state
   const [clientId, setClientId]   = useState('')
+  const [ispOutcome, setIspOutcome] = useState('')
   const [week, setWeek]           = useState(WEEKS[0])
   const [checked, setChecked]     = useState<boolean[]>(new Array(STRATEGIES.length).fill(false))
   const [entries, setEntries]     = useState<Entry[]>([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
@@ -132,6 +133,20 @@ export default function CaseNotesPage() {
   }, [entries, userId])
 
   useEffect(() => { loadProfile() }, [])
+
+  useEffect(() => {
+    if (!clientId) { setIspOutcome(''); return }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('billing_client_data')
+        .select('data')
+        .eq('client_id', clientId)
+        .maybeSingle()
+      if (!cancelled) setIspOutcome((data?.data as Record<string, string> | null)?.isp_outcome ?? '')
+    })()
+    return () => { cancelled = true }
+  }, [clientId])
 
   async function loadProfile() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -283,7 +298,7 @@ export default function CaseNotesPage() {
   }
 
   function resetForm() {
-    setClientId(''); setChecked(new Array(STRATEGIES.length).fill(false))
+    setClientId(''); setIspOutcome(''); setChecked(new Array(STRATEGIES.length).fill(false))
     setEntries([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
     nextIdRef.current = 2; setWeek(WEEKS[0])
     if (userId) sessionStorage.removeItem(`case_note_draft_${userId}`)
@@ -485,7 +500,7 @@ export default function CaseNotesPage() {
                 </div>
                 <div>
                   <div style={fieldLabel}>ISP outcome <span style={{ fontSize: 10, fontWeight: 400, color: '#9ca3af', fontStyle: 'italic', textTransform: 'none', letterSpacing: 0 }}>auto-filled</span></div>
-                  <textarea readOnly value={selectedClient?.isp_outcome ?? ''} placeholder="Select a client to populate" style={{ ...readOnly, minHeight: 80, resize: 'vertical', lineHeight: 1.6 }} />
+                  <textarea readOnly value={ispOutcome} placeholder="Select a client to populate" style={{ ...readOnly, minHeight: 80, resize: 'vertical', lineHeight: 1.6 }} />
                 </div>
               </div>
             </div>
