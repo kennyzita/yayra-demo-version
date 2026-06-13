@@ -11,6 +11,36 @@ const STRATEGIES = [
   { title: 'Assistance with Learning Activities', desc: 'Basic tutoring – math, reading, writing; support attending a class; etc.' },
 ]
 
+const STRATEGIES_PDF = [
+  'Assistance with Activities of Daily Living (such as getting dressed, eating, personal hygiene, etc.)',
+  'Assistance with Increasing Community Participation (such as daily errands, attending events, restaurant, purchasing items, travel training, etc.)',
+  'Assistance with Increasing Independence (such as helping the individual learn to do laundry, cook, clean, dress, grocery shop, pay for items, etc.)',
+  'Assistance with On-The-Job Support (such as safety awareness, using the restroom, attending to task, lunch/breaks, etc.)',
+  'Assistance with Learning Activities (such as basic tutoring – math, reading, writing; support in attending a class; etc.)',
+]
+
+function parseWeekRange(weekLabel: string): { start: Date; end: Date } | null {
+  const parts = weekLabel.split('–').map(s => s.trim())
+  if (parts.length !== 2) return null
+  const start = new Date(parts[0] + 'T00:00:00')
+  const end = new Date(parts[1] + 'T00:00:00')
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null
+  return { start, end }
+}
+
+function formatTimePDF(t: string): string {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  const h12 = h % 12 || 12
+  return `${h12}.${String(m).padStart(2, '0')}`
+}
+
+function fmtMDY(dateStr: string): string {
+  if (!dateStr || dateStr === '_nodate') return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`
+}
+
 function getNoteTag(strategies: string[]): { label: string; bg: string; color: string } {
   const first = (strategies[0] ?? '').toLowerCase()
   if (first.includes('health') || first.includes('wellness')) {
@@ -63,10 +93,7 @@ function generateWeeks(): string[] {
   const today = new Date()
   const lastSun = new Date(today)
   lastSun.setDate(today.getDate() - today.getDay())
-
-  // Earliest allowed week: the Sunday on or before Jan 1, 2025
-  const earliest = new Date('2025-01-05') // first Sunday in Jan 2025
-
+  const earliest = new Date('2025-01-05')
   let sun = new Date(lastSun)
   while (sun >= earliest) {
     const sat = new Date(sun)
@@ -91,6 +118,7 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
   rejected:  { bg: 'rgba(220,38,38,0.1)',   color: '#dc2626', label: 'Rejected'  },
   draft:     { bg: 'rgba(107,114,128,0.1)', color: '#6b7280', label: 'Draft'     },
 }
+void STATUS_STYLE
 
 type AssignedClient = { id: string; name: string; isp_outcome: string }
 type Entry = { id: number; date: string; start: string; end: string; strategy: string; desc: string }
@@ -111,7 +139,6 @@ export default function CaseNotesPage() {
   const [assignedClients, setAssignedClients] = useState<AssignedClient[]>([])
   const [noClientsError, setNoClientsError] = useState(false)
 
-  // Form state
   const [clientId, setClientId]   = useState('')
   const [ispOutcome, setIspOutcome] = useState('')
   const [week, setWeek]           = useState(WEEKS[0])
@@ -121,14 +148,18 @@ export default function CaseNotesPage() {
   const [toast, setToast]         = useState('')
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
 
-  // History state
   const [showHistory, setShowHistory]         = useState(false)
   const [history, setHistory]                 = useState<HistoryNote[]>([])
   const [historyLoading, setHistoryLoading]   = useState(false)
   const [expandedId, setExpandedId]           = useState<string | null>(null)
   const [deletingId, setDeletingId]           = useState<string | null>(null)
+  const [downloadingWeek, setDownloadingWeek] = useState<string | null>(null)
 
-  // Autosave entries to sessionStorage whenever they change
+  // Date range for selected service week (constrains date inputs)
+  const weekRange = parseWeekRange(week)
+  const minDate = weekRange ? weekRange.start.toISOString().slice(0, 10) : undefined
+  const maxDate = weekRange ? weekRange.end.toISOString().slice(0, 10) : undefined
+
   useEffect(() => {
     if (!userId) return
     const timer = setTimeout(() => {
@@ -154,7 +185,6 @@ export default function CaseNotesPage() {
     if (!user) { setLoading(false); return }
     setUserId(user.id)
 
-    // Restore autosaved draft
     try {
       const saved = sessionStorage.getItem(`case_note_draft_${user.id}`)
       if (saved) {
@@ -202,7 +232,7 @@ export default function CaseNotesPage() {
       .select('id, client_id, week_label, submitted_at, status, strategies, entries')
       .eq('dsp_id', userId)
       .order('submitted_at', { ascending: false })
-      .limit(50)
+      .limit(200)
 
     const clientMap = new Map(assignedClients.map(c => [c.id, c.name]))
     setHistory((data ?? []).map((n: any) => ({
@@ -307,6 +337,280 @@ export default function CaseNotesPage() {
 
   function clearForm() { resetForm(); setEditingNoteId(null); showToast('Form cleared') }
 
+  async function downloadWeekPDF(weekLabel: string, weekNotes: HistoryNote[]) {
+    setDownloadingWeek(weekLabel)
+    try {
+      // Fetch ISP outcomes for each unique client
+      const uniqueClientIds = [...new Set(weekNotes.map(n => n.client_id))]
+      const ispMap: Record<string, string> = {}
+      await Promise.all(uniqueClientIds.map(async (cid) => {
+        try {
+          const r = await fetch(`/api/client-isp-outcome?clientId=${cid}`)
+          const j = await r.json()
+          ispMap[cid] = j.isp_outcome ?? ''
+        } catch { ispMap[cid] = '' }
+      }))
+
+      // Build pages: one per (clientId, date) combination
+      type PageData = {
+        clientName: string; clientId: string; ispOutcome: string
+        strategies: string[]; date: string; entries: Entry[]
+      }
+      const pages: PageData[] = []
+
+      for (const note of weekNotes) {
+        const byDate = new Map<string, Entry[]>()
+        for (const e of note.entries) {
+          const d = e.date || '_nodate'
+          if (!byDate.has(d)) byDate.set(d, [])
+          byDate.get(d)!.push(e)
+        }
+        for (const [date, dateEntries] of byDate) {
+          const existing = pages.find(p => p.clientId === note.client_id && p.date === date)
+          if (existing) {
+            existing.entries.push(...dateEntries)
+            for (const s of note.strategies) {
+              if (!existing.strategies.includes(s)) existing.strategies.push(s)
+            }
+          } else {
+            pages.push({
+              clientName: note.client_name,
+              clientId: note.client_id,
+              ispOutcome: ispMap[note.client_id] ?? '',
+              strategies: [...note.strategies],
+              date,
+              entries: [...dateEntries],
+            })
+          }
+        }
+      }
+
+      pages.sort((a, b) => a.date.localeCompare(b.date) || a.clientName.localeCompare(b.clientName))
+
+      if (pages.length === 0) { showToast('No entries to download'); return }
+
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ unit: 'mm', format: 'letter' })
+
+      const LM = 14
+      const RM = 14
+      const PW = 215.9
+      const usable = PW - LM - RM  // 187.9mm
+
+      pages.forEach((page, pageIdx) => {
+        if (pageIdx > 0) doc.addPage()
+
+        let y = 8
+        const cx = PW / 2
+
+        // ── Logo placeholder boxes ──────────────────────────────────────
+        doc.setDrawColor(150, 150, 150)
+        doc.setLineWidth(0.25)
+        doc.rect(LM, y, 22, 20, 'S')
+        doc.rect(PW - RM - 22, y, 22, 20, 'S')
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(6)
+        doc.setTextColor(130, 130, 130)
+        doc.text('[NJ Seal]', LM + 11, y + 11, { align: 'center' })
+        doc.text('[DDD]', PW - RM - 11, y + 11, { align: 'center' })
+
+        // ── Agency text ─────────────────────────────────────────────────
+        doc.setTextColor(0, 0, 0)
+        doc.setFontSize(8.5)
+        doc.setFont('helvetica', 'normal')
+        doc.text('New Jersey Department of Human Services', cx, y + 6, { align: 'center' })
+        doc.text('Division of Developmental Disabilities', cx, y + 11, { align: 'center' })
+        doc.setTextColor(0, 0, 200)
+        doc.text('www.nj.gov/humanservices/ddd', cx, y + 16, { align: 'center' })
+        doc.setTextColor(0, 0, 0)
+
+        y = 34
+
+        // ── Title ───────────────────────────────────────────────────────
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(12)
+        doc.text('Community Based / Individual Supports', cx, y, { align: 'center' })
+        y += 5
+
+        doc.setFont('helvetica', 'bolditalic')
+        doc.setFontSize(7)
+        doc.text(
+          '(Not applicable when delivering daily rate version of Individual Supports. Only used for 15 minute unit version)',
+          cx, y, { align: 'center', maxWidth: usable - 40 }
+        )
+        y += 7
+
+        // ── Name + Service Plan Year ────────────────────────────────────
+        const spYear = page.date && page.date !== '_nodate'
+          ? String(new Date(page.date + 'T00:00:00').getFullYear())
+          : String(new Date().getFullYear())
+
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(9.5)
+        doc.text('Name:', LM, y + 3.5)
+        doc.setFont('helvetica', 'normal')
+        doc.text(page.clientName, LM + 13, y + 3.5)
+        doc.setLineWidth(0.25)
+        doc.setDrawColor(0, 0, 0)
+        doc.line(LM + 12, y + 4.5, LM + 93, y + 4.5)
+
+        doc.setFont('helvetica', 'bold')
+        doc.text('Service Plan Year:', LM + 103, y + 3.5)
+        doc.setFont('helvetica', 'normal')
+        doc.text(spYear, LM + 137, y + 3.5)
+        doc.line(LM + 136, y + 4.5, PW - RM, y + 4.5)
+        y += 9
+
+        // ── ISP Outcome ─────────────────────────────────────────────────
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(9.5)
+        doc.text('ISP Outcome:', LM, y + 3.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8.5)
+        const ispLines = doc.splitTextToSize(page.ispOutcome || '', usable - 30)
+        if (ispLines.length > 0) doc.text(ispLines[0] as string, LM + 28, y + 3.5)
+        doc.setLineWidth(0.25)
+        doc.line(LM + 27, y + 4.5, PW - RM, y + 4.5)
+        y += 10
+
+        // ── Service Strategies ──────────────────────────────────────────
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(9)
+        doc.text('Service Strategies (check all that apply):', LM, y)
+        y += 5
+
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setLineWidth(0.25)
+
+        const strategyTitles = STRATEGIES.map(s => s.title)
+        STRATEGIES_PDF.forEach((fullText, si) => {
+          const isChecked = page.strategies.some(s => s.trim() === strategyTitles[si].trim())
+          doc.setDrawColor(0, 0, 0)
+          doc.rect(LM, y - 2.8, 3.2, 3.2, 'S')
+          if (isChecked) {
+            doc.setLineWidth(0.5)
+            doc.line(LM + 0.4, y - 1.2, LM + 1.5, y - 0.2)
+            doc.line(LM + 1.5, y - 0.2, LM + 3, y - 2.5)
+            doc.setLineWidth(0.25)
+          }
+          const lines = doc.splitTextToSize(fullText, usable - 5) as string[]
+          doc.text(lines, LM + 5, y)
+          y += lines.length * 3.6 + 0.5
+        })
+
+        y += 2
+
+        // ── Table ───────────────────────────────────────────────────────
+        const C_DATE  = 22
+        const C_START = 14
+        const C_END   = 14
+        const C_ACT   = 58
+        const C_DESC  = usable - C_DATE - C_START - C_END - C_ACT
+
+        const colX = [
+          LM,
+          LM + C_DATE,
+          LM + C_DATE + C_START,
+          LM + C_DATE + C_START + C_END,
+          LM + C_DATE + C_START + C_END + C_ACT,
+        ]
+
+        const drawColLines = (rowY: number, rowH: number) => {
+          for (let ci = 1; ci < colX.length; ci++) {
+            doc.line(colX[ci], rowY, colX[ci], rowY + rowH)
+          }
+        }
+
+        // Header row
+        const HDR_H = 10
+        doc.setDrawColor(0, 0, 0)
+        doc.setLineWidth(0.3)
+        doc.rect(LM, y, usable, HDR_H, 'S')
+        drawColLines(y, HDR_H)
+
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(7.5)
+        const hm = y + HDR_H / 2 + 1
+        doc.text('Date', colX[0] + C_DATE / 2, hm, { align: 'center' })
+        doc.text('Start', colX[1] + C_START / 2, y + 3.5, { align: 'center' })
+        doc.text('Time', colX[1] + C_START / 2, y + 7, { align: 'center' })
+        doc.text('End', colX[2] + C_END / 2, y + 3.5, { align: 'center' })
+        doc.text('Time', colX[2] + C_END / 2, y + 7, { align: 'center' })
+
+        const actHdr = doc.splitTextToSize('Individualized Activity', C_ACT - 2) as string[]
+        doc.text(actHdr, colX[3] + C_ACT / 2, y + 3, { align: 'center' })
+
+        const descHdr = doc.splitTextToSize(
+          'Tell us about the day, and how the activities will help the individual reach the above outcome',
+          C_DESC - 2
+        ) as string[]
+        doc.text(descHdr, colX[4] + C_DESC / 2, y + 2, { align: 'center' })
+
+        y += HDR_H
+
+        // Data rows
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.setLineWidth(0.2)
+
+        const dateStr = fmtMDY(page.date)
+        const ROW_H = 7.5
+        const totalRows = Math.max(10, page.entries.length + 2)
+        let dateRendered = false
+
+        for (let ri = 0; ri < totalRows; ri++) {
+          const entry = page.entries[ri]
+          doc.setDrawColor(0, 0, 0)
+          doc.rect(LM, y, usable, ROW_H, 'S')
+          drawColLines(y, ROW_H)
+
+          if (entry) {
+            const midY = y + ROW_H / 2 + 1.2
+            if (!dateRendered) {
+              doc.setFontSize(7.5)
+              doc.text(dateStr, colX[0] + 1, midY)
+              dateRendered = true
+            }
+            doc.setFontSize(8)
+            doc.text(formatTimePDF(entry.start), colX[1] + C_START / 2, midY, { align: 'center' })
+            doc.text(formatTimePDF(entry.end), colX[2] + C_END / 2, midY, { align: 'center' })
+
+            const actLines = doc.splitTextToSize(entry.strategy || '', C_ACT - 2) as string[]
+            doc.text(actLines[0] || '', colX[3] + 1, midY)
+
+            const descLines = doc.splitTextToSize(entry.desc || '', C_DESC - 2) as string[]
+            doc.text(descLines[0] || '', colX[4] + 1, midY)
+          }
+          y += ROW_H
+        }
+
+        y += 7
+
+        // ── Completed By ────────────────────────────────────────────────
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.text('Completed By:', LM, y)
+        doc.text(staffName, LM + 31, y)
+        doc.setLineWidth(0.3)
+        doc.line(LM + 30, y + 1, PW - RM, y + 1)
+      })
+
+      // Build filename: StaffName_Week_MMDD_MMDD.pdf
+      const range = parseWeekRange(weekLabel)
+      const fmtD = (d: Date) =>
+        `${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+      const safeName = staffName.replace(/\s+/g, '_')
+      const weekStr = range ? `${fmtD(range.start)}-${fmtD(range.end)}` : 'week'
+      doc.save(`${safeName}_Week_${weekStr}.pdf`)
+    } catch (e) {
+      showToast('Failed to generate PDF')
+      console.error(e)
+    } finally {
+      setDownloadingWeek(null)
+    }
+  }
+
   const selectedClient = assignedClients.find(c => c.id === clientId) ?? null
 
   const totalHours = entries.reduce((sum, e) => {
@@ -315,6 +619,19 @@ export default function CaseNotesPage() {
     const [eh, em] = e.end.split(':').map(Number)
     return sum + ((eh * 60 + em) - (sh * 60 + sm)) / 60
   }, 0)
+
+  // Group history by week
+  const weekGroups = history.reduce((acc, note) => {
+    if (!acc[note.week_label]) acc[note.week_label] = []
+    acc[note.week_label].push(note)
+    return acc
+  }, {} as Record<string, HistoryNote[]>)
+
+  const weeksSorted = Object.keys(weekGroups).sort((a, b) => {
+    const ra = parseWeekRange(a), rb = parseWeekRange(b)
+    if (!ra || !rb) return 0
+    return rb.start.getTime() - ra.start.getTime()
+  })
 
   const sectionStyle: React.CSSProperties = { border: '1px solid #d8dde6', borderRadius: 10, overflow: 'hidden', marginBottom: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }
   const sectionHead: React.CSSProperties = { background: '#004050', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }
@@ -353,9 +670,8 @@ export default function CaseNotesPage() {
         )}
 
         {showHistory ? (
-          /* ── History — artifact card design ── */
+          /* ── History grouped by week ── */
           <div>
-            {/* Section header */}
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
               <div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: '#111' }}>Case Notes</div>
@@ -378,87 +694,118 @@ export default function CaseNotesPage() {
                 <i className="ti ti-notes-off" style={{ fontSize: 32, display: 'block', marginBottom: 10, color: '#d1d5db' }} />No submissions yet.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {history.map(note => {
-                  const tag        = getNoteTag(note.strategies)
-                  const title      = formatClientTitle(note.client_name, note.client_id)
-                  const desc       = getNoteDescription(note.entries)
-                  const dateTime   = getNoteDateTime(note.entries, note.submitted_at)
-                  const isExpanded = expandedId === note.id
-                  const canEdit    = note.status !== 'approved'
-                  const isDeleting = deletingId === note.id
-
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {weeksSorted.map(weekLabel => {
+                  const weekNotes = weekGroups[weekLabel]
+                  const isDownloading = downloadingWeek === weekLabel
                   return (
-                    <div key={note.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                      {/* Card body */}
-                      <div
-                        onClick={() => setExpandedId(isExpanded ? null : note.id)}
-                        style={{ padding: '20px 24px', cursor: 'pointer' }}
-                      >
-                        <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 8 }}>{title}</div>
-                        <div style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.65, marginBottom: 14 }}>{desc}</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 13, color: '#9ca3af' }}>{dateTime}</span>
-                          <span style={{ fontSize: 12, padding: '4px 13px', borderRadius: 20, fontWeight: 500, background: tag.bg, color: tag.color }}>{tag.label}</span>
-                          {note.status === 'approved' && (
-                            <span style={{ fontSize: 12, padding: '4px 13px', borderRadius: 20, fontWeight: 500, background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>Approved</span>
-                          )}
-                          <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 13, color: '#d1d5db', marginLeft: 'auto' }} />
-                        </div>
-                      </div>
-
-                      {/* Expanded detail */}
-                      {isExpanded && (
-                        <div style={{ borderTop: '1px solid #f3f4f6', padding: '18px 24px', background: '#fafafa' }}>
-                          {note.strategies.length > 0 && (
-                            <div style={{ marginBottom: 14 }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Strategies</div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                                {note.strategies.map(s => (
-                                  <span key={s} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, background: 'rgba(0,64,80,0.07)', color: '#004050', fontWeight: 500 }}>{s}</span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {note.entries.length > 0 && (
-                            <div style={{ marginBottom: 16 }}>
-                              <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Activity log</div>
-                              {note.entries.map((e, ei) => (
-                                <div key={ei} style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #e5e7eb' }}>
-                                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: e.desc ? 6 : 0 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
-                                      {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
-                                    </span>
-                                    <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
-                                    {e.strategy && <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
-                                  </div>
-                                  {e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>{e.desc}</div>}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            {canEdit ? (
-                              <>
-                                <button onClick={() => startEdit(note)}
-                                  style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #008080', background: '#fff', color: '#008080', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
-                                  <i className="ti ti-edit" /> Edit
-                                </button>
-                                <button onClick={() => handleDelete(note.id)} disabled={isDeleting}
-                                  style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', cursor: isDeleting ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', opacity: isDeleting ? 0.5 : 1 }}>
-                                  <i className={`ti ${isDeleting ? 'ti-loader-2' : 'ti-trash'}`} /> {isDeleting ? 'Deleting…' : 'Delete'}
-                                </button>
-                              </>
-                            ) : (
-                              <span style={{ fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                <i className="ti ti-lock" /> Approved — no further changes allowed
-                              </span>
-                            )}
+                    <div key={weekLabel}>
+                      {/* Week header row */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#004050', borderRadius: 10, padding: '12px 18px', marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>{weekLabel}</div>
+                          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
+                            {weekNotes.length} {weekNotes.length === 1 ? 'note' : 'notes'}
                           </div>
                         </div>
-                      )}
+                        <button
+                          onClick={() => downloadWeekPDF(weekLabel, weekNotes)}
+                          disabled={isDownloading}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            background: 'rgba(255,255,255,0.15)', color: 'white',
+                            border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8,
+                            padding: '8px 14px', fontSize: 13, fontWeight: 600,
+                            cursor: isDownloading ? 'wait' : 'pointer',
+                            opacity: isDownloading ? 0.6 : 1, fontFamily: 'inherit',
+                          }}
+                        >
+                          <i className={`ti ${isDownloading ? 'ti-loader-2' : 'ti-download'}`} />
+                          {isDownloading ? 'Generating…' : 'Download PDF'}
+                        </button>
+                      </div>
+
+                      {/* Note cards for this week */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {weekNotes.map(note => {
+                          const tag        = getNoteTag(note.strategies)
+                          const title      = formatClientTitle(note.client_name, note.client_id)
+                          const desc       = getNoteDescription(note.entries)
+                          const dateTime   = getNoteDateTime(note.entries, note.submitted_at)
+                          const isExpanded = expandedId === note.id
+                          const canEdit    = note.status !== 'approved'
+                          const isDeleting = deletingId === note.id
+
+                          return (
+                            <div key={note.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                              <div onClick={() => setExpandedId(isExpanded ? null : note.id)} style={{ padding: '20px 24px', cursor: 'pointer' }}>
+                                <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 8 }}>{title}</div>
+                                <div style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.65, marginBottom: 14 }}>{desc}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 13, color: '#9ca3af' }}>{dateTime}</span>
+                                  <span style={{ fontSize: 12, padding: '4px 13px', borderRadius: 20, fontWeight: 500, background: tag.bg, color: tag.color }}>{tag.label}</span>
+                                  {note.status === 'approved' && (
+                                    <span style={{ fontSize: 12, padding: '4px 13px', borderRadius: 20, fontWeight: 500, background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>Approved</span>
+                                  )}
+                                  <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 13, color: '#d1d5db', marginLeft: 'auto' }} />
+                                </div>
+                              </div>
+
+                              {isExpanded && (
+                                <div style={{ borderTop: '1px solid #f3f4f6', padding: '18px 24px', background: '#fafafa' }}>
+                                  {note.strategies.length > 0 && (
+                                    <div style={{ marginBottom: 14 }}>
+                                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Strategies</div>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                        {note.strategies.map(s => (
+                                          <span key={s} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, background: 'rgba(0,64,80,0.07)', color: '#004050', fontWeight: 500 }}>{s}</span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {note.entries.length > 0 && (
+                                    <div style={{ marginBottom: 16 }}>
+                                      <div style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>Activity log</div>
+                                      {note.entries.map((e, ei) => (
+                                        <div key={ei} style={{ background: '#fff', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #e5e7eb' }}>
+                                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: e.desc ? 6 : 0 }}>
+                                            <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>
+                                              {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
+                                            </span>
+                                            <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
+                                            {e.strategy && <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
+                                          </div>
+                                          {e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>{e.desc}</div>}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  <div style={{ display: 'flex', gap: 8 }}>
+                                    {canEdit ? (
+                                      <>
+                                        <button onClick={() => startEdit(note)}
+                                          style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #008080', background: '#fff', color: '#008080', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+                                          <i className="ti ti-edit" /> Edit
+                                        </button>
+                                        <button onClick={() => handleDelete(note.id)} disabled={isDeleting}
+                                          style={{ fontSize: 13, padding: '7px 16px', borderRadius: 8, border: '1px solid #fca5a5', background: '#fff', color: '#dc2626', cursor: isDeleting ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', opacity: isDeleting ? 0.5 : 1 }}>
+                                          <i className={`ti ${isDeleting ? 'ti-loader-2' : 'ti-trash'}`} /> {isDeleting ? 'Deleting…' : 'Delete'}
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <span style={{ fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <i className="ti ti-lock" /> Approved — no further changes allowed
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
                   )
                 })}
@@ -557,6 +904,12 @@ export default function CaseNotesPage() {
                 </div>
               </div>
               <div style={{ ...sectionBody, padding: 16 }}>
+                {minDate && (
+                  <div style={{ marginBottom: 12, padding: '8px 14px', borderRadius: 8, background: 'rgba(0,64,80,0.06)', border: '1px solid rgba(0,64,80,0.15)', fontSize: 12, color: '#004050', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <i className="ti ti-calendar-check" />
+                    Dates must fall within the selected service week: <strong style={{ marginLeft: 4 }}>{week}</strong>
+                  </div>
+                )}
                 {entries.map((entry, i) => (
                   <div key={entry.id} style={{ border: '1px solid #d1d5db', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
                     <div style={{ background: '#dce8f5', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -574,7 +927,14 @@ export default function CaseNotesPage() {
                       <div style={{ display: 'flex', gap: 14, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                         <div style={{ flex: '0 0 200px' }}>
                           <div style={{ ...fieldLabel, marginBottom: 7 }}>Date <span style={{ color: '#e24b4a' }}>*</span></div>
-                          <input type="date" value={entry.date} onChange={e => updateEntry(entry.id, 'date', e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                          <input
+                            type="date"
+                            value={entry.date}
+                            min={minDate}
+                            max={maxDate}
+                            onChange={e => updateEntry(entry.id, 'date', e.target.value)}
+                            style={{ ...inputStyle, width: '100%' }}
+                          />
                         </div>
                         <div style={{ flex: '0 0 155px' }}>
                           <div style={{ ...fieldLabel, marginBottom: 7 }}>Start time <span style={{ color: '#e24b4a' }}>*</span></div>
@@ -597,7 +957,7 @@ export default function CaseNotesPage() {
                       </div>
                       <div>
                         <div style={{ ...fieldLabel, marginBottom: 7 }}>Activity description</div>
-                        <textarea value={entry.desc} onChange={e => updateEntry(entry.id, 'desc', e.target.value)} placeholder="Describe the activity and how it supports the individual's outcome…" style={{ width: '100%', fontSize: 13, color: '#1a1a1a', background: 'white', border: '1px solid #d1d5db', borderRadius: 8, padding: '11px 14px', outline: 'none', resize: 'vertical', minHeight: 90, lineHeight: 1.6, fontFamily: 'inherit' }} />
+                        <textarea value={entry.desc} onChange={e => updateEntry(entry.id, 'desc', e.target.value)} placeholder="Describe the activity and how it supports the individual’s outcome…" style={{ width: '100%', fontSize: 13, color: '#1a1a1a', background: 'white', border: '1px solid #d1d5db', borderRadius: 8, padding: '11px 14px', outline: 'none', resize: 'vertical', minHeight: 90, lineHeight: 1.6, fontFamily: 'inherit' }} />
                       </div>
                     </div>
                   </div>
