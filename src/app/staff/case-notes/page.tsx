@@ -63,13 +63,18 @@ function generateWeeks(): string[] {
   const today = new Date()
   const lastSun = new Date(today)
   lastSun.setDate(today.getDate() - today.getDay())
-  for (let i = 0; i < 8; i++) {
-    const sun = new Date(lastSun)
-    sun.setDate(lastSun.getDate() - i * 7)
+
+  // Earliest allowed week: the Sunday on or before Jan 1, 2025
+  const earliest = new Date('2025-01-05') // first Sunday in Jan 2025
+
+  let sun = new Date(lastSun)
+  while (sun >= earliest) {
     const sat = new Date(sun)
     sat.setDate(sun.getDate() + 6)
     const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     weeks.push(`${fmt(sun)} – ${fmt(sat)}`)
+    sun = new Date(sun)
+    sun.setDate(sun.getDate() - 7)
   }
   return weeks
 }
