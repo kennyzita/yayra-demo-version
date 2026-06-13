@@ -277,11 +277,11 @@ export default function ClientsPage() {
         .from('clients').insert({ full_name: form.full_name.trim(), dob: form.dob || null }).select('id').single()
       if (err) throw err
 
-      await supabase.from('billing_client_data').insert({
-        client_id: row.id,
-        data: { id: row.id, name: form.full_name.trim(), dob: form.dob, sex: form.sex, county: form.county, mid: form.medicaid_id, dx: form.dx, isp_outcome: form.isp_outcome, source: 'Admin Console', locked: false, pin: '1234', services: [] },
-        archived: false,
-      })
+      const { error: bcdInsertErr } = await supabase.from('billing_client_data').upsert(
+        { client_id: row.id, data: { id: row.id, name: form.full_name.trim(), dob: form.dob, sex: form.sex, county: form.county, mid: form.medicaid_id, dx: form.dx, isp_outcome: form.isp_outcome, source: 'Admin Console', locked: false, pin: '1234', services: [] }, archived: false },
+        { onConflict: 'client_id' }
+      )
+      if (bcdInsertErr) throw bcdInsertErr
       await loadClients(); setView('list'); showToast(`${form.full_name.trim()} added successfully.`)
     } catch (err: unknown) {
       setError((err as Error)?.message ?? 'Failed to create client.')
@@ -296,7 +296,11 @@ export default function ClientsPage() {
       const { error: err } = await supabase.from('clients').update({ full_name: form.full_name.trim(), dob: form.dob || null }).eq('id', selected.id)
       if (err) throw err
       const { data: existing } = await supabase.from('billing_client_data').select('data').eq('client_id', selected.id).maybeSingle()
-      await supabase.from('billing_client_data').upsert({ client_id: selected.id, data: { ...((existing?.data as Record<string, unknown>) ?? {}), name: form.full_name.trim(), dob: form.dob, sex: form.sex, county: form.county, mid: form.medicaid_id, dx: form.dx, isp_outcome: form.isp_outcome } })
+      const { error: bcdErr } = await supabase.from('billing_client_data').upsert(
+        { client_id: selected.id, data: { ...((existing?.data as Record<string, unknown>) ?? {}), name: form.full_name.trim(), dob: form.dob, sex: form.sex, county: form.county, mid: form.medicaid_id, dx: form.dx, isp_outcome: form.isp_outcome } },
+        { onConflict: 'client_id' }
+      )
+      if (bcdErr) throw bcdErr
       await loadClients(); setView('list'); showToast(`${form.full_name.trim()} updated successfully.`)
     } catch (err: unknown) {
       setError((err as Error)?.message ?? 'Failed to update client.')
