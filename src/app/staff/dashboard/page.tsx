@@ -48,7 +48,7 @@ export default function StaffDashboardPage() {
       const today = todayIso()
       const mStart = monthStart()
 
-      const [profileRes, assignmentRes, timesheetRes, caseNoteCountRes, draftNoteRes, docsJson] = await Promise.all([
+      const [profileRes, assignmentRes, timesheetRes, caseNoteCountRes, draftNoteRes, docsJson, expiriesJson] = await Promise.all([
         supabase.from('users').select('first_name, role:roles(name)').eq('id', user.id).single(),
         supabase.from('assignments').select('client_id').eq('dsp_id', user.id),
         supabase.from('timesheets').select('total_hours').eq('dsp_id', user.id)
@@ -58,6 +58,7 @@ export default function StaffDashboardPage() {
         supabase.from('case_notes').select('id', { count: 'exact', head: true }).eq('dsp_id', user.id)
           .eq('status', 'draft'),
         fetch(`/api/list-staff-documents?staffId=${user.id}`).then(r => r.json()).catch(() => ({ files: [] })),
+        fetch(`/api/admin/scan-staff-expiries?staffId=${user.id}`).then(r => r.json()).catch(() => ({ expiries: {} })),
       ])
 
       if (profileRes.data) {
@@ -78,16 +79,24 @@ export default function StaffDashboardPage() {
       setCaseNotesMonth(caseNoteCountRes.count ?? 0)
       setPendingNotes(draftNoteRes.count ?? 0)
 
+      const storedExpiries = ((expiriesJson as any).expiries ?? {}) as Record<string, string>
       const allFiles: { folder: string; createdAt: string }[] = (docsJson as any).files ?? []
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
       for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
-        const certFiles = allFiles.filter(f => f.folder === certType)
-        if (certFiles.length === 0) continue
-        const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
-        const expiryMs = latestMs + validityDays * 86400000
-        const daysLeft = Math.floor((expiryMs - nowMs) / 86400000)
-        if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate: new Date(expiryMs) })
+        let expiryDate: Date
+        if (storedExpiries[certType]) {
+          // Use the real expiry date extracted by OCR or entered manually by admin
+          expiryDate = new Date(storedExpiries[certType] + 'T00:00:00')
+        } else {
+          // Fall back to upload-date + validity-days estimate
+          const certFiles = allFiles.filter(f => f.folder === certType)
+          if (certFiles.length === 0) continue
+          const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
+          expiryDate = new Date(latestMs + validityDays * 86400000)
+        }
+        const daysLeft = Math.floor((expiryDate.getTime() - nowMs) / 86400000)
+        if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate })
       }
       setExpiringCerts(expiring)
       setLoading(false)

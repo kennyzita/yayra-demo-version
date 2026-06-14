@@ -25,13 +25,25 @@ async function checkAdminOrHR(): Promise<boolean> {
 }
 
 // GET /api/admin/scan-staff-expiries?staffId=UUID
-// Returns the current saved expiry dates for a staff member
+// Returns the current saved expiry dates for a staff member.
+// Admin/HR can request any staffId; staff can only request their own.
 export async function GET(req: NextRequest) {
-  if (!await checkAdminOrHR()) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const userSupabase = createServerClient()
+  const { data: { user } } = await userSupabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const staffId = req.nextUrl.searchParams.get('staffId') ?? ''
   if (!/^[0-9a-f-]{36}$/.test(staffId)) {
     return NextResponse.json({ error: 'Missing or invalid staffId' }, { status: 400 })
+  }
+
+  if (staffId !== user.id) {
+    const { data: profile } = await userSupabase
+      .from('users').select('role:roles(name)').eq('id', user.id).single()
+    const role = (profile?.role as { name: string } | null)?.name
+    if (role !== 'Admin' && role !== 'HR') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
   }
 
   const db = makeAdminDb()
