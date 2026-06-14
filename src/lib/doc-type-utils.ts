@@ -25,3 +25,32 @@ export function docTypeFromAppFilename(fileName: string): string | null {
   }
   return null
 }
+
+// Maps front/back variants to a single canonical display label.
+// Driver's License front & back count as one cert; same for EAD/Green card.
+export const CERT_CANONICAL: Record<string, string> = {
+  "Driver's License / Identification - Front": "Driver's License / Identification",
+  "Driver's License / Identification - Back":  "Driver's License / Identification",
+  "Driver's License - Front":                  "Driver's License / Identification",
+  "Driver's License - Back":                   "Driver's License / Identification",
+  "Driver's License":                          "Driver's License / Identification",
+  "EAD / Green card - Front":                  "EAD / Green card",
+  "EAD / Green card - Back":                   "EAD / Green card",
+}
+
+// Merges stored expiry dates, collapsing front/back variants into one entry.
+// When two variants share a canonical name, keeps the earlier (more urgent) date.
+export function mergeExpiryDates(storedExpiries: Record<string, string>): Record<string, string> {
+  const merged: Record<string, string> = {}
+  for (const [certType, expiryStr] of Object.entries(storedExpiries)) {
+    const canonical = CERT_CANONICAL[certType] ?? certType
+    if (!merged[canonical]) {
+      merged[canonical] = expiryStr
+    } else {
+      // Keep whichever expires sooner (lower value = more urgent)
+      if (expiryStr < merged[canonical]) merged[canonical] = expiryStr
+    }
+  }
+  return merged
+}
+

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { docTypeFromAppFilename } from '@/lib/doc-type-utils'
+import { docTypeFromAppFilename, mergeExpiryDates } from '@/lib/doc-type-utils'
 import type { AppFormState } from '@/app/staff/application/page'
 
 // ── Cert expiry config ─────────────────────────────────────────────────────────
@@ -365,12 +365,12 @@ export default function StaffProgressPage() {
       setStephenKomninosUploaded(hasFolder("Stephen Komnino's Law"))
       setAppendixAUploaded(hasFolder('Appendix A'))
 
-      const storedExpiries = (extra.docExpiries ?? {}) as Record<string, string>
+      const storedExpiries = mergeExpiryDates((extra.docExpiries ?? {}) as Record<string, string>)
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
 
       // 1. Show ALL certs that have a stored expiry date (from OCR scan or manual entry).
-      //    This includes Driver's License, EAD/Green Card, etc. — not just CERT_CONFIG types.
+      //    Front/back variants are already merged by mergeExpiryDates into one entry.
       for (const [certType, expiryStr] of Object.entries(storedExpiries)) {
         const expiryDate = new Date(expiryStr + 'T00:00:00')
         const daysLeft = Math.floor((expiryDate.getTime() - nowMs) / 86400000)
