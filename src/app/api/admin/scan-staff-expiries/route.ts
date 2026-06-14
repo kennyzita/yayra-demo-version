@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
-import { EXPIRY_DOC_TYPES, extractExpiryFromBuffer, mimeFromName } from '@/lib/expiry-ocr'
+import { EXPIRY_DOC_TYPES, extractExpiryFromBuffer, mimeFromName, docTypeFromAppFilename } from '@/lib/expiry-ocr'
 
 const BUCKET = 'staff-documents'
 
@@ -63,10 +63,12 @@ export async function POST(req: NextRequest) {
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-  const newExpiries: Record<string, string> = {}
+  // Build a map of docType → storage path to scan.
+  // Priority: specific doc-type folder first, then application folder (onboarding uploads).
+  const toScan = new Map<string, string>() // docType → storage path
   const errors: Record<string, string> = {}
-  let scanned = 0
 
+  // 1. Check specific {staffId}/{docType}/ folders
   await Promise.all(
     EXPIRY_DOC_TYPES.map(async docType => {
       try {
@@ -75,25 +77,50 @@ export async function POST(req: NextRequest) {
           sortBy: { column: 'created_at', order: 'desc' },
         })
         const latest = (files ?? []).filter(f => f.name !== '.emptyFolderPlaceholder')[0]
-        if (!latest) return
+        if (latest && mimeFromName(latest.name)) {
+          toScan.set(docType, `${staffId}/${docType}/${latest.name}`)
+        }
+      } catch { /* folder may not exist */ }
+    })
+  )
 
-        const mimeType = mimeFromName(latest.name)
-        if (!mimeType) return
+  // 2. Also check the application/ folder (used by staff self-upload during onboarding)
+  try {
+    const { data: appFiles } = await db.storage.from(BUCKET).list(`${staffId}/application`, {
+      limit: 200,
+      sortBy: { column: 'created_at', order: 'desc' },
+    })
+    for (const f of (appFiles ?? []).filter(f => f.name !== '.emptyFolderPlaceholder')) {
+      const docType = docTypeFromAppFilename(f.name)
+      if (!docType || toScan.has(docType)) continue  // already have from specific folder
+      if (!mimeFromName(f.name)) continue             // unsupported format (Word, Excel, etc.)
+      toScan.set(docType, `${staffId}/application/${f.name}`)
+    }
+  } catch { /* application folder may not exist */ }
 
-        const filePath = `${staffId}/${docType}/${latest.name}`
+  const found = toScan.size
+  const newExpiries: Record<string, string> = {}
+  let extracted = 0
+
+  // 3. Run OCR on each found file
+  await Promise.all(
+    [...toScan.entries()].map(async ([docType, filePath]) => {
+      try {
+        const fileName = filePath.split('/').pop()!
+        const mimeType = mimeFromName(fileName)!
         const { data: blob, error: dlErr } = await db.storage.from(BUCKET).download(filePath)
         if (dlErr || !blob) { errors[docType] = dlErr?.message ?? 'Download failed'; return }
 
         const buf = Buffer.from(await blob.arrayBuffer())
         const date = await extractExpiryFromBuffer(buf, mimeType, anthropic)
-        if (date) { newExpiries[docType] = date; scanned++ }
+        if (date) { newExpiries[docType] = date; extracted++ }
       } catch (err) {
         errors[docType] = String(err)
       }
     })
   )
 
-  // Merge with existing saved expiries (new scan results win)
+  // Merge with existing saved expiries (new scan results win for extracted dates)
   if (Object.keys(newExpiries).length > 0) {
     const { data: existing } = await db
       .from('billing_staff_data')
@@ -113,5 +140,5 @@ export async function POST(req: NextRequest) {
     .from('billing_staff_data').select('data').eq('staff_id', staffId).maybeSingle()
   const expiries = ((updated?.data as Record<string, unknown> | null)?.docExpiries ?? {}) as Record<string, string>
 
-  return NextResponse.json({ expiries, scanned, errors })
+  return NextResponse.json({ expiries, found, extracted, errors })
 }

@@ -163,9 +163,16 @@ export default function AdminDocumentsPage() {
     const json = await res.json()
     if (res.ok) {
       setDocExpiries(json.expiries ?? {})
-      setScanMsg(`Scanned ${json.scanned} document${json.scanned !== 1 ? 's' : ''} — expiry dates updated.`)
+      const found = json.found ?? 0
+      const extracted = json.extracted ?? 0
+      const errCount = Object.keys(json.errors ?? {}).length
+      let msg = found === 0
+        ? 'No scannable documents found (PDF or image files in supported folders).'
+        : `Found ${found} document${found !== 1 ? 's' : ''} — extracted ${extracted} expiry date${extracted !== 1 ? 's' : ''}.`
+      if (errCount > 0) msg += ` (${errCount} error${errCount !== 1 ? 's' : ''})`
+      setScanMsg(msg)
     } else {
-      setScanMsg('Scan failed. Please try again.')
+      setScanMsg(json.error ?? 'Scan failed. Please try again.')
     }
     setScanningExpiries(false)
     setTimeout(() => setScanMsg(null), 6000)
