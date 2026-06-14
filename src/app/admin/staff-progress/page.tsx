@@ -365,31 +365,36 @@ export default function StaffProgressPage() {
       setStephenKomninosUploaded(hasFolder("Stephen Komnino's Law"))
       setAppendixAUploaded(hasFolder('Appendix A'))
 
-      // Stored expiry dates (from OCR scan or manual entry) take top priority.
-      // Fallback: estimate from upload date + validity days, checking both the
-      // specific docType folder and the application/ folder (self-uploaded during onboarding).
       const storedExpiries = (extra.docExpiries ?? {}) as Record<string, string>
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
-      for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
-        let expiryDate: Date
-        if (storedExpiries[certType]) {
-          expiryDate = new Date(storedExpiries[certType] + 'T00:00:00')
-        } else {
-          // Check the named folder first, then the application/ folder
-          let certFiles = allFiles.filter(f => f.folder === certType)
-          if (certFiles.length === 0) {
-            certFiles = allFiles.filter(
-              f => f.folder === 'application' && docTypeFromAppFilename(f.name) === certType
-            )
-          }
-          if (certFiles.length === 0) continue
-          const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
-          expiryDate = new Date(latestMs + validityDays * 86400000)
-        }
+
+      // 1. Show ALL certs that have a stored expiry date (from OCR scan or manual entry).
+      //    This includes Driver's License, EAD/Green Card, etc. — not just CERT_CONFIG types.
+      for (const [certType, expiryStr] of Object.entries(storedExpiries)) {
+        const expiryDate = new Date(expiryStr + 'T00:00:00')
         const daysLeft = Math.floor((expiryDate.getTime() - nowMs) / 86400000)
         if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate })
       }
+
+      // 2. For CERT_CONFIG types without a stored date, fall back to upload-date estimate.
+      //    Check both the named folder and the application/ folder (self-uploaded during onboarding).
+      const allFilesAny = allFiles as unknown as { folder: string; name: string; createdAt: string }[]
+      for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
+        if (storedExpiries[certType]) continue  // already added above
+        let certFiles = allFilesAny.filter(f => f.folder === certType)
+        if (certFiles.length === 0) {
+          certFiles = allFilesAny.filter(
+            f => f.folder === 'application' && docTypeFromAppFilename(f.name) === certType
+          )
+        }
+        if (certFiles.length === 0) continue
+        const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
+        const expiryDate = new Date(latestMs + validityDays * 86400000)
+        const daysLeft = Math.floor((expiryDate.getTime() - nowMs) / 86400000)
+        if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate })
+      }
+
       setExpiringCerts(expiring)
 
       // Restore saved report state (or reset to defaults for a fresh member)

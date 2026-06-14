@@ -84,24 +84,30 @@ export default function StaffDashboardPage() {
       const allFiles: { folder: string; name: string; createdAt: string }[] = (docsJson as any).files ?? []
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
-      for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
-        let expiryDate: Date
-        if (storedExpiries[certType]) {
-          expiryDate = new Date(storedExpiries[certType] + 'T00:00:00')
-        } else {
-          let certFiles = allFiles.filter(f => f.folder === certType)
-          if (certFiles.length === 0) {
-            certFiles = allFiles.filter(
-              f => f.folder === 'application' && docTypeFromAppFilename(f.name) === certType
-            )
-          }
-          if (certFiles.length === 0) continue
-          const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
-          expiryDate = new Date(latestMs + validityDays * 86400000)
-        }
+
+      // 1. Show ALL certs that have a stored expiry date (covers DL, EAD, etc.)
+      for (const [certType, expiryStr] of Object.entries(storedExpiries)) {
+        const expiryDate = new Date(expiryStr + 'T00:00:00')
         const daysLeft = Math.floor((expiryDate.getTime() - nowMs) / 86400000)
         if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate })
       }
+
+      // 2. Fallback estimate for CERT_CONFIG types without a stored date
+      for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
+        if (storedExpiries[certType]) continue
+        let certFiles = allFiles.filter(f => f.folder === certType)
+        if (certFiles.length === 0) {
+          certFiles = allFiles.filter(
+            f => f.folder === 'application' && docTypeFromAppFilename(f.name) === certType
+          )
+        }
+        if (certFiles.length === 0) continue
+        const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
+        const expiryDate = new Date(latestMs + validityDays * 86400000)
+        const daysLeft = Math.floor((expiryDate.getTime() - nowMs) / 86400000)
+        if (daysLeft <= 90) expiring.push({ type: certType, daysLeft, expiryDate })
+      }
+
       setExpiringCerts(expiring)
       setLoading(false)
     }
