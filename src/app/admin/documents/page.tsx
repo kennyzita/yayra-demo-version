@@ -99,6 +99,11 @@ export default function AdminDocumentsPage() {
   const [allDocsFilter,   setAllDocsFilter]   = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
 
+  // Expiry dates (from billing_staff_data)
+  const [docExpiries,      setDocExpiries]      = useState<Record<string, string>>({})
+  const [scanningExpiries, setScanningExpiries] = useState(false)
+  const [scanMsg,          setScanMsg]          = useState<string | null>(null)
+
   useEffect(() => {
     supabase
       .from('users')
@@ -115,8 +120,9 @@ export default function AdminDocumentsPage() {
   }, [])
 
   useEffect(() => {
-    if (!selectedStaff) return
+    if (!selectedStaff) { setDocExpiries({}); return }
     loadDocs(selectedStaff)
+    loadExpiries(selectedStaff)
   }, [selectedStaff])
 
   async function loadDocs(staffId: string) {
@@ -138,6 +144,31 @@ export default function AdminDocumentsPage() {
     }
     setDocs(grouped)
     setLoadingDocs(false)
+  }
+
+  async function loadExpiries(staffId: string) {
+    try {
+      const res = await fetch(`/api/admin/scan-staff-expiries?staffId=${staffId}`)
+      if (res.ok) { const j = await res.json(); setDocExpiries(j.expiries ?? {}) }
+    } catch {}
+  }
+
+  async function handleScanExpiries() {
+    if (!selectedStaff || scanningExpiries) return
+    setScanningExpiries(true); setScanMsg(null)
+    const res = await fetch('/api/admin/scan-staff-expiries', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ staffId: selectedStaff }),
+    })
+    const json = await res.json()
+    if (res.ok) {
+      setDocExpiries(json.expiries ?? {})
+      setScanMsg(`Scanned ${json.scanned} document${json.scanned !== 1 ? 's' : ''} — expiry dates updated.`)
+    } else {
+      setScanMsg('Scan failed. Please try again.')
+    }
+    setScanningExpiries(false)
+    setTimeout(() => setScanMsg(null), 6000)
   }
 
   async function loadAllDocuments(staff: StaffUser[]) {
@@ -192,10 +223,18 @@ export default function AdminDocumentsPage() {
 
     setUploading(false)
     if (!res.ok) { setUploadError(json.error ?? 'Upload failed.'); return }
-    setUploadSuccess(`"${file.name}" uploaded successfully.${expiryDate ? ` Expiry date saved: ${new Date(expiryDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.` : ''}`)
+
+    let expiryNote = ''
+    const autoExpiry = json.extractedExpiry as string | null
+    if (expiryDate) {
+      expiryNote = ` Expiry date saved: ${new Date(expiryDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`
+    } else if (autoExpiry) {
+      expiryNote = ` Expiry date auto-detected: ${new Date(autoExpiry + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`
+    }
+    setUploadSuccess(`"${file.name}" uploaded successfully.${expiryNote}`)
     if (fileInputRef.current) fileInputRef.current.value = ''
     setExpiryDate('')
-    await Promise.all([loadDocs(selectedStaff), loadAllDocuments(staffList)])
+    await Promise.all([loadDocs(selectedStaff), loadAllDocuments(staffList), loadExpiries(selectedStaff)])
     setTimeout(() => setUploadSuccess(null), 5000)
   }
 
@@ -211,6 +250,26 @@ export default function AdminDocumentsPage() {
 
   async function handleDownload(_staffId: string, _dt: string, _fileName: string) {
     // Signed URLs are now always available via loadDocs / loadAllDocuments — this is a no-op fallback
+  }
+
+  function expiryBadge(docType: string): React.ReactNode {
+    const dateStr = docExpiries[docType]
+    if (!dateStr) return null
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const exp = new Date(dateStr + 'T00:00:00')
+    const daysLeft = Math.floor((exp.getTime() - today.getTime()) / 86400000)
+    const formatted = exp.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const [bg, color] = daysLeft < 0
+      ? ['rgba(220,38,38,0.1)', '#dc2626']
+      : daysLeft <= 60
+      ? ['rgba(234,88,12,0.1)', '#ea580c']
+      : ['rgba(22,163,74,0.1)', '#16a34a']
+    const label = daysLeft < 0 ? `Expired · ${formatted}` : `Exp. ${formatted}`
+    return (
+      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: bg, color, display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+        <i className="ti ti-calendar-event" style={{ fontSize: 10 }} />{label}
+      </span>
+    )
   }
 
   const selectedUser = staffList.find(u => u.id === selectedStaff)
@@ -248,7 +307,7 @@ export default function AdminDocumentsPage() {
             </label>
             <select
               value={selectedStaff}
-              onChange={e => { setSelectedStaff(e.target.value); setDocs({}) }}
+              onChange={e => { setSelectedStaff(e.target.value); setDocs({}); setDocExpiries({}) }}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, color: '#111', background: '#fff', outline: 'none', cursor: 'pointer' }}
             >
               <option value="">— Select staff member —</option>
@@ -360,12 +419,26 @@ export default function AdminDocumentsPage() {
       {/* Per-staff document view (shown when a staff is selected) */}
       {selectedStaff && (
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', marginBottom: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <i className="ti ti-folder-open" style={{ fontSize: 18, color: '#008080' }} />
-            <span style={{ fontSize: 15, fontWeight: 600, color: '#111', flex: 1 }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <i className="ti ti-folder-open" style={{ fontSize: 18, color: '#008080', flexShrink: 0 }} />
+            <span style={{ fontSize: 15, fontWeight: 600, color: '#111', flex: 1, minWidth: 0 }}>
               Documents for {selectedUser?.first_name} {selectedUser?.last_name}
             </span>
             {loadingDocs && <span style={{ fontSize: 12, color: '#9ca3af' }}>Loading…</span>}
+            {scanMsg && (
+              <span style={{ fontSize: 12, color: '#059669', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <i className="ti ti-circle-check" style={{ fontSize: 13 }} />{scanMsg}
+              </span>
+            )}
+            <button
+              onClick={handleScanExpiries}
+              disabled={scanningExpiries}
+              title="Scan all documents for expiry dates using AI"
+              style={{ fontSize: 12, padding: '5px 12px', borderRadius: 7, border: '1px solid rgba(0,128,128,0.3)', background: 'rgba(0,128,128,0.06)', color: '#008080', cursor: scanningExpiries ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'inherit', flexShrink: 0, opacity: scanningExpiries ? 0.7 : 1 }}
+            >
+              <i className={`ti ${scanningExpiries ? 'ti-loader-2' : 'ti-scan'}`} style={{ fontSize: 13 }} />
+              {scanningExpiries ? 'Scanning…' : 'Scan for Expiry'}
+            </button>
           </div>
 
           {!loadingDocs && docGroups.length === 0 ? (
@@ -381,6 +454,7 @@ export default function AdminDocumentsPage() {
                     <i className="ti ti-tag" style={{ fontSize: 13, color: '#008080' }} />
                     <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{dt}</span>
                     <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 20, background: 'rgba(0,128,128,0.1)', color: '#008080', fontWeight: 600 }}>{files.length}</span>
+                    {expiryBadge(dt)}
                   </div>
                   {files.map(f => {
                     const fi = fileIcon(f.name)

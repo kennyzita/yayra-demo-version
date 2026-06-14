@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { EXPIRY_DOC_TYPES, extractExpiryFromBuffer } from '@/lib/expiry-ocr'
+import Anthropic from '@anthropic-ai/sdk'
 
 const BUCKET = 'staff-documents'
 
@@ -86,8 +88,18 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // If a manual expiry date was provided, persist it in billing_staff_data
-  if (expiryDate) {
+  // Auto-extract expiry via OCR if doc type can have one and no manual date given
+  let autoExtractedExpiry: string | null = null
+  const isExpiryDoc = (EXPIRY_DOC_TYPES as readonly string[]).includes(docType)
+  if (isExpiryDoc && !expiryDate && process.env.ANTHROPIC_API_KEY) {
+    try {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+      autoExtractedExpiry = await extractExpiryFromBuffer(buffer, file.type, anthropic)
+    } catch { /* OCR optional — upload still succeeds */ }
+  }
+
+  const finalExpiry = expiryDate ?? autoExtractedExpiry
+  if (finalExpiry) {
     const { data: existing } = await db
       .from('billing_staff_data')
       .select('data')
@@ -97,9 +109,9 @@ export async function POST(req: NextRequest) {
     const prevExpiries = (existingData.docExpiries ?? {}) as Record<string, string>
     await db.from('billing_staff_data').upsert({
       staff_id: staffId,
-      data: { ...existingData, docExpiries: { ...prevExpiries, [docType]: expiryDate } },
+      data: { ...existingData, docExpiries: { ...prevExpiries, [docType]: finalExpiry } },
     })
   }
 
-  return NextResponse.json({ path })
+  return NextResponse.json({ path, extractedExpiry: autoExtractedExpiry })
 }
