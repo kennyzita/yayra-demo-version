@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { docTypeFromAppFilename } from '@/lib/doc-type-utils'
 import type { AppFormState } from '@/app/staff/application/page'
 
 // ── Cert expiry config ─────────────────────────────────────────────────────────
@@ -364,7 +365,9 @@ export default function StaffProgressPage() {
       setStephenKomninosUploaded(hasFolder("Stephen Komnino's Law"))
       setAppendixAUploaded(hasFolder('Appendix A'))
 
-      // Manually stored expiry dates take precedence over upload-date calculation
+      // Stored expiry dates (from OCR scan or manual entry) take top priority.
+      // Fallback: estimate from upload date + validity days, checking both the
+      // specific docType folder and the application/ folder (self-uploaded during onboarding).
       const storedExpiries = (extra.docExpiries ?? {}) as Record<string, string>
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
@@ -373,7 +376,13 @@ export default function StaffProgressPage() {
         if (storedExpiries[certType]) {
           expiryDate = new Date(storedExpiries[certType] + 'T00:00:00')
         } else {
-          const certFiles = allFiles.filter(f => f.folder === certType)
+          // Check the named folder first, then the application/ folder
+          let certFiles = allFiles.filter(f => f.folder === certType)
+          if (certFiles.length === 0) {
+            certFiles = allFiles.filter(
+              f => f.folder === 'application' && docTypeFromAppFilename(f.name) === certType
+            )
+          }
           if (certFiles.length === 0) continue
           const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
           expiryDate = new Date(latestMs + validityDays * 86400000)

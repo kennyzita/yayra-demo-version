@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { docTypeFromAppFilename } from '@/lib/doc-type-utils'
 import { getVisibleTrainings } from '@/lib/training-modules'
 import {
   Users, Clock, FileText, GraduationCap,
@@ -80,17 +81,20 @@ export default function StaffDashboardPage() {
       setPendingNotes(draftNoteRes.count ?? 0)
 
       const storedExpiries = ((expiriesJson as any).expiries ?? {}) as Record<string, string>
-      const allFiles: { folder: string; createdAt: string }[] = (docsJson as any).files ?? []
+      const allFiles: { folder: string; name: string; createdAt: string }[] = (docsJson as any).files ?? []
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
       for (const [certType, validityDays] of Object.entries(CERT_CONFIG)) {
         let expiryDate: Date
         if (storedExpiries[certType]) {
-          // Use the real expiry date extracted by OCR or entered manually by admin
           expiryDate = new Date(storedExpiries[certType] + 'T00:00:00')
         } else {
-          // Fall back to upload-date + validity-days estimate
-          const certFiles = allFiles.filter(f => f.folder === certType)
+          let certFiles = allFiles.filter(f => f.folder === certType)
+          if (certFiles.length === 0) {
+            certFiles = allFiles.filter(
+              f => f.folder === 'application' && docTypeFromAppFilename(f.name) === certType
+            )
+          }
           if (certFiles.length === 0) continue
           const latestMs = Math.max(...certFiles.map(f => new Date(f.createdAt).getTime()))
           expiryDate = new Date(latestMs + validityDays * 86400000)
