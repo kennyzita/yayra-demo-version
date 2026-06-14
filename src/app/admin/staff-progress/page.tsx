@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { docTypeFromAppFilename, mergeExpiryDates } from '@/lib/doc-type-utils'
+import { docTypeFromAppFilename } from '@/lib/doc-type-utils'
 import type { AppFormState } from '@/app/staff/application/page'
 
 // ── Cert expiry config ─────────────────────────────────────────────────────────
@@ -313,10 +313,11 @@ export default function StaffProgressPage() {
     }
     setLoadingStatus(true)
     async function loadStatus() {
-      const [staffRes, loginJson, docsJson] = await Promise.all([
+      const [staffRes, loginJson, docsJson, expiriesJson] = await Promise.all([
         supabase.from('billing_staff_data').select('data').eq('staff_id', selectedId).maybeSingle(),
         fetch(`/api/get-user-last-login?userId=${selectedId}`).then(r => r.json()).catch(() => ({ lastLogin: null })),
         fetch(`/api/list-staff-documents?staffId=${selectedId}`).then(r => r.json()).catch(() => ({ files: [] })),
+        fetch(`/api/admin/scan-staff-expiries?staffId=${selectedId}`).then(r => r.json()).catch(() => ({ expiries: {} })),
       ])
 
       const extra = (staffRes.data?.data ?? {}) as Record<string, unknown>
@@ -365,7 +366,7 @@ export default function StaffProgressPage() {
       setStephenKomninosUploaded(hasFolder("Stephen Komnino's Law"))
       setAppendixAUploaded(hasFolder('Appendix A'))
 
-      const storedExpiries = mergeExpiryDates((extra.docExpiries ?? {}) as Record<string, string>)
+      const storedExpiries = ((expiriesJson as any).expiries ?? {}) as Record<string, string>
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []
 

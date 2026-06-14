@@ -38,19 +38,4 @@ export const CERT_CANONICAL: Record<string, string> = {
   "EAD / Green card - Back":                   "EAD / Green card",
 }
 
-// Merges stored expiry dates, collapsing front/back variants into one entry.
-// When two variants share a canonical name, keeps the earlier (more urgent) date.
-export function mergeExpiryDates(storedExpiries: Record<string, string>): Record<string, string> {
-  const merged: Record<string, string> = {}
-  for (const [certType, expiryStr] of Object.entries(storedExpiries)) {
-    const canonical = CERT_CANONICAL[certType] ?? certType
-    if (!merged[canonical]) {
-      merged[canonical] = expiryStr
-    } else {
-      // Keep whichever expires sooner (lower value = more urgent)
-      if (expiryStr < merged[canonical]) merged[canonical] = expiryStr
-    }
-  }
-  return merged
-}
 

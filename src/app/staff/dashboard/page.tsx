@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { docTypeFromAppFilename, mergeExpiryDates } from '@/lib/doc-type-utils'
+import { docTypeFromAppFilename } from '@/lib/doc-type-utils'
 import { getVisibleTrainings } from '@/lib/training-modules'
 import {
   Users, Clock, FileText, GraduationCap,
@@ -80,7 +80,7 @@ export default function StaffDashboardPage() {
       setCaseNotesMonth(caseNoteCountRes.count ?? 0)
       setPendingNotes(draftNoteRes.count ?? 0)
 
-      const storedExpiries = mergeExpiryDates(((expiriesJson as any).expiries ?? {}) as Record<string, string>)
+      const storedExpiries = ((expiriesJson as any).expiries ?? {}) as Record<string, string>
       const allFiles: { folder: string; name: string; createdAt: string }[] = (docsJson as any).files ?? []
       const nowMs = Date.now()
       const expiring: ExpiringCert[] = []

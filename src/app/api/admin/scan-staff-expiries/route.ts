@@ -3,6 +3,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { EXPIRY_DOC_TYPES, extractExpiryFromBuffer, mimeFromName, docTypeFromAppFilename } from '@/lib/expiry-ocr'
+import { CERT_CANONICAL } from '@/lib/doc-type-utils'
 
 const BUCKET = 'staff-documents'
 
@@ -14,18 +15,18 @@ function makeAdminDb() {
   })
 }
 
-async function checkAdminOrHR(): Promise<boolean> {
+async function checkAdminOrHR(): Promise<{ ok: boolean; userId: string | null }> {
   const userSupabase = createServerClient()
   const { data: { user } } = await userSupabase.auth.getUser()
-  if (!user) return false
+  if (!user) return { ok: false, userId: null }
   const { data: profile } = await userSupabase
     .from('users').select('role:roles(name)').eq('id', user.id).single()
   const role = (profile?.role as { name: string } | null)?.name
-  return role === 'Admin' || role === 'HR'
+  return { ok: role === 'Admin' || role === 'HR', userId: user.id }
 }
 
 // GET /api/admin/scan-staff-expiries?staffId=UUID
-// Returns the current saved expiry dates for a staff member.
+// Returns the current cert expiry dates for a staff member.
 // Admin/HR can request any staffId; staff can only request their own.
 export async function GET(req: NextRequest) {
   const userSupabase = createServerClient()
@@ -49,16 +50,25 @@ export async function GET(req: NextRequest) {
   const db = makeAdminDb()
   if (!db) return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
 
-  const { data } = await db.from('billing_staff_data').select('data').eq('staff_id', staffId).maybeSingle()
-  const expiries = ((data?.data as Record<string, unknown> | null)?.docExpiries ?? {}) as Record<string, string>
+  const { data: rows } = await db
+    .from('staff_cert_expiries')
+    .select('cert_type, expiry_date')
+    .eq('staff_id', staffId)
+    .eq('is_current', true)
+
+  const expiries: Record<string, string> = {}
+  for (const row of (rows ?? [])) {
+    expiries[row.cert_type] = row.expiry_date
+  }
   return NextResponse.json({ expiries })
 }
 
 // POST /api/admin/scan-staff-expiries
 // Body: { staffId: string }
-// Scans all expiry-capable documents using Claude OCR and saves extracted dates
+// Scans all expiry-capable documents using Claude OCR and saves extracted dates via SCD2
 export async function POST(req: NextRequest) {
-  if (!await checkAdminOrHR()) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const { ok, userId: scannedBy } = await checkAdminOrHR()
+  if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'Anthropic API not configured' }, { status: 500 })
@@ -111,7 +121,7 @@ export async function POST(req: NextRequest) {
   } catch { /* application folder may not exist */ }
 
   const found = toScan.size
-  const newExpiries: Record<string, string> = {}
+  const rawExpiries: { certType: string; expiryDate: string }[] = []
   let extracted = 0
 
   // 3. Run OCR on each found file
@@ -125,32 +135,56 @@ export async function POST(req: NextRequest) {
 
         const buf = Buffer.from(await blob.arrayBuffer())
         const date = await extractExpiryFromBuffer(buf, mimeType, anthropic)
-        if (date) { newExpiries[docType] = date; extracted++ }
+        if (date) {
+          rawExpiries.push({ certType: docType, expiryDate: date })
+          extracted++
+        }
       } catch (err) {
         errors[docType] = String(err)
       }
     })
   )
 
-  // Merge with existing saved expiries (new scan results win for extracted dates)
-  if (Object.keys(newExpiries).length > 0) {
-    const { data: existing } = await db
-      .from('billing_staff_data')
-      .select('data')
-      .eq('staff_id', staffId)
-      .maybeSingle()
-    const existingData = (existing?.data ?? {}) as Record<string, unknown>
-    const prevExpiries = (existingData.docExpiries ?? {}) as Record<string, string>
-    await db.from('billing_staff_data').upsert({
-      staff_id: staffId,
-      data: { ...existingData, docExpiries: { ...prevExpiries, ...newExpiries } },
-    })
+  // 4. Canonicalize cert types and merge front/back variants (keep earliest expiry date)
+  const newExpiries: Record<string, string> = {}
+  for (const { certType, expiryDate } of rawExpiries) {
+    const canonical = CERT_CANONICAL[certType] ?? certType
+    if (!newExpiries[canonical] || expiryDate < newExpiries[canonical]) {
+      newExpiries[canonical] = expiryDate
+    }
   }
 
+  // 5. Persist via SCD2: expire previous current row then insert new row
+  const now = new Date().toISOString()
+  await Promise.all(
+    Object.entries(newExpiries).map(async ([certType, expiryDate]) => {
+      await db.from('staff_cert_expiries')
+        .update({ valid_to: now, is_current: false })
+        .eq('staff_id', staffId)
+        .eq('cert_type', certType)
+        .eq('is_current', true)
+      await db.from('staff_cert_expiries').insert({
+        staff_id: staffId,
+        cert_type: certType,
+        expiry_date: expiryDate,
+        scanned_by: scannedBy,
+        valid_from: now,
+        is_current: true,
+      })
+    })
+  )
+
   // Return the full current expiry map
-  const { data: updated } = await db
-    .from('billing_staff_data').select('data').eq('staff_id', staffId).maybeSingle()
-  const expiries = ((updated?.data as Record<string, unknown> | null)?.docExpiries ?? {}) as Record<string, string>
+  const { data: rows } = await db
+    .from('staff_cert_expiries')
+    .select('cert_type, expiry_date')
+    .eq('staff_id', staffId)
+    .eq('is_current', true)
+
+  const expiries: Record<string, string> = {}
+  for (const row of (rows ?? [])) {
+    expiries[row.cert_type] = row.expiry_date
+  }
 
   return NextResponse.json({ expiries, found, extracted, errors })
 }

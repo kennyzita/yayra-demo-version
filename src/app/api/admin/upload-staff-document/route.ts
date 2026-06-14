@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { EXPIRY_DOC_TYPES, extractExpiryFromBuffer } from '@/lib/expiry-ocr'
+import { CERT_CANONICAL } from '@/lib/doc-type-utils'
 import Anthropic from '@anthropic-ai/sdk'
 
 const BUCKET = 'staff-documents'
@@ -100,16 +101,20 @@ export async function POST(req: NextRequest) {
 
   const finalExpiry = expiryDate ?? autoExtractedExpiry
   if (finalExpiry) {
-    const { data: existing } = await db
-      .from('billing_staff_data')
-      .select('data')
+    const canonicalCertType = CERT_CANONICAL[docType] ?? docType
+    const now = new Date().toISOString()
+    await db.from('staff_cert_expiries')
+      .update({ valid_to: now, is_current: false })
       .eq('staff_id', staffId)
-      .maybeSingle()
-    const existingData = ((existing?.data ?? {}) as Record<string, unknown>)
-    const prevExpiries = (existingData.docExpiries ?? {}) as Record<string, string>
-    await db.from('billing_staff_data').upsert({
+      .eq('cert_type', canonicalCertType)
+      .eq('is_current', true)
+    await db.from('staff_cert_expiries').insert({
       staff_id: staffId,
-      data: { ...existingData, docExpiries: { ...prevExpiries, [docType]: finalExpiry } },
+      cert_type: canonicalCertType,
+      expiry_date: finalExpiry,
+      scanned_by: user.id,
+      valid_from: now,
+      is_current: true,
     })
   }
 
