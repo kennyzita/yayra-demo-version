@@ -1246,9 +1246,17 @@ function CForm({cl,upd,onDel,onPDF,onDrive,allStaff=[],onToggleStaff=()=>{},onOp
 }
 
 // ── Import Modal ──────────────────────────────────────────────────────────────
-function IModal({state,data,err,target,onApply,onClose,driveUrl,setDriveUrl,onDrive}){
+function IModal({state,data,err,target,onApply,onClose,driveUrl,setDriveUrl,onDrive,clients,iTgt}){
   if(!state)return null;
   const fields=[["Client name","name"],["Patient ID","patientId"],["DOB","dob"],["Sex","sex"],["County","county"],["Medicaid ID","medicaidId"],["Diagnosis","dx"],["Service name","serviceName"],["Service location","serviceLocation"],["Proc code","procCode"],["Rate","rate"],["Total Units","totalUnits"],["Total Hours","totalHours"],["Total Cost","totalCost"],["Unit type","unitType"],["Frequency","frequency"],["PA number","paNumber"],["PA approved","paApproved"],["PA start","paStart"],["PA end","paEnd"],["Plan ID","planId"],["EVV Status","evv"],["SC Agency","scCompany"],["Agency Email","scEmail"],["Agency Phone","scPhone"],["SC Name","scName"],["SC Email","scIndEmail"],["SC Phone","scIndPhone"],["SCS Name","scsName"],["SCS Email","scsEmail"],["SCS Phone","scsPhone"]];
+  // Detect duplicate only when uploading for a new client (no explicit target)
+  const nameLower=((data?.name)||"").toLowerCase().trim();
+  const duplicate=(!iTgt&&nameLower)
+    ?(clients||[]).find(c=>!c.archived&&(
+        (c.name||"").toLowerCase().trim()===nameLower||
+        (data?.medicaidId&&c.mid&&data.medicaidId===c.mid)
+      ))
+    :null;
   return <div style={{position:"absolute",inset:0,background:"rgba(15,23,42,.6)",zIndex:20,display:"flex",alignItems:"center",justifyContent:"center"}}>
     <div style={{background:white,borderRadius:12,border:`1.5px solid ${gray2}`,padding:20,width:560,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 8px 40px rgba(0,0,0,.22)"}}>
       {(state==="uploading"||state==="extracting")&&<div style={{textAlign:"center",padding:"2.5rem 0"}}>
@@ -1273,6 +1281,13 @@ function IModal({state,data,err,target,onApply,onClose,driveUrl,setDriveUrl,onDr
       {state==="review"&&data&&<div>
         <div style={{fontWeight:800,fontSize:15,color:navy,marginBottom:4}}>Review extracted data</div>
         <div style={{fontSize:12,color:gray5,marginBottom:12}}>Importing into: <b style={{color:navy}}>{target}</b></div>
+        {duplicate&&<div style={{background:yellowL,border:`1px solid ${yellow}`,borderRadius:8,padding:"10px 12px",marginBottom:12,display:"flex",alignItems:"flex-start",gap:8}}>
+          <span style={{fontSize:15,flexShrink:0}}>⚠️</span>
+          <div>
+            <div style={{fontSize:12,fontWeight:700,color:"#92400e"}}>Client already exists</div>
+            <div style={{fontSize:11,color:"#78350f",marginTop:2}}><b>{duplicate.name}</b> is already in the system. The new PA will be added to their existing record — no duplicate will be created.</div>
+          </div>
+        </div>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:14}}>
           {fields.map(([lbl,k])=>{const v=data[k];return(
             <div key={k} style={{background:v?gray0:redL,borderRadius:7,padding:"6px 8px",border:`1px solid ${v?gray2:red}`}}>
@@ -1281,7 +1296,7 @@ function IModal({state,data,err,target,onApply,onClose,driveUrl,setDriveUrl,onDr
             </div>);})}
         </div>
         <div style={{display:"flex",gap:8}}>
-          <Btn onClick={onApply} bg={blue} color={white} border={blue}>✓ Import data</Btn>
+          <Btn onClick={onApply} bg={blue} color={white} border={blue}>✓ {duplicate?"Merge into existing client":"Import data"}</Btn>
           <Btn onClick={onClose}>Cancel</Btn>
         </div>
       </div>}
@@ -1895,19 +1910,42 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
       county:NJ_COUNTIES.includes(d.county)?d.county:"",mid:d.medicaidId||"",dx:d.dx||""};
     if(iTgt){updC(iTgt,{...cp,services:[pa]});setAid(iTgt);}
     else{
-      // Create a real client row in Staff Connect first so we get a UUID,
-      // otherwise upsert into billing_client_data fails (client_id is UUID).
-      try{
-        const { data: row, error } = await supabase.from("clients")
-          .insert({ full_name: cp.name || "New Client", dob: cp.dob || null })
-          .select("id").single();
-        if(error) throw error;
-        const nc={...mkClient(row.id),...cp,services:[pa]};
-        setClients(prev=>[...prev,nc]);
-        setAid(nc.id);
-      }catch(e){
-        toast.error("Could not create client: "+(e?.message||String(e)));
-        return;
+      // Detect duplicate: match by name (case-insensitive) or Medicaid ID
+      const nameLower=(cp.name||"").toLowerCase().trim();
+      const duplicate=nameLower
+        ?clients.find(c=>!c.archived&&(
+            (c.name||"").toLowerCase().trim()===nameLower||
+            (cp.mid&&c.mid&&cp.mid===c.mid)
+          ))
+        :null;
+      if(duplicate){
+        // Merge: append new PA to existing client; backfill any blank profile fields
+        updC(duplicate.id,{
+          pid:    duplicate.pid    ||cp.pid,
+          dob:    duplicate.dob    ||cp.dob,
+          sex:    duplicate.sex    ||cp.sex,
+          county: duplicate.county ||cp.county,
+          mid:    duplicate.mid    ||cp.mid,
+          dx:     duplicate.dx     ||cp.dx,
+          services:[...duplicate.services,pa],
+        });
+        setAid(duplicate.id);
+        toast.success(`New PA merged into existing client: ${duplicate.name}`);
+      }else{
+        // Create a real client row in Staff Connect first so we get a UUID,
+        // otherwise upsert into billing_client_data fails (client_id is UUID).
+        try{
+          const { data: row, error } = await supabase.from("clients")
+            .insert({ full_name: cp.name || "New Client", dob: cp.dob || null })
+            .select("id").single();
+          if(error) throw error;
+          const nc={...mkClient(row.id),...cp,services:[pa]};
+          setClients(prev=>[...prev,nc]);
+          setAid(nc.id);
+        }catch(e){
+          toast.error("Could not create client: "+(e?.message||String(e)));
+          return;
+        }
       }
     }
     setMode("clients");setView("form");setIS(null);setID(null);setDriveUrl("");
@@ -2069,7 +2107,8 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
 
     <div style={{flex:1,overflowY:"auto",background:gray0,position:"relative",paddingTop:isMobile?44:0}}>
       <IModal state={iState} data={iData} err={iErr} target={tgtName}
-        onApply={applyImport} onClose={closeModal} driveUrl={driveUrl} setDriveUrl={setDriveUrl} onDrive={handleDrive}/>
+        onApply={applyImport} onClose={closeModal} driveUrl={driveUrl} setDriveUrl={setDriveUrl} onDrive={handleDrive}
+        clients={clients} iTgt={iTgt}/>
       {view==="archive"
         ?<ArchiveFolder clients={clients} staff={staff}
             onDeleteClient={hardDelClient} onDeleteStaff={hardDelStaff}
