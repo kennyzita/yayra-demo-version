@@ -14,10 +14,6 @@ type StaffRow = {
   saving: boolean
 }
 
-function computedStaffId(userId: string): string {
-  // Deterministic fallback: last 6 chars of UUID (uppercase, no dashes)
-  return userId.replace(/-/g, '').slice(-6).toUpperCase()
-}
 
 export default function EditStaffIdPage() {
   const supabase = createClient()
@@ -74,7 +70,7 @@ export default function EditStaffIdPage() {
   function startEdit(id: string) {
     setRows(prev => prev.map(r =>
       r.id === id
-        ? { ...r, editing: true, draft: r.staffId ?? computedStaffId(r.id) }
+        ? { ...r, editing: true, draft: r.staffId ?? '' }
         : r
     ))
   }
@@ -93,8 +89,8 @@ export default function EditStaffIdPage() {
 
     setRows(prev => prev.map(r => r.id === row.id ? { ...r, saving: true } : r))
 
-    // Check for duplicates
-    const duplicate = rows.find(r => r.id !== row.id && (r.staffId ?? computedStaffId(r.id)).toUpperCase() === trimmed.toUpperCase())
+    // Check for duplicates among staff who already have a saved ID
+    const duplicate = rows.find(r => r.id !== row.id && r.staffId && r.staffId.toUpperCase() === trimmed.toUpperCase())
     if (duplicate) {
       showToast(`Staff ID "${trimmed}" is already assigned to ${duplicate.first_name} ${duplicate.last_name}`)
       setRows(prev => prev.map(r => r.id === row.id ? { ...r, saving: false } : r))
@@ -135,7 +131,7 @@ export default function EditStaffIdPage() {
       r.first_name.toLowerCase().includes(q) ||
       r.last_name.toLowerCase().includes(q) ||
       r.email.toLowerCase().includes(q) ||
-      (r.staffId ?? computedStaffId(r.id)).toLowerCase().includes(q)
+      (r.staffId ?? '').toLowerCase().includes(q)
     )
   })
 
@@ -157,7 +153,7 @@ export default function EditStaffIdPage() {
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 26, fontWeight: 800, color: '#111827', margin: 0 }}>Edit Staff ID</h1>
         <p style={{ fontSize: 14, color: '#6b7280', margin: '6px 0 0' }}>
-          Assign or update the Staff ID for each DSP Staff member. If no custom ID is set, a system-generated ID is shown.
+          Assign or update the Staff ID for each DSP Staff member. Only saved IDs are shown.
         </p>
       </div>
 
@@ -196,8 +192,6 @@ export default function EditStaffIdPage() {
             </thead>
             <tbody>
               {filtered.map((row, idx) => {
-                const displayed = row.staffId ?? computedStaffId(row.id)
-                const isCustom = !!row.staffId
                 return (
                   <tr key={row.id} style={{ borderBottom: idx < filtered.length - 1 ? '1px solid #f3f4f6' : 'none', background: '#fff' }}>
                     <td style={tdStyle}>
@@ -225,18 +219,17 @@ export default function EditStaffIdPage() {
                         />
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{
-                            fontFamily: 'monospace', fontWeight: 700, fontSize: 15,
-                            letterSpacing: 2, color: isCustom ? '#1d4ed8' : '#9ca3af',
-                            background: isCustom ? 'rgba(29,78,216,0.07)' : 'rgba(156,163,175,0.1)',
-                            padding: '4px 10px', borderRadius: 6,
-                          }}>
-                            {displayed}
-                          </span>
-                          {!isCustom && (
-                            <span style={{ fontSize: 11, color: '#d97706', background: 'rgba(217,119,6,0.1)', padding: '2px 7px', borderRadius: 20, fontWeight: 600 }}>
-                              auto
+                          {row.staffId ? (
+                            <span style={{
+                              fontFamily: 'monospace', fontWeight: 700, fontSize: 15,
+                              letterSpacing: 2, color: '#1d4ed8',
+                              background: 'rgba(29,78,216,0.07)',
+                              padding: '4px 10px', borderRadius: 6,
+                            }}>
+                              {row.staffId}
                             </span>
+                          ) : (
+                            <span style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>Not set</span>
                           )}
                         </div>
                       )}
@@ -264,7 +257,7 @@ export default function EditStaffIdPage() {
                           onClick={() => startEdit(row.id)}
                           style={btnStyle('#2563eb', false)}
                         >
-                          {isCustom ? 'Edit' : 'Set ID'}
+                          {row.staffId ? 'Edit' : 'Set ID'}
                         </button>
                       )}
                     </td>
@@ -278,7 +271,7 @@ export default function EditStaffIdPage() {
 
       <p style={{ marginTop: 16, fontSize: 12, color: '#9ca3af' }}>
         {rows.length} DSP Staff member{rows.length !== 1 ? 's' : ''} •{' '}
-        {rows.filter(r => r.staffId).length} with custom Staff ID
+        {rows.filter(r => r.staffId).length} with Staff ID assigned
       </p>
     </div>
   )
