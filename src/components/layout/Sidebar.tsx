@@ -69,8 +69,9 @@ const adminSections: NavSection[] = [
   {
     label: 'Administration',
     items: [
-      { href: '/admin/users',  label: 'User Accounts',   icon: 'ti-users'  },
-      { href: '/admin/roles',  label: 'Role Management', icon: 'ti-shield' },
+      { href: '/admin/users',    label: 'User Accounts',   icon: 'ti-users'    },
+      { href: '/admin/roles',    label: 'Role Management', icon: 'ti-shield'   },
+      { href: '/admin/staff-id', label: 'Edit Staff ID',   icon: 'ti-id-badge' },
     ],
   },
   {
