@@ -181,7 +181,6 @@ export default function CaseNotesPage() {
   const [checked, setChecked]     = useState<boolean[]>(new Array(STRATEGIES.length).fill(false))
   const [entries, setEntries]     = useState<Entry[]>([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
   const [submitting, setSubmitting] = useState(false)
-  const [sendingTs,  setSendingTs]  = useState(false)
   const [toast, setToast]         = useState('')
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
 
@@ -363,63 +362,6 @@ export default function CaseNotesPage() {
       else { showToast('Case note submitted ✓'); resetForm() }
     }
     setSubmitting(false)
-  }
-
-  async function doSendForTimesheet() {
-    if (!clientId) { showToast('Please select a client first'); return }
-    if (entries.length === 0) { showToast('Add at least one activity entry'); return }
-    for (const e of entries) {
-      if (e.start && e.end) {
-        const [sh, sm] = e.start.split(':').map(Number)
-        const [eh, em] = e.end.split(':').map(Number)
-        if ((eh * 60 + em) - (sh * 60 + sm) !== 60) {
-          showToast(`Entry at ${e.start} must be exactly 1 hour`)
-          return
-        }
-      }
-    }
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { showToast('Not authenticated'); return }
-    const selectedStrategies = STRATEGIES.filter((_, i) => checked[i]).map(s => s.title)
-    setSendingTs(true)
-
-    // Submit the case note
-    const { error: cnErr } = await supabase.from('case_notes').insert({
-      dsp_id: user.id, client_id: clientId, week_label: week,
-      strategies: selectedStrategies, entries, status: 'submitted',
-      submitted_at: new Date().toISOString(),
-    })
-    if (cnErr) { showToast('Error: ' + cnErr.message); setSendingTs(false); return }
-
-    // Build and upsert timesheet entry from case note hours
-    const range = parseWeekRange(week)
-    if (range) {
-      const weekStart = toLocalISO(range.start)
-      const weekEnd   = toLocalISO(range.end)
-      // Group entries by date: keep earliest start and latest end per day
-      const dayMap = new Map<string, { start: string; end: string }>()
-      for (const e of entries) {
-        if (!e.date || !e.start || !e.end) continue
-        const cur = dayMap.get(e.date)
-        if (!cur) { dayMap.set(e.date, { start: e.start, end: e.end }) }
-        else {
-          if (e.start < cur.start) cur.start = e.start
-          if (e.end   > cur.end)   cur.end   = e.end
-        }
-      }
-      const tsEntries = [...dayMap.entries()].map(([date, t]) => ({ date, start: t.start, end: t.end }))
-      const totalHours = entries.filter(e => e.start && e.end).length
-      await supabase.from('timesheets').upsert({
-        dsp_id: user.id, client_id: clientId,
-        week_start: weekStart, week_end: weekEnd,
-        entries: tsEntries, total_hours: totalHours,
-        status: 'submitted', submitted_at: new Date().toISOString(),
-      }, { onConflict: 'dsp_id,client_id,week_start' })
-    }
-
-    showToast('Case note submitted & sent to timesheet ✓')
-    resetForm()
-    setSendingTs(false)
   }
 
   function resetForm() {
@@ -1094,20 +1036,12 @@ export default function CaseNotesPage() {
 
             {/* Submit */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-              <button onClick={doSubmit} disabled={submitting || sendingTs || !clientId}
+              <button onClick={doSubmit} disabled={submitting || !clientId}
                 style={{ fontSize: 15, fontWeight: 700, padding: '16px 28px', borderRadius: 8, border: 'none', background: submitting ? '#6b7280' : '#2d7d4e', color: 'white', cursor: submitting ? 'wait' : (!clientId ? 'not-allowed' : 'pointer'), opacity: !clientId ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}>
                 {submitting
                   ? <><i className="ti ti-loader-2" /> {editingNoteId ? 'Saving…' : 'Submitting…'}</>
                   : editingNoteId ? <>💾 Save Changes</> : <>📄 Submit Case Note</>}
               </button>
-              {!editingNoteId && (
-                <button onClick={doSendForTimesheet} disabled={submitting || sendingTs || !clientId}
-                  style={{ fontSize: 15, fontWeight: 700, padding: '16px 28px', borderRadius: 8, border: 'none', background: sendingTs ? '#6b7280' : '#1d4ed8', color: 'white', cursor: sendingTs ? 'wait' : (!clientId ? 'not-allowed' : 'pointer'), opacity: !clientId ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit' }}>
-                  {sendingTs
-                    ? <><i className="ti ti-loader-2" /> Sending…</>
-                    : <>🕒 Send for Timesheet</>}
-                </button>
-              )}
               <button onClick={clearForm} style={{ fontSize: 14, fontWeight: 600, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer', padding: '16px 20px', fontFamily: 'inherit' }}>
                 {editingNoteId ? 'Cancel' : 'Clear Form'}
               </button>

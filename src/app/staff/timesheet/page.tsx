@@ -291,7 +291,7 @@ export default function TimesheetPage() {
         <span style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>My timesheet</span>
         <div style={{ flex: 1 }} />
         <button onClick={async () => { const next = !showHistory; setShowHistory(next); if (next) await loadTsHistory() }}
-          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+          style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '1px solid #16a34a', background: '#16a34a', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
           <i className="ti ti-history" /> {showHistory ? 'New entry' : 'View history'}
         </button>
         <button style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'transparent', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }} onClick={() => window.print()}>
