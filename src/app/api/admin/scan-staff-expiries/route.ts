@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 import { EXPIRY_DOC_TYPES, extractExpiryFromBuffer, mimeFromName, docTypeFromAppFilename } from '@/lib/expiry-ocr'
 import { CERT_CANONICAL } from '@/lib/doc-type-utils'
+import { requireUser, requireAdminOrHR } from '@/lib/api-auth'
 
 const BUCKET = 'staff-documents'
 
@@ -15,36 +15,20 @@ function makeAdminDb() {
   })
 }
 
-async function checkAdminOrHR(): Promise<{ ok: boolean; userId: string | null }> {
-  const userSupabase = createServerClient()
-  const { data: { user } } = await userSupabase.auth.getUser()
-  if (!user) return { ok: false, userId: null }
-  const { data: profile } = await userSupabase
-    .from('users').select('role:roles(name)').eq('id', user.id).single()
-  const role = (profile?.role as { name: string } | null)?.name
-  return { ok: role === 'Admin' || role === 'HR', userId: user.id }
-}
-
 // GET /api/admin/scan-staff-expiries?staffId=UUID
 // Returns the current cert expiry dates for a staff member.
 // Admin/HR can request any staffId; staff can only request their own.
 export async function GET(req: NextRequest) {
-  const userSupabase = createServerClient()
-  const { data: { user } } = await userSupabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { ok, userId, role } = await requireUser()
+  if (!ok) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const staffId = req.nextUrl.searchParams.get('staffId') ?? ''
   if (!/^[0-9a-f-]{36}$/.test(staffId)) {
     return NextResponse.json({ error: 'Missing or invalid staffId' }, { status: 400 })
   }
 
-  if (staffId !== user.id) {
-    const { data: profile } = await userSupabase
-      .from('users').select('role:roles(name)').eq('id', user.id).single()
-    const role = (profile?.role as { name: string } | null)?.name
-    if (role !== 'Admin' && role !== 'HR') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+  if (staffId !== userId && role !== 'Admin' && role !== 'HR') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const db = makeAdminDb()
@@ -67,7 +51,7 @@ export async function GET(req: NextRequest) {
 // Body: { staffId: string }
 // Scans all expiry-capable documents using Claude OCR and saves extracted dates via SCD2
 export async function POST(req: NextRequest) {
-  const { ok, userId: scannedBy } = await checkAdminOrHR()
+  const { ok, userId: scannedBy } = await requireAdminOrHR()
   if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   if (!process.env.ANTHROPIC_API_KEY) {
