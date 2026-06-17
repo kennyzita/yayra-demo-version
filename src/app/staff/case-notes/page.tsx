@@ -316,6 +316,17 @@ export default function CaseNotesPage() {
     setEntries(prev => [...prev, { id: nextIdRef.current++, date: '', start: '', end: '', strategy: '', desc: '' }])
   }
 
+  function addHourlyEntry() {
+    setEntries(prev => {
+      const last = prev[prev.length - 1]
+      if (last && last.date && last.start) {
+        const newStart = last.end || addOneHour(last.start)
+        return [...prev, { id: nextIdRef.current++, date: last.date, start: newStart, end: addOneHour(newStart), strategy: '', desc: '' }]
+      }
+      return [...prev, { id: nextIdRef.current++, date: last?.date ?? '', start: '', end: '', strategy: '', desc: '' }]
+    })
+  }
+
   function removeEntry(id: number) {
     setEntries(prev => prev.filter(e => e.id !== id))
   }
@@ -1019,9 +1030,14 @@ export default function CaseNotesPage() {
                     </div>
                   </div>
                 ))}
-                <button onClick={addEntry} style={{ width: '100%', padding: 18, border: '2.5px dashed #1a56db', borderRadius: 10, background: '#f0f5ff', color: '#004050', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit' }}>
-                  + Add Activity Entry
-                </button>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <button onClick={addEntry} style={{ flex: '1 1 240px', padding: 18, border: '2.5px dashed #1a56db', borderRadius: 10, background: '#f0f5ff', color: '#004050', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit' }}>
+                    + Add New Activity Entry
+                  </button>
+                  <button onClick={addHourlyEntry} style={{ flex: '1 1 240px', padding: 18, border: '2.5px dashed #16a34a', borderRadius: 10, background: '#f0fdf4', color: '#15803d', fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit' }}>
+                    + Add Hourly Activity Entry
+                  </button>
+                </div>
               </div>
             </div>
 
