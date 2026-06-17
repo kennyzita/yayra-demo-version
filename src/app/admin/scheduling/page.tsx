@@ -146,7 +146,10 @@ export default function AdminSchedulingPage() {
 
       if (error) {
         console.error('[scheduling] insert error:', error)
-        showToast(error.message ?? 'Failed to save schedule')
+        const message = error.code === '23P01'
+          ? 'This DSP already has an overlapping shift at that date/time.'
+          : (error.message ?? 'Failed to save schedule')
+        showToast(message)
         setSaving(false)
         return
       }

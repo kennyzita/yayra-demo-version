@@ -138,24 +138,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 5. Persist via SCD2: expire previous current row then insert new row
-  const now = new Date().toISOString()
+  // 5. Persist via SCD2: expire previous current row then insert new row, atomically
   await Promise.all(
-    Object.entries(newExpiries).map(async ([certType, expiryDate]) => {
-      await db.from('staff_cert_expiries')
-        .update({ valid_to: now, is_current: false })
-        .eq('staff_id', staffId)
-        .eq('cert_type', certType)
-        .eq('is_current', true)
-      await db.from('staff_cert_expiries').insert({
-        staff_id: staffId,
-        cert_type: certType,
-        expiry_date: expiryDate,
-        scanned_by: scannedBy,
-        valid_from: now,
-        is_current: true,
+    Object.entries(newExpiries).map(([certType, expiryDate]) =>
+      db.rpc('upsert_cert_expiry_scd2', {
+        p_staff_id: staffId,
+        p_cert_type: certType,
+        p_expiry_date: expiryDate,
+        p_scanned_by: scannedBy,
       })
-    })
+    )
   )
 
   // Return the full current expiry map
