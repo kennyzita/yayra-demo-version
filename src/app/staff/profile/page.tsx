@@ -82,13 +82,17 @@ export default function StaffProfilePage() {
         setCityStateZip(p.city_state_zip)
         setEmergencyContact(p.emergency_contact)
 
-        const fullName = `${userData.first_name} ${userData.last_name}`.trim()
-        if (fullName === 'Rasheed Yekini') {
-          setStaffId('RCS-001')
+        if (extra.staffId) {
+          setStaffId(extra.staffId)
         } else {
-          const others = (allUsersData ?? []).filter((u: any) => `${u.first_name} ${u.last_name}`.trim() !== 'Rasheed Yekini')
-          const pos = others.findIndex((u: any) => u.id === user.id)
-          setStaffId(pos >= 0 ? `RCS-${String(pos + 2).padStart(3, '0')}` : 'RCS-???')
+          const fullName = `${userData.first_name} ${userData.last_name}`.trim()
+          if (fullName === 'Rasheed Yekini') {
+            setStaffId('RCS-001')
+          } else {
+            const others = (allUsersData ?? []).filter((u: any) => `${u.first_name} ${u.last_name}`.trim() !== 'Rasheed Yekini')
+            const pos = others.findIndex((u: any) => u.id === user.id)
+            setStaffId(pos >= 0 ? `RCS-${String(pos + 2).padStart(3, '0')}` : 'RCS-???')
+          }
         }
       }
       setLoading(false)

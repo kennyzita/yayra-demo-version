@@ -78,20 +78,26 @@ export default function TimesheetPage() {
       setLoadingClients(true)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
-      const [{ data: prof }, { data: asgData }, { data: allUsersData }] = await Promise.all([
+      const [{ data: prof }, { data: asgData }, { data: allUsersData }, { data: billingData }] = await Promise.all([
         supabase.from('users').select('first_name, last_name, role:roles(name)').eq('id', user.id).single(),
         supabase.from('assignments').select('client_id, clients(id, full_name)').eq('dsp_id', user.id),
         supabase.from('users').select('id, first_name, last_name').order('created_at', { ascending: true }),
+        supabase.from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle(),
       ])
       if (prof) {
         setProfile({ firstName: prof.first_name, lastName: prof.last_name, role: (prof.role as any)?.name ?? 'DSP' })
-        const fullName = `${prof.first_name} ${prof.last_name}`.trim()
-        if (fullName === 'Rasheed Yekini') {
-          setStaffId('RCS-001')
+        const customId = (billingData?.data as any)?.staffId as string | undefined
+        if (customId) {
+          setStaffId(customId)
         } else {
-          const others = (allUsersData ?? []).filter((u: any) => `${u.first_name} ${u.last_name}`.trim() !== 'Rasheed Yekini')
-          const pos = others.findIndex((u: any) => u.id === user.id)
-          setStaffId(pos >= 0 ? `RCS-${String(pos + 2).padStart(3, '0')}` : 'RCS-002')
+          const fullName = `${prof.first_name} ${prof.last_name}`.trim()
+          if (fullName === 'Rasheed Yekini') {
+            setStaffId('RCS-001')
+          } else {
+            const others = (allUsersData ?? []).filter((u: any) => `${u.first_name} ${u.last_name}`.trim() !== 'Rasheed Yekini')
+            const pos = others.findIndex((u: any) => u.id === user.id)
+            setStaffId(pos >= 0 ? `RCS-${String(pos + 2).padStart(3, '0')}` : 'RCS-002')
+          }
         }
       }
       const clients: AssignedClient[] = (asgData || []).map((a: any) => a.clients).filter(Boolean)
