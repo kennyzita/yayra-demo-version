@@ -118,7 +118,7 @@ export default function AdminCaseNotesPage() {
   async function loadAll() {
     setLoading(true)
     const [{ data: cnData }, { data: usersData }, { data: clientsData }, { data: rolesData }] = await Promise.all([
-      supabase.from('case_notes').select('*').order('submitted_at', { ascending: false }),
+      supabase.from('case_notes').select('*').neq('status', 'draft').order('submitted_at', { ascending: false }),
       supabase.from('users').select('id, first_name, last_name, role_id'),
       supabase.from('clients').select('id, full_name'),
       supabase.from('roles').select('id, name'),

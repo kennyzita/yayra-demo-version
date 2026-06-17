@@ -181,6 +181,8 @@ export default function CaseNotesPage() {
   const [checked, setChecked]     = useState<boolean[]>(new Array(STRATEGIES.length).fill(false))
   const [entries, setEntries]     = useState<Entry[]>([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
   const [submitting, setSubmitting] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
+  const [draftNoteId, setDraftNoteId] = useState<string | null>(null)
   const [toast, setToast]         = useState('')
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
 
@@ -267,6 +269,7 @@ export default function CaseNotesPage() {
       .from('case_notes')
       .select('id, client_id, week_label, submitted_at, status, strategies, entries')
       .eq('dsp_id', userId)
+      .neq('status', 'draft')
       .order('submitted_at', { ascending: false })
       .limit(200)
 
@@ -363,6 +366,12 @@ export default function CaseNotesPage() {
         .eq('id', editingNoteId)
       if (error) showToast('Error: ' + error.message)
       else { showToast('Case note updated ✓'); setEditingNoteId(null); resetForm() }
+    } else if (draftNoteId) {
+      const { error } = await supabase.from('case_notes')
+        .update({ client_id: clientId, week_label: week, strategies: selectedStrategies, entries, status: 'submitted', submitted_at: new Date().toISOString() })
+        .eq('id', draftNoteId)
+      if (error) showToast('Error: ' + error.message)
+      else { showToast('Case note submitted ✓'); resetForm() }
     } else {
       const { error } = await supabase.from('case_notes').insert({
         dsp_id: user.id, client_id: clientId, week_label: week,
@@ -375,10 +384,41 @@ export default function CaseNotesPage() {
     setSubmitting(false)
   }
 
+  async function doSaveDraft() {
+    if (!clientId) { showToast('Please select a client first'); return }
+    if (entries.length === 0) { showToast('Add at least one activity entry'); return }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { showToast('Not authenticated'); return }
+    const selectedStrategies = STRATEGIES.filter((_, i) => checked[i]).map(s => s.title)
+    setSavingDraft(true)
+
+    if (editingNoteId) {
+      const { error } = await supabase.from('case_notes')
+        .update({ client_id: clientId, week_label: week, strategies: selectedStrategies, entries, updated_at: new Date().toISOString() })
+        .eq('id', editingNoteId)
+      if (error) showToast('Error: ' + error.message)
+      else showToast('Changes saved ✓')
+    } else if (draftNoteId) {
+      const { error } = await supabase.from('case_notes')
+        .update({ client_id: clientId, week_label: week, strategies: selectedStrategies, entries, updated_at: new Date().toISOString() })
+        .eq('id', draftNoteId)
+      if (error) showToast('Error: ' + error.message)
+      else showToast('Draft saved ✓')
+    } else {
+      const { data, error } = await supabase.from('case_notes').insert({
+        dsp_id: user.id, client_id: clientId, week_label: week,
+        strategies: selectedStrategies, entries, status: 'draft',
+      }).select('id').single()
+      if (error) showToast('Error: ' + error.message)
+      else { setDraftNoteId(data.id); showToast('Draft saved ✓') }
+    }
+    setSavingDraft(false)
+  }
+
   function resetForm() {
     setClientId(''); setIspOutcome(''); setChecked(new Array(STRATEGIES.length).fill(false))
     setEntries([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
-    nextIdRef.current = 2; setWeek(WEEKS[0])
+    nextIdRef.current = 2; setWeek(WEEKS[0]); setDraftNoteId(null)
     if (userId) sessionStorage.removeItem(`case_note_draft_${userId}`)
   }
 
@@ -1038,6 +1078,13 @@ export default function CaseNotesPage() {
                     + Add Hourly Activity Entry
                   </button>
                 </div>
+                {!editingNoteId && (
+                  <button onClick={doSaveDraft} disabled={savingDraft || !clientId} style={{ width: '100%', marginTop: 12, padding: 14, border: '1.5px solid #d97706', borderRadius: 10, background: savingDraft ? '#fde8c4' : '#fff7ed', color: '#9a5b0c', fontSize: 14, fontWeight: 700, cursor: savingDraft ? 'wait' : (!clientId ? 'not-allowed' : 'pointer'), opacity: !clientId ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit' }}>
+                    {savingDraft
+                      ? <><i className="ti ti-loader-2" /> Saving draft…</>
+                      : <>💾 {draftNoteId ? 'Update Draft' : 'Save Draft'}</>}
+                  </button>
+                )}
               </div>
             </div>
 
