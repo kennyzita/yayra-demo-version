@@ -187,6 +187,20 @@ function mkPA(id){return{id,name:"Community-Based Services",proc:"H2021HI",rate:
   sdrUrl:"",njiSpUrl:"",pcptUrl:"",intakeUrl:"",
   weeks:[]};}
 function mkClient(id){return{id,name:"",pid:"",dob:"",sex:"",county:"",mid:"",dx:"",locked:false,pin:DEFAULT_PIN,services:[mkPA(Date.now())]};}
+// Name alone (or Medicaid ID alone) isn't enough to safely treat two records as the same
+// client — two real clients can share a name, and a typo'd Medicaid ID can collide.
+// Require name + DOB + Medicaid ID to all be present and match before auto-suggesting a merge.
+function findExactDuplicateClient(rec,clients){
+  const name=(rec?.name||"").toLowerCase().trim();
+  const dob=rec?.dob||"";
+  const mid=rec?.mid||rec?.medicaidId||"";
+  if(!name||!dob||!mid)return null;
+  return (clients||[]).find(c=>!c.archived&&
+    (c.name||"").toLowerCase().trim()===name&&
+    (c.dob||"")===dob&&
+    (c.mid||"")===mid
+  )||null;
+}
 
 async function sGet(k){try{const v=typeof localStorage!=="undefined"?localStorage.getItem(k):null;return v?JSON.parse(v):null;}catch{return null;}}
 async function sSet(k,v){try{if(typeof localStorage!=="undefined")localStorage.setItem(k,JSON.stringify(v));}catch{}}
@@ -1247,16 +1261,15 @@ function CForm({cl,upd,onDel,onPDF,onDrive,allStaff=[],onToggleStaff=()=>{},onOp
 
 // ── Import Modal ──────────────────────────────────────────────────────────────
 function IModal({state,data,err,target,onApply,onClose,driveUrl,setDriveUrl,onDrive,clients,iTgt}){
+  const [confirmMerge,setConfirmMerge]=useState(false);
+  useEffect(()=>{setConfirmMerge(false);},[data]);
   if(!state)return null;
   const fields=[["Client name","name"],["Patient ID","patientId"],["DOB","dob"],["Sex","sex"],["County","county"],["Medicaid ID","medicaidId"],["Diagnosis","dx"],["Service name","serviceName"],["Service location","serviceLocation"],["Proc code","procCode"],["Rate","rate"],["Total Units","totalUnits"],["Total Hours","totalHours"],["Total Cost","totalCost"],["Unit type","unitType"],["Frequency","frequency"],["PA number","paNumber"],["PA approved","paApproved"],["PA start","paStart"],["PA end","paEnd"],["Plan ID","planId"],["EVV Status","evv"],["SC Agency","scCompany"],["Agency Email","scEmail"],["Agency Phone","scPhone"],["SC Name","scName"],["SC Email","scIndEmail"],["SC Phone","scIndPhone"],["SCS Name","scsName"],["SCS Email","scsEmail"],["SCS Phone","scsPhone"]];
-  // Detect duplicate only when uploading for a new client (no explicit target)
-  const nameLower=((data?.name)||"").toLowerCase().trim();
-  const duplicate=(!iTgt&&nameLower)
-    ?(clients||[]).find(c=>!c.archived&&(
-        (c.name||"").toLowerCase().trim()===nameLower||
-        (data?.medicaidId&&c.mid&&data.medicaidId===c.mid)
-      ))
-    :null;
+  // Detect duplicate only when uploading for a new client (no explicit target).
+  // Requires name + DOB + Medicaid ID to all match — a shared name or a typo'd
+  // Medicaid ID alone is not enough to safely auto-merge two billing records.
+  const duplicate=(!iTgt)?findExactDuplicateClient({name:data?.name,dob:data?.dob,mid:data?.medicaidId},clients):null;
+  const canApply=!duplicate||confirmMerge;
   return <div style={{position:"absolute",inset:0,background:"rgba(15,23,42,.6)",zIndex:20,display:"flex",alignItems:"center",justifyContent:"center"}}>
     <div style={{background:white,borderRadius:12,border:`1.5px solid ${gray2}`,padding:20,width:560,maxHeight:"85vh",overflowY:"auto",boxShadow:"0 8px 40px rgba(0,0,0,.22)"}}>
       {(state==="uploading"||state==="extracting")&&<div style={{textAlign:"center",padding:"2.5rem 0"}}>
@@ -1281,12 +1294,28 @@ function IModal({state,data,err,target,onApply,onClose,driveUrl,setDriveUrl,onDr
       {state==="review"&&data&&<div>
         <div style={{fontWeight:800,fontSize:15,color:navy,marginBottom:4}}>Review extracted data</div>
         <div style={{fontSize:12,color:gray5,marginBottom:12}}>Importing into: <b style={{color:navy}}>{target}</b></div>
-        {duplicate&&<div style={{background:yellowL,border:`1px solid ${yellow}`,borderRadius:8,padding:"10px 12px",marginBottom:12,display:"flex",alignItems:"flex-start",gap:8}}>
-          <span style={{fontSize:15,flexShrink:0}}>⚠️</span>
-          <div>
-            <div style={{fontSize:12,fontWeight:700,color:"#92400e"}}>Client already exists</div>
-            <div style={{fontSize:11,color:"#78350f",marginTop:2}}><b>{duplicate.name}</b> is already in the system. The new PA will be added to their existing record — no duplicate will be created.</div>
+        {duplicate&&<div style={{background:yellowL,border:`1px solid ${yellow}`,borderRadius:8,padding:"10px 12px",marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"flex-start",gap:8,marginBottom:8}}>
+            <span style={{fontSize:15,flexShrink:0}}>⚠️</span>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:"#92400e"}}>Possible existing client match</div>
+              <div style={{fontSize:11,color:"#78350f",marginTop:2}}>Name, DOB, and Medicaid ID all match an existing record. Verify below before merging — this cannot be undone.</div>
+            </div>
           </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,fontSize:11,marginBottom:8}}>
+            <div style={{background:"rgba(255,255,255,.6)",borderRadius:6,padding:"6px 8px"}}>
+              <div style={{fontWeight:700,color:"#92400e",marginBottom:3}}>Existing record</div>
+              <div>Name: <b>{duplicate.name}</b></div><div>DOB: <b>{duplicate.dob||"—"}</b></div><div>Medicaid ID: <b>{duplicate.mid||"—"}</b></div>
+            </div>
+            <div style={{background:"rgba(255,255,255,.6)",borderRadius:6,padding:"6px 8px"}}>
+              <div style={{fontWeight:700,color:"#92400e",marginBottom:3}}>From this import</div>
+              <div>Name: <b>{data.name||"—"}</b></div><div>DOB: <b>{data.dob||"—"}</b></div><div>Medicaid ID: <b>{data.medicaidId||"—"}</b></div>
+            </div>
+          </div>
+          <label style={{display:"flex",alignItems:"center",gap:7,fontSize:11,fontWeight:600,color:"#78350f",cursor:"pointer"}}>
+            <input type="checkbox" checked={confirmMerge} onChange={e=>setConfirmMerge(e.target.checked)}/>
+            Yes, this is the same client — merge this PA into their existing record
+          </label>
         </div>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:14}}>
           {fields.map(([lbl,k])=>{const v=data[k];return(
@@ -1295,8 +1324,9 @@ function IModal({state,data,err,target,onApply,onClose,driveUrl,setDriveUrl,onDr
               <div style={{fontSize:12,fontWeight:600,color:v?gray9:red,fontStyle:v?"normal":"italic"}}>{v!=null?String(v):"Not found"}</div>
             </div>);})}
         </div>
-        <div style={{display:"flex",gap:8}}>
-          <Btn onClick={onApply} bg={blue} color={white} border={blue}>✓ {duplicate?"Merge into existing client":"Import data"}</Btn>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <Btn onClick={()=>onApply({forceNew:false})} bg={blue} color={white} border={blue} disabled={!canApply}>✓ {duplicate?"Merge into existing client":"Import data"}</Btn>
+          {duplicate&&<Btn onClick={()=>onApply({forceNew:true})} bg={white} color={gray7} border={gray2}>Create as separate new client</Btn>}
           <Btn onClick={onClose}>Cancel</Btn>
         </div>
       </div>}
@@ -1896,7 +1926,8 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
     setTimeout(()=>URL.revokeObjectURL(url),1000);
     window.open("https://drive.google.com/drive/my-drive","_blank","noopener");
   }
-  async function applyImport(){
+  async function applyImport(opts){
+    const forceNew=!!opts?.forceNew;
     const d=iData;
     const pa={...mkPA(Date.now()),name:d.serviceName||"Community-Based Services",
       proc:d.procCode||"H2021HI",rate:d.rate||9.77,paS:d.paStart||"",paE:d.paEnd||"",
@@ -1910,14 +1941,7 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
       county:NJ_COUNTIES.includes(d.county)?d.county:"",mid:d.medicaidId||"",dx:d.dx||""};
     if(iTgt){updC(iTgt,{...cp,services:[pa]});setAid(iTgt);}
     else{
-      // Detect duplicate: match by name (case-insensitive) or Medicaid ID
-      const nameLower=(cp.name||"").toLowerCase().trim();
-      const duplicate=nameLower
-        ?clients.find(c=>!c.archived&&(
-            (c.name||"").toLowerCase().trim()===nameLower||
-            (cp.mid&&c.mid&&cp.mid===c.mid)
-          ))
-        :null;
+      const duplicate=forceNew?null:findExactDuplicateClient(cp,clients);
       if(duplicate){
         // Merge: append new PA to existing client; backfill any blank profile fields
         updC(duplicate.id,{
