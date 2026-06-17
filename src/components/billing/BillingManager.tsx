@@ -1929,8 +1929,16 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
   async function applyImport(opts){
     const forceNew=!!opts?.forceNew;
     const d=iData;
+    // PDF-extracted rate feeds straight into per-unit cost math downstream (tU*pa.rate).
+    // A garbled or non-numeric extraction would otherwise become a string/NaN that
+    // silently renders as "$0.00" (fmtUSD treats NaN as 0) instead of surfacing the problem.
+    const parsedRate=parseFloat(d.rate);
+    const validRate=Number.isFinite(parsedRate)&&parsedRate>0;
+    if(d.rate!=null&&d.rate!==""&&!validRate){
+      toast.warning(`Extracted rate "${d.rate}" isn't a valid number — defaulted to $9.77/unit. Double-check the PA rate before billing.`);
+    }
     const pa={...mkPA(Date.now()),name:d.serviceName||"Community-Based Services",
-      proc:d.procCode||"H2021HI",rate:d.rate||9.77,paS:d.paStart||"",paE:d.paEnd||"",
+      proc:d.procCode||"H2021HI",rate:validRate?parsedRate:9.77,paS:d.paStart||"",paE:d.paEnd||"",
       pan:d.paNumber||"",pau:Math.max(0,parseInt(d.totalUnits)||parseInt(d.paApproved)||0),
       planId:d.planId||"",evv:(d.evv==="Non-EVV"?"Non-EVV":"EVV"),
       scCompany:d.scCompany||"",scEmail:d.scEmail||"",scPhone:d.scPhone||"",
@@ -1956,16 +1964,17 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
         setAid(duplicate.id);
         toast.success(`New PA merged into existing client: ${duplicate.name}`);
       }else{
-        // Create a real client row in Staff Connect first so we get a UUID,
-        // otherwise upsert into billing_client_data fails (client_id is UUID).
+        // Create the client row + its billing_client_data row in one awaited call
+        // (upsertBillingClient does both) so a failure is caught here, before we
+        // navigate away — rather than relying on the 500ms debounced autosave to
+        // persist the imported PA data after the user has already moved on.
         try{
-          const { data: row, error } = await supabase.from("clients")
-            .insert({ full_name: cp.name || "New Client", dob: cp.dob || null })
-            .select("id").single();
-          if(error) throw error;
-          const nc={...mkClient(row.id),...cp,services:[pa]};
-          setClients(prev=>[...prev,nc]);
-          setAid(nc.id);
+          const nc={...mkClient(Date.now()),...cp,services:[pa]};
+          const savedId=await upsertBillingClient(nc);
+          const saved={...nc,id:savedId};
+          lastClientsRef.current=[...lastClientsRef.current,saved];
+          setClients(prev=>[...prev,saved]);
+          setAid(savedId);
         }catch(e){
           toast.error("Could not create client: "+(e?.message||String(e)));
           return;
