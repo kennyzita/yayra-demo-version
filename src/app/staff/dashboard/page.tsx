@@ -23,6 +23,16 @@ function isoDate(d: Date) { return d.toISOString().split('T')[0] }
 
 function todayIso() { return isoDate(new Date()) }
 
+function getGreeting(): string {
+  const hourStr = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false }).format(new Date())
+  const hour = Number(hourStr) % 24
+  if (hour < 5) return 'Good night'
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  if (hour < 21) return 'Good evening'
+  return 'Good night'
+}
+
 function monthStart() {
   const d = new Date()
   return new Date(d.getFullYear(), d.getMonth(), 1).toISOString()
@@ -193,7 +203,7 @@ export default function StaffDashboardPage() {
         <div style={{ background: '#002830', borderRadius: 10, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 500, color: 'white' }}>
-              Good morning{firstName ? `, ${firstName}` : ''} 👋
+              {getGreeting()}{firstName ? `, ${firstName}` : ''} 👋
             </div>
             <div style={{ fontSize: 12, color: '#a8c8cc', marginTop: 3 }}>
               {loading
