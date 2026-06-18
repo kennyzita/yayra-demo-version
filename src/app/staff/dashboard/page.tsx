@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { docTypeFromAppFilename } from '@/lib/doc-type-utils'
 import { getVisibleTrainings } from '@/lib/training-modules'
@@ -131,6 +131,50 @@ export default function StaffDashboardPage() {
   const trainingCompleted = trainings.filter(t => t.status === 'Complete').length
   const trainingDueSoon   = trainings.filter(t => t.status === 'Due soon').length
 
+  const [notifOpen, setNotifOpen] = useState(false)
+  const notifRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  const notifications: { IconComp: LucideIcon; iconBg: string; iconColor: string; title: string; subtitle: string; href: string }[] = []
+  if (!loading) {
+    if ((pendingNotes ?? 0) > 0) {
+      notifications.push({
+        IconComp: FileText, iconBg: 'rgba(186,117,23,0.12)', iconColor: '#BA7517',
+        title: `${pendingNotes} draft case note${pendingNotes !== 1 ? 's' : ''} pending`,
+        subtitle: 'Finish and submit your drafts',
+        href: '/staff/case-notes',
+      })
+    }
+    for (const cert of expiringCerts) {
+      const expired = cert.daysLeft <= 0
+      notifications.push({
+        IconComp: GraduationCap,
+        iconBg: expired ? 'rgba(226,75,74,0.12)' : 'rgba(217,119,6,0.12)',
+        iconColor: expired ? '#E24B4A' : '#d97706',
+        title: cert.type,
+        subtitle: expired
+          ? `Expired ${Math.abs(cert.daysLeft)} day${Math.abs(cert.daysLeft) !== 1 ? 's' : ''} ago`
+          : `Expires in ${cert.daysLeft} day${cert.daysLeft !== 1 ? 's' : ''}`,
+        href: '/staff/documents',
+      })
+    }
+    if (trainingDueSoon > 0) {
+      notifications.push({
+        IconComp: GraduationCap, iconBg: 'rgba(127,119,221,0.12)', iconColor: '#7F77DD',
+        title: `${trainingDueSoon} training module${trainingDueSoon !== 1 ? 's' : ''} due soon`,
+        subtitle: 'Complete to stay current',
+        href: '/staff/training',
+      })
+    }
+  }
+
   const metrics: { IconComp: LucideIcon; iconBg: string; iconColor: string; badge: string; badgeBg: string; badgeColor: string; value: string; label: string }[] = [
     {
       IconComp: Users,
@@ -185,15 +229,46 @@ export default function StaffDashboardPage() {
           <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>{todayLabel}</div>
         </div>
         <div style={{ flex: 1 }} />
-        <div style={{ position: 'relative' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+        <div ref={notifRef} style={{ position: 'relative' }}>
+          <div
+            onClick={() => setNotifOpen(o => !o)}
+            style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: notifOpen ? '#008080' : '#6b7280', background: notifOpen ? 'rgba(0,128,128,0.08)' : 'transparent' }}
+          >
             <Bell size={18} />
           </div>
-          {(pendingNotes ?? 0) > 0 && <div style={{ position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: '50%', background: '#E24B4A', border: '1.5px solid #fff' }} />}
+          {notifications.length > 0 && <div style={{ position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: '50%', background: '#E24B4A', border: '1.5px solid #fff' }} />}
+
+          {notifOpen && (
+            <div style={{ position: 'absolute', top: 40, right: 0, width: 320, maxHeight: 400, overflowY: 'auto', background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.14)', zIndex: 20 }}>
+              <div style={{ padding: '12px 16px', borderBottom: '0.5px solid #e5e7eb', fontSize: 13, fontWeight: 600, color: '#111' }}>
+                Notifications{notifications.length > 0 && <span style={{ color: '#9ca3af', fontWeight: 400 }}> ({notifications.length})</span>}
+              </div>
+              {loading ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Loading…</div>
+              ) : notifications.length === 0 ? (
+                <div style={{ padding: '24px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>You&apos;re all caught up.</div>
+              ) : (
+                notifications.map((n, i) => (
+                  <a
+                    key={i} href={n.href} onClick={() => setNotifOpen(false)}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 16px', borderBottom: i < notifications.length - 1 ? '0.5px solid #f3f4f6' : 'none', textDecoration: 'none' }}
+                  >
+                    <div style={{ width: 30, height: 30, borderRadius: 7, background: n.iconBg, color: n.iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <n.IconComp size={14} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{n.title}</div>
+                      <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{n.subtitle}</div>
+                    </div>
+                  </a>
+                ))
+              )}
+            </div>
+          )}
         </div>
-        <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+        <a href="/staff/settings" style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', textDecoration: 'none' }}>
           <Settings size={18} />
-        </div>
+        </a>
       </div>
 
       {/* Content */}
