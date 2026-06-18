@@ -201,10 +201,10 @@ export default function CaseNotesPage() {
   useEffect(() => {
     if (!userId) return
     const timer = setTimeout(() => {
-      sessionStorage.setItem(`case_note_draft_${userId}`, JSON.stringify({ entries }))
+      sessionStorage.setItem(`case_note_draft_${userId}`, JSON.stringify({ clientId, week, checked, entries }))
     }, 600)
     return () => clearTimeout(timer)
-  }, [entries, userId])
+  }, [clientId, week, checked, entries, userId])
 
   useEffect(() => { loadProfile() }, [])
 
@@ -226,7 +226,10 @@ export default function CaseNotesPage() {
     try {
       const saved = sessionStorage.getItem(`case_note_draft_${user.id}`)
       if (saved) {
-        const { entries: savedEntries } = JSON.parse(saved)
+        const { clientId: savedClientId, week: savedWeek, checked: savedChecked, entries: savedEntries } = JSON.parse(saved)
+        if (savedClientId) setClientId(savedClientId)
+        if (savedWeek) setWeek(savedWeek)
+        if (Array.isArray(savedChecked) && savedChecked.length === STRATEGIES.length) setChecked(savedChecked)
         if (Array.isArray(savedEntries) && savedEntries.length > 0) {
           setEntries(savedEntries)
           nextIdRef.current = Math.max(...savedEntries.map((e: any) => e.id ?? 1)) + 1
