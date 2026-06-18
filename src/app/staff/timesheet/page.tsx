@@ -22,6 +22,15 @@ function getWeeks(year: number, month: number) {
   return weeks
 }
 
+function calcDuration(start: string, end: string): number | null {
+  if (!start || !end) return null
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  let mn = (eh * 60 + em) - (sh * 60 + sm)
+  if (mn < 0) mn += 24 * 60 // shift crosses midnight (e.g. 11 PM start -> 7 AM end)
+  return mn > 0 ? Math.round(mn / 60 * 10) / 10 : null
+}
+
 const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   submitted: { bg: 'rgba(0,122,122,0.1)',   color: '#007a7a', label: 'Submitted' },
   approved:  { bg: 'rgba(22,163,74,0.1)',   color: '#16a34a', label: 'Approved'  },
@@ -186,11 +195,7 @@ export default function TimesheetPage() {
   }, [])
 
   function calcHours(r: DayRow) {
-    if (!r.start || !r.end) return null
-    const [sh,sm] = r.start.split(':').map(Number)
-    const [eh,em] = r.end.split(':').map(Number)
-    const mn = (eh*60+em) - (sh*60+sm)
-    return mn > 0 ? Math.round(mn/60*10)/10 : null
+    return calcDuration(r.start, r.end)
   }
 
   const totalHours = rows.reduce((acc, r) => { const h = calcHours(r); return h ? acc + h : acc }, 0)
@@ -363,12 +368,7 @@ export default function TimesheetPage() {
                             </thead>
                             <tbody>
                               {ts.entries.map((e: any, ei: number) => {
-                                const h = (e.start && e.end) ? (() => {
-                                  const [sh,sm] = e.start.split(':').map(Number)
-                                  const [eh,em] = e.end.split(':').map(Number)
-                                  const mn = (eh*60+em)-(sh*60+sm)
-                                  return mn > 0 ? Math.round(mn/60*10)/10 : null
-                                })() : null
+                                const h = calcDuration(e.start, e.end)
                                 const dateObj = e.date ? new Date(e.date + 'T00:00:00') : null
                                 return (
                                   <tr key={ei} style={{ borderBottom: '1px solid #f3f4f6' }}>
