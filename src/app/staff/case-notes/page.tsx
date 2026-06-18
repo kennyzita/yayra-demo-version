@@ -148,6 +148,15 @@ function addOneHour(t: string): string {
   return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
+function addOneHourWithDate(dateStr: string, t: string): { end: string; endDate: string } {
+  if (!t) return { end: '', endDate: dateStr }
+  if (!dateStr) return { end: addOneHour(t), endDate: dateStr }
+  const [h, m] = t.split(':').map(Number)
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setHours(h + 1, m)
+  return { end: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, endDate: toLocalISO(d) }
+}
+
 const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   submitted: { bg: 'rgba(0,122,122,0.1)',   color: '#007a7a', label: 'Submitted' },
   approved:  { bg: 'rgba(22,163,74,0.1)',   color: '#16a34a', label: 'Approved'  },
@@ -157,7 +166,7 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
 void STATUS_STYLE
 
 type AssignedClient = { id: string; name: string; isp_outcome: string }
-type Entry = { id: number; date: string; start: string; end: string; strategy: string; desc: string }
+type Entry = { id: number; date: string; start: string; end: string; endDate: string; strategy: string; desc: string }
 type HistoryNote = {
   id: string; client_id: string; client_name: string
   week_label: string; submitted_at: string | null
@@ -179,7 +188,7 @@ export default function CaseNotesPage() {
   const [ispOutcome, setIspOutcome] = useState('')
   const [week, setWeek]           = useState(WEEKS[0])
   const [checked, setChecked]     = useState<boolean[]>(new Array(STRATEGIES.length).fill(false))
-  const [entries, setEntries]     = useState<Entry[]>([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
+  const [entries, setEntries]     = useState<Entry[]>([{ id: 1, date: '', start: '', end: '', endDate: '', strategy: '', desc: '' }])
   const [submitting, setSubmitting] = useState(false)
   const [savingDraft, setSavingDraft] = useState(false)
   const [draftNoteId, setDraftNoteId] = useState<string | null>(null)
@@ -295,11 +304,16 @@ export default function CaseNotesPage() {
     setClientId(note.client_id)
     setWeek(note.week_label)
     setChecked(STRATEGIES.map(s => note.strategies.includes(s.title)))
-    const restored = note.entries.map((e, i) => ({
-      id: i + 1, date: e.date ?? '', start: e.start ?? '',
-      end: e.end ?? '', strategy: e.strategy ?? '', desc: e.desc ?? '',
-    }))
-    setEntries(restored.length > 0 ? restored : [{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
+    const restored = note.entries.map((e, i) => {
+      const date = e.date ?? '', start = e.start ?? ''
+      const computed = addOneHourWithDate(date, start)
+      return {
+        id: i + 1, date, start,
+        end: e.end || computed.end, endDate: e.endDate || computed.endDate,
+        strategy: e.strategy ?? '', desc: e.desc ?? '',
+      }
+    })
+    setEntries(restored.length > 0 ? restored : [{ id: 1, date: '', start: '', end: '', endDate: '', strategy: '', desc: '' }])
     nextIdRef.current = (restored.length || 1) + 1
     setShowHistory(false)
     showToast('Editing case note — modify and save')
@@ -319,17 +333,19 @@ export default function CaseNotesPage() {
   }
 
   function addEntry() {
-    setEntries(prev => [...prev, { id: nextIdRef.current++, date: '', start: '', end: '', strategy: '', desc: '' }])
+    setEntries(prev => [...prev, { id: nextIdRef.current++, date: '', start: '', end: '', endDate: '', strategy: '', desc: '' }])
   }
 
   function addHourlyEntry() {
     setEntries(prev => {
       const last = prev[prev.length - 1]
       if (last && last.date && last.start) {
+        const newDate = last.endDate || last.date
         const newStart = last.end || addOneHour(last.start)
-        return [...prev, { id: nextIdRef.current++, date: last.date, start: newStart, end: addOneHour(newStart), strategy: '', desc: '' }]
+        const computed = addOneHourWithDate(newDate, newStart)
+        return [...prev, { id: nextIdRef.current++, date: newDate, start: newStart, end: computed.end, endDate: computed.endDate, strategy: '', desc: '' }]
       }
-      return [...prev, { id: nextIdRef.current++, date: last?.date ?? '', start: '', end: '', strategy: '', desc: '' }]
+      return [...prev, { id: nextIdRef.current++, date: last?.date ?? '', start: '', end: '', endDate: '', strategy: '', desc: '' }]
     })
   }
 
@@ -340,7 +356,8 @@ export default function CaseNotesPage() {
   function updateEntry(id: number, field: keyof Entry, val: string) {
     setEntries(prev => prev.map(e => {
       if (e.id !== id) return e
-      if (field === 'start') return { ...e, start: val, end: addOneHour(val) }
+      if (field === 'start') { const c = addOneHourWithDate(e.date, val); return { ...e, start: val, end: c.end, endDate: c.endDate } }
+      if (field === 'date') { const c = addOneHourWithDate(val, e.start); return { ...e, date: val, end: c.end, endDate: c.endDate } }
       return { ...e, [field]: val }
     }))
   }
@@ -348,16 +365,6 @@ export default function CaseNotesPage() {
   async function doSubmit() {
     if (!clientId) { showToast('Please select a client first'); return }
     if (entries.length === 0) { showToast('Add at least one activity entry'); return }
-    for (const e of entries) {
-      if (e.start && e.end) {
-        const [sh, sm] = e.start.split(':').map(Number)
-        const [eh, em] = e.end.split(':').map(Number)
-        if ((eh * 60 + em) - (sh * 60 + sm) !== 60) {
-          showToast(`Entry at ${e.start} must be exactly 1 hour (start → start + 1h)`)
-          return
-        }
-      }
-    }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { showToast('Not authenticated'); return }
     const selectedStrategies = STRATEGIES.filter((_, i) => checked[i]).map(s => s.title)
@@ -420,7 +427,7 @@ export default function CaseNotesPage() {
 
   function resetForm() {
     setClientId(''); setIspOutcome(''); setChecked(new Array(STRATEGIES.length).fill(false))
-    setEntries([{ id: 1, date: '', start: '', end: '', strategy: '', desc: '' }])
+    setEntries([{ id: 1, date: '', start: '', end: '', endDate: '', strategy: '', desc: '' }])
     nextIdRef.current = 2; setWeek(WEEKS[0]); setDraftNoteId(null)
     if (userId) sessionStorage.removeItem(`case_note_draft_${userId}`)
   }
@@ -738,12 +745,7 @@ export default function CaseNotesPage() {
 
   const selectedClient = assignedClients.find(c => c.id === clientId) ?? null
 
-  const totalHours = entries.reduce((sum, e) => {
-    if (!e.start || !e.end) return sum
-    const [sh, sm] = e.start.split(':').map(Number)
-    const [eh, em] = e.end.split(':').map(Number)
-    return sum + ((eh * 60 + em) - (sh * 60 + sm)) / 60
-  }, 0)
+  const totalHours = entries.filter(e => e.start && e.end).length
 
   // Group history by week
   const weekGroups = history.reduce((acc, note) => {
@@ -858,13 +860,7 @@ export default function CaseNotesPage() {
                           const dateLabel = dayDate
                             ? dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
                             : 'No date'
-                          const totalMins = day.entries.reduce((sum, e) => {
-                            if (!e.start || !e.end) return sum
-                            const [sh, sm] = e.start.split(':').map(Number)
-                            const [eh, em] = e.end.split(':').map(Number)
-                            return sum + (eh * 60 + em) - (sh * 60 + sm)
-                          }, 0)
-                          const totalHrs = totalMins / 60
+                          const totalHrs = day.entries.filter(e => e.start && e.end).length
                           const isExpanded = expandedId === day.date
 
                           return (
@@ -1037,7 +1033,7 @@ export default function CaseNotesPage() {
                     <div style={{ padding: '18px 16px', background: 'white' }}>
                       <div style={{ display: 'flex', gap: 14, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                         <div style={{ flex: '0 0 200px' }}>
-                          <div style={{ ...fieldLabel, marginBottom: 7 }}>Date <span style={{ color: '#e24b4a' }}>*</span></div>
+                          <div style={{ ...fieldLabel, marginBottom: 7 }}>Start date <span style={{ color: '#e24b4a' }}>*</span></div>
                           <input
                             type="date"
                             value={entry.date}
@@ -1050,6 +1046,10 @@ export default function CaseNotesPage() {
                         <div style={{ flex: '0 0 155px' }}>
                           <div style={{ ...fieldLabel, marginBottom: 7 }}>Start time <span style={{ color: '#e24b4a' }}>*</span></div>
                           <input type="time" value={entry.start} onChange={e => updateEntry(entry.id, 'start', e.target.value)} style={{ ...inputStyle, width: '100%' }} />
+                        </div>
+                        <div style={{ flex: '0 0 200px' }}>
+                          <div style={{ ...fieldLabel, marginBottom: 7 }}>End date <span style={{ fontSize: 9, fontWeight: 400, color: '#9ca3af', fontStyle: 'italic', textTransform: 'none', letterSpacing: 0 }}>auto-set</span></div>
+                          <input type="date" readOnly value={entry.endDate} style={{ ...inputStyle, width: '100%', background: '#f9fafb', color: '#6b7280' }} />
                         </div>
                         <div style={{ flex: '0 0 155px' }}>
                           <div style={{ ...fieldLabel, marginBottom: 7 }}>End time <span style={{ fontSize: 9, fontWeight: 400, color: '#9ca3af', fontStyle: 'italic', textTransform: 'none', letterSpacing: 0 }}>auto-set</span></div>
