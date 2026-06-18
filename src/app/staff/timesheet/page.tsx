@@ -37,16 +37,20 @@ function formatTime12h(t: string): string {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
 }
 
+function timeRange(dateVal: string, start: string, end: string): { startMs: number; endMs: number } | null {
+  if (!start || !end || !dateVal) return null
+  const [sh, sm] = start.split(':').map(Number)
+  const [eh, em] = end.split(':').map(Number)
+  const s = new Date(dateVal + 'T00:00:00')
+  s.setHours(sh, sm, 0, 0)
+  const e = new Date(dateVal + 'T00:00:00')
+  e.setHours(eh, em, 0, 0)
+  if (e.getTime() <= s.getTime()) e.setDate(e.getDate() + 1) // crosses midnight
+  return { startMs: s.getTime(), endMs: e.getTime() }
+}
+
 function rowRange(r: DayRow): { startMs: number; endMs: number } | null {
-  if (!r.start || !r.end || !r.dateVal) return null
-  const [sh, sm] = r.start.split(':').map(Number)
-  const [eh, em] = r.end.split(':').map(Number)
-  const start = new Date(r.dateVal + 'T00:00:00')
-  start.setHours(sh, sm, 0, 0)
-  const end = new Date(r.dateVal + 'T00:00:00')
-  end.setHours(eh, em, 0, 0)
-  if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1) // crosses midnight
-  return { startMs: start.getTime(), endMs: end.getTime() }
+  return timeRange(r.dateVal, r.start, r.end)
 }
 
 function findRowOverlap(rows: DayRow[]): { a: DayRow; b: DayRow } | null {
@@ -55,6 +59,23 @@ function findRowOverlap(rows: DayRow[]): { a: DayRow; b: DayRow } | null {
     for (let j = i + 1; j < ranged.length; j++) {
       const A = ranged[i].range!, B = ranged[j].range!
       if (A.startMs < B.endMs && B.startMs < A.endMs) return { a: ranged[i].row, b: ranged[j].row }
+    }
+  }
+  return null
+}
+
+function findExternalOverlap(rows: DayRow[], others: { clientName: string; entries: any[] }[]): { row: DayRow; clientName: string; day: string; start: string; end: string } | null {
+  for (const r of rows) {
+    const A = rowRange(r)
+    if (!A) continue
+    for (const o of others) {
+      for (const e of o.entries) {
+        const B = timeRange(e.date, e.start, e.end)
+        if (!B) continue
+        if (A.startMs < B.endMs && B.startMs < A.endMs) {
+          return { row: r, clientName: o.clientName, day: e.day, start: e.start, end: e.end }
+        }
+      }
     }
   }
   return null
@@ -242,6 +263,24 @@ export default function TimesheetPage() {
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { showToast('Not authenticated'); setSaving(false); return }
+
+    // Check against this DSP's other timesheets (different clients/weeks) for real-world time conflicts
+    const { data: otherTs } = await supabase
+      .from('timesheets')
+      .select('id, client_id, entries, status')
+      .eq('dsp_id', user.id)
+      .neq('status', 'rejected')
+    const clientMap = new Map(assignedClients.map(c => [c.id, c.full_name]))
+    const others = (otherTs ?? [])
+      .filter(t => t.id !== existingId)
+      .map(t => ({ clientName: clientMap.get(t.client_id) ?? 'another client', entries: (t.entries as any[]) ?? [] }))
+    const ext = findExternalOverlap(rows, others)
+    if (ext) {
+      showToast(`Overlap hours: ${ext.row.day} (${formatTime12h(ext.row.start)}–${formatTime12h(ext.row.end)}) overlaps with hours already logged for ${ext.clientName} on ${ext.day} (${formatTime12h(ext.start)}–${formatTime12h(ext.end)})`)
+      setSaving(false)
+      return
+    }
+
     const w = weeks[weekIdx]
     const weekStart = w.start.toISOString().slice(0, 10)
     const weekEnd   = new Date(w.start); weekEnd.setDate(weekEnd.getDate() + 6)
