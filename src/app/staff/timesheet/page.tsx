@@ -31,6 +31,35 @@ function calcDuration(start: string, end: string): number | null {
   return mn > 0 ? Math.round(mn / 60 * 10) / 10 : null
 }
 
+function formatTime12h(t: string): string {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
+}
+
+function rowRange(r: DayRow): { startMs: number; endMs: number } | null {
+  if (!r.start || !r.end || !r.dateVal) return null
+  const [sh, sm] = r.start.split(':').map(Number)
+  const [eh, em] = r.end.split(':').map(Number)
+  const start = new Date(r.dateVal + 'T00:00:00')
+  start.setHours(sh, sm, 0, 0)
+  const end = new Date(r.dateVal + 'T00:00:00')
+  end.setHours(eh, em, 0, 0)
+  if (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1) // crosses midnight
+  return { startMs: start.getTime(), endMs: end.getTime() }
+}
+
+function findRowOverlap(rows: DayRow[]): { a: DayRow; b: DayRow } | null {
+  const ranged = rows.map(r => ({ row: r, range: rowRange(r) })).filter(x => x.range)
+  for (let i = 0; i < ranged.length; i++) {
+    for (let j = i + 1; j < ranged.length; j++) {
+      const A = ranged[i].range!, B = ranged[j].range!
+      if (A.startMs < B.endMs && B.startMs < A.endMs) return { a: ranged[i].row, b: ranged[j].row }
+    }
+  }
+  return null
+}
+
 const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   submitted: { bg: 'rgba(0,122,122,0.1)',   color: '#007a7a', label: 'Submitted' },
   approved:  { bg: 'rgba(22,163,74,0.1)',   color: '#16a34a', label: 'Approved'  },
@@ -205,6 +234,11 @@ export default function TimesheetPage() {
     if (!rows.length) { showToast('Please load a week first'); return }
     if (!client)      { showToast('Please select a client'); return }
     if (!dspSigned)   { showToast('Please add your signature first'); return }
+    const overlap = findRowOverlap(rows)
+    if (overlap) {
+      showToast(`Overlap hours: ${overlap.a.day} (${formatTime12h(overlap.a.start)}–${formatTime12h(overlap.a.end)}) overlaps with ${overlap.b.day} (${formatTime12h(overlap.b.start)}–${formatTime12h(overlap.b.end)})`)
+      return
+    }
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { showToast('Not authenticated'); setSaving(false); return }

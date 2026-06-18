@@ -173,6 +173,34 @@ type HistoryNote = {
   status: string; strategies: string[]; entries: Entry[]
 }
 
+function entryRange(e: Entry): { startMs: number; endMs: number } | null {
+  if (!e.date || !e.start || !e.end) return null
+  const [sh, sm] = e.start.split(':').map(Number)
+  const [eh, em] = e.end.split(':').map(Number)
+  const start = new Date(e.date + 'T00:00:00')
+  start.setHours(sh, sm, 0, 0)
+  const end = new Date((e.endDate || e.date) + 'T00:00:00')
+  end.setHours(eh, em, 0, 0)
+  return { startMs: start.getTime(), endMs: end.getTime() }
+}
+
+function findEntryOverlap(entries: Entry[]): { a: Entry; b: Entry } | null {
+  const ranged = entries.map(e => ({ entry: e, range: entryRange(e) })).filter(x => x.range)
+  for (let i = 0; i < ranged.length; i++) {
+    for (let j = i + 1; j < ranged.length; j++) {
+      const A = ranged[i].range!, B = ranged[j].range!
+      if (A.startMs < B.endMs && B.startMs < A.endMs) return { a: ranged[i].entry, b: ranged[j].entry }
+    }
+  }
+  return null
+}
+
+function fmtEntryLabel(e: Entry): string {
+  const d = new Date(e.date + 'T00:00:00')
+  const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${dateStr}, ${formatTime12h(e.start)}–${formatTime12h(e.end)}`
+}
+
 export default function CaseNotesPage() {
   const supabase = createClient()
   const WEEKS = generateWeeks()
@@ -354,6 +382,10 @@ export default function CaseNotesPage() {
   }
 
   function updateEntry(id: number, field: keyof Entry, val: string) {
+    if (field === 'date' && val && ((minDate && val < minDate) || (maxDate && val > maxDate))) {
+      showToast(`Start date must fall within the selected service week: ${week}`)
+      return
+    }
     setEntries(prev => prev.map(e => {
       if (e.id !== id) return e
       if (field === 'start') { const c = addOneHourWithDate(e.date, val); return { ...e, start: val, end: c.end, endDate: c.endDate } }
@@ -365,6 +397,11 @@ export default function CaseNotesPage() {
   async function doSubmit() {
     if (!clientId) { showToast('Please select a client first'); return }
     if (entries.length === 0) { showToast('Add at least one activity entry'); return }
+    const overlap = findEntryOverlap(entries)
+    if (overlap) {
+      showToast(`Overlap hours: entry on ${fmtEntryLabel(overlap.a)} overlaps with entry on ${fmtEntryLabel(overlap.b)}`)
+      return
+    }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { showToast('Not authenticated'); return }
     const selectedStrategies = STRATEGIES.filter((_, i) => checked[i]).map(s => s.title)
