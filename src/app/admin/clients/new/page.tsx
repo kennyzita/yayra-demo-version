@@ -711,7 +711,8 @@ export default function ClientsPage() {
             </div>
 
             {/* Clients table */}
-            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ minWidth: 760 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 156px', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
                 {['Name', 'Medicaid ID', 'Date of Birth', 'County', 'Sex', 'Diagnosis', 'Actions'].map(h => (
                   <div key={h} style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
@@ -752,6 +753,7 @@ export default function ClientsPage() {
                 ))
               )}
             </div>
+            </div>
           </>
         )}
 
@@ -773,7 +775,8 @@ export default function ClientsPage() {
             </div>
 
             {/* Intakes table */}
-            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+            <div style={{ minWidth: 680 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.8fr 1fr 1fr 140px', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
                 {['Name', 'Email', 'Date of Birth', 'Submitted', 'Actions'].map(h => (
                   <div key={h} style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
@@ -835,6 +838,7 @@ export default function ClientsPage() {
                   )
                 })
               )}
+            </div>
             </div>
           </>
         )}

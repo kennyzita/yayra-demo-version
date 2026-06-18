@@ -564,7 +564,7 @@ export default function ApplicationPage() {
           <div style={{ background: 'rgba(0,128,128,0.05)', border: '0.5px solid rgba(0,128,128,0.2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 20 }}>
             Reliance Care Services is an equal opportunity employer. Applicants are considered without regard to race, age, sex, gender identity, marital status, family status, political or religious conviction, impairment, or pregnancy.
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 14, marginBottom: 20 }}>
             <Field label="First name" required><input value={form.firstName} onChange={e => sf('firstName', e.target.value)} type="text" placeholder="First name" style={fi} /></Field>
             <Field label="Middle name"><input value={form.middleName} onChange={e => sf('middleName', e.target.value)} type="text" placeholder="Middle name" style={fi} /></Field>
             <Field label="Last name" required><input value={form.lastName} onChange={e => sf('lastName', e.target.value)} type="text" placeholder="Last name" style={fi} /></Field>
@@ -572,18 +572,18 @@ export default function ApplicationPage() {
           <SectionTitle label="Address" />
           <div style={{ marginBottom: 12 }}><Field label="Address line 1"><input value={form.address1} onChange={e => sf('address1', e.target.value)} type="text" placeholder="Street address" style={fi} /></Field></div>
           <div style={{ marginBottom: 12 }}><Field label="Address line 2"><input value={form.address2} onChange={e => sf('address2', e.target.value)} type="text" placeholder="Apt, suite, unit (optional)" style={fi} /></Field></div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 14, marginBottom: 20 }}>
             <Field label="City"><input value={form.city} onChange={e => sf('city', e.target.value)} type="text" placeholder="City" style={fi} /></Field>
             <Field label="State"><input value={form.state} onChange={e => sf('state', e.target.value)} type="text" placeholder="State" style={fi} /></Field>
             <Field label="Zip code"><input value={form.zip} onChange={e => sf('zip', e.target.value)} type="text" placeholder="Zip" style={fi} /></Field>
           </div>
           <SectionTitle label="Contact" />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 14, marginBottom: 14 }}>
             <Field label="Phone" required><input value={form.phone} onChange={e => sf('phone', e.target.value)} type="tel" placeholder="(000) 000-0000" style={fi} /></Field>
             <Field label="Email address" required><input value={form.email} onChange={e => sf('email', e.target.value)} type="email" placeholder="email@example.com" style={fi} /></Field>
             <Field label="Date of birth" required hint="Stored encrypted · HIPAA protected"><input value={form.dob} onChange={e => sf('dob', e.target.value)} type="date" style={fi} /></Field>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
             <Field label="Social security number" required hint="9 digits · never stored in plain text — only a confirmation flag is saved">
               <SSNInput onProvided={v => sf('ssnProvided', v)} />
             </Field>
@@ -612,7 +612,7 @@ export default function ApplicationPage() {
             <CheckGroup options={SHIFTS} value={form.preferredShifts} onChange={v => sf('preferredShifts', v)} />
           </div>
           <SectionTitle label="Position details" />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14, marginBottom: 14 }}>
             <Field label="Date available to start"><input value={form.dateAvailable} onChange={e => sf('dateAvailable', e.target.value)} type="date" style={fi} /></Field>
             <Field label="How did you hear about us?">
               <select value={form.heardAbout} onChange={e => sf('heardAbout', e.target.value)} style={fi}>
@@ -621,7 +621,7 @@ export default function ApplicationPage() {
               </select>
             </Field>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
             <Field label="Position applying for">
               <select value={form.positionApplying} onChange={e => sf('positionApplying', e.target.value)} style={fi}><option>DSP</option></select>
             </Field>
@@ -686,12 +686,12 @@ export default function ApplicationPage() {
           <SectionTitle label="Education history" />
           {form.schools.map((s, i) => (
             <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 10, background: '#fff' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 12 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 14, marginBottom: 12 }}>
                 <Field label="School name" required><input value={s.name} onChange={e => { const a = [...form.schools]; a[i] = { ...a[i], name: e.target.value }; sf('schools', a) }} type="text" placeholder="School name" style={fi} /></Field>
                 <Field label="From" required><input value={s.from} onChange={e => { const a = [...form.schools]; a[i] = { ...a[i], from: e.target.value }; sf('schools', a) }} type="date" style={fi} /></Field>
                 <Field label="To" required><input value={s.to} onChange={e => { const a = [...form.schools]; a[i] = { ...a[i], to: e.target.value }; sf('schools', a) }} type="date" style={fi} /></Field>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 14 }}>
                 {(['graduated', 'diploma', 'degree'] as const).map(f => (
                   <div key={f}><div style={fLabel}>{f === 'graduated' ? 'Did you graduate?' : f === 'diploma' ? 'Diploma / GED' : 'Degree'}</div>
                     <RadioGroup name={`${f}${i}`} options={['Yes', 'No']} value={s[f]} onChange={v => { const a = [...form.schools]; a[i] = { ...a[i], [f]: v }; sf('schools', a) }} />
@@ -707,12 +707,12 @@ export default function ApplicationPage() {
           <SectionTitle label="Employment history" />
           {form.employers.map((e, i) => (
             <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 10, background: '#fff' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 12 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 14, marginBottom: 12 }}>
                 <Field label="Company name" required><input value={e.company} onChange={ev => { const a = [...form.employers]; a[i] = { ...a[i], company: ev.target.value }; sf('employers', a) }} type="text" placeholder="Company" style={fi} /></Field>
                 <Field label="Job title"><input value={e.title} onChange={ev => { const a = [...form.employers]; a[i] = { ...a[i], title: ev.target.value }; sf('employers', a) }} type="text" placeholder="Title" style={fi} /></Field>
                 <Field label="Supervisor"><input value={e.supervisor} onChange={ev => { const a = [...form.employers]; a[i] = { ...a[i], supervisor: ev.target.value }; sf('employers', a) }} type="text" placeholder="Supervisor name" style={fi} /></Field>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 12 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14, marginBottom: 12 }}>
                 <Field label="Responsibilities" required><textarea value={e.responsibilities} onChange={ev => { const a = [...form.employers]; a[i] = { ...a[i], responsibilities: ev.target.value }; sf('employers', a) }} placeholder="Key responsibilities..." style={{ ...fi, minHeight: 72, resize: 'vertical', lineHeight: 1.5 }} /></Field>
                 <Field label="Reason for leaving"><textarea value={e.reasonLeaving} onChange={ev => { const a = [...form.employers]; a[i] = { ...a[i], reasonLeaving: ev.target.value }; sf('employers', a) }} placeholder="Reason for leaving..." style={{ ...fi, minHeight: 72, resize: 'vertical', lineHeight: 1.5 }} /></Field>
               </div>
@@ -727,7 +727,7 @@ export default function ApplicationPage() {
           <SectionTitle label="References" />
           {form.references.map((r, i) => (
             <div key={i} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, marginBottom: 10, background: '#fff' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 14 }}>
                 <Field label="Reference name" required><input value={r.name} onChange={e => { const a = [...form.references]; a[i] = { ...a[i], name: e.target.value }; sf('references', a) }} type="text" placeholder="Full name" style={fi} /></Field>
                 <Field label="Years acquainted" required><input value={r.years} onChange={e => { const a = [...form.references]; a[i] = { ...a[i], years: e.target.value }; sf('references', a) }} type="text" placeholder="e.g. 3 years" style={fi} /></Field>
                 <Field label="Email address" required><input value={r.email} onChange={e => { const a = [...form.references]; a[i] = { ...a[i], email: e.target.value }; sf('references', a) }} type="email" placeholder="reference@email.com" style={fi} /></Field>
@@ -742,7 +742,7 @@ export default function ApplicationPage() {
 
       // 4 — Emergency contact
       case 4: return (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 14 }}>
           <Field label="Emergency contact name" required><input value={form.emergencyName} onChange={e => sf('emergencyName', e.target.value)} type="text" placeholder="Full name" style={fi} /></Field>
           <Field label="Relationship" required>
             <select value={form.emergencyRelationship} onChange={e => sf('emergencyRelationship', e.target.value)} style={fi}>
@@ -792,7 +792,7 @@ export default function ApplicationPage() {
             By signing below you certify that all information provided in this application is true and complete. Any false information or omission may disqualify you from further consideration and may result in dismissal if discovered after employment.
           </div>
           <SectionTitle label="Applicant signature" />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14, marginBottom: 14 }}>
             <Field label="Full legal name" required><input value={form.signatureName} onChange={e => sf('signatureName', e.target.value)} type="text" placeholder="Type your full name" style={fi} /></Field>
             <Field label="Date" required><input value={form.signatureDate} onChange={e => sf('signatureDate', e.target.value)} type="date" style={fi} /></Field>
           </div>

@@ -160,7 +160,7 @@ export default function UserAccountsPage() {
           </div>
           <div style={{ height: '0.5px', background: '#e5e7eb' }} />
           <form onSubmit={handleCreate} style={{ padding: '20px 22px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14, marginBottom: 14 }}>
               <div>
                 <label style={lbl}>First name</label>
                 <input style={inp} value={form.first_name} onChange={e => set('first_name', e.target.value)} placeholder="e.g. Maria" />
@@ -171,7 +171,7 @@ export default function UserAccountsPage() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14, marginBottom: 14 }}>
               <div>
                 <label style={lbl}>Email address</label>
                 <input type="email" style={inp} value={form.email} onChange={e => set('email', e.target.value)} placeholder="staff@example.com" />

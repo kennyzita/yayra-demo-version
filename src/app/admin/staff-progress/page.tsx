@@ -598,7 +598,7 @@ export default function StaffProgressPage() {
         ) : (
           <>
             {/* Summary cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 14 }}>
+            <div className="rcs-grid-4" style={{ marginBottom: 14 }}>
               {[
                 { val: completedCount,                          lbl: 'Checks complete',     pill: 'On track',     pillBg: 'rgba(48,176,96,0.1)',   pillColor: '#30B060' },
                 { val: onboardItems.length - completedCount,   lbl: 'Pending items',       pill: 'Action needed', pillBg: 'rgba(186,117,23,0.1)', pillColor: '#BA7517' },

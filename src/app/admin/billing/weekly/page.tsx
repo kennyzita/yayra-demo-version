@@ -310,7 +310,7 @@ export default function WeeklyBillPage() {
         </div>
 
         {/* Summary cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 12, marginBottom: 20 }}>
           <SummaryCard label="Weeks in year" value={String(bills.length)} />
           <SummaryCard label="Avg / week" value={fmtUSD(bills.length ? grand / bills.length : 0)} />
           <SummaryCard label={`Year to Date · ${year}`} value={fmtUSD(grand)} accent />
@@ -329,8 +329,8 @@ export default function WeeklyBillPage() {
               No billed weeks yet. Mark PA weeks as billed to see totals here.
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', minWidth: 480, fontSize: 13, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
                     {['Week start', 'Week end', 'Clients', 'Total bill'].map((h, i) => (
@@ -378,8 +378,8 @@ export default function WeeklyBillPage() {
             {selectedBill.clients.length === 0 ? (
               <div style={{ padding: '48px 0', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>No client billed for this week.</div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ width: '100%', minWidth: 900, fontSize: 13, borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
                       {['Client', 'Amount Billed', 'Amount Allowed', 'Total Deduct', 'Amount Paid', 'Status', 'Payment Date'].map((h, i) => (

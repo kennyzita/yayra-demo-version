@@ -283,7 +283,7 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
 
         {/* form card */}
         <div style={{ background: '#ffffff', borderRadius: 20, border: '1px solid #e2e8f0', padding: '36px 40px', width: '100%', maxWidth: 700, boxShadow: '0 2px 14px rgba(0,0,0,0.06)', marginBottom: 28 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 20, marginBottom: 28 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 20, marginBottom: 28 }}>
             <div>
               <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>Employee Full Name <span style={{ color: C.danger }}>*</span></label>
               <input type="text" value={name}
@@ -324,7 +324,7 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
         </div>
 
         {/* feature cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 14, width: '100%', maxWidth: 700, marginBottom: 36 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14, width: '100%', maxWidth: 700, marginBottom: 36 }}>
           {featureCards.map(({ Icon, title, desc }, i) => (
             <div key={i} style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', padding: '22px 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
               <div style={{ width: 44, height: 44, borderRadius: 10, background: '#edf2f7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, color: HERO_NAVY }}>
@@ -406,6 +406,14 @@ function PosterScreen({ onBack, onAssessment }: { onBack: () => void; onAssessme
 
   const orientContentRef = useRef<HTMLDivElement>(null)
   const trainContentRef  = useRef<HTMLDivElement>(null)
+
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const TOTAL_STEPS = 5
 
@@ -526,9 +534,9 @@ function PosterScreen({ onBack, onAssessment }: { onBack: () => void; onAssessme
           )}
         </div>
 
-        <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
           {/* sidebar */}
-          <div style={{ width: 200, flexShrink: 0, overflowY: 'auto', borderRight: `0.5px solid ${C.border}`, background: C.card, padding: '8px 0' }}>
+          <div style={{ width: isMobile ? '100%' : 200, maxHeight: isMobile ? 160 : 'none', flexShrink: 0, overflowY: 'auto', borderRight: isMobile ? 'none' : `0.5px solid ${C.border}`, borderBottom: isMobile ? `0.5px solid ${C.border}` : 'none', background: C.card, padding: '8px 0' }}>
             {MANUAL_SECTIONS.map((s, i) => {
               const isActive = orientSectionIdx === i
               return (
@@ -588,7 +596,7 @@ function PosterScreen({ onBack, onAssessment }: { onBack: () => void; onAssessme
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Acknowledge Orientation Manual</div>
                       <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>By acknowledging, you confirm you have read the Provider Orientation Manual and understand its contents.</div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
+                      <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 12, marginBottom: 12 }}>
                         <div>
                           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>Full Name <span style={{ color: C.danger }}>*</span></label>
                           <input type="text" value={empName} onChange={e => { setEmpName(e.target.value); setIntakeError('') }} placeholder="Your full name" style={{ ...inputStyle }} />
@@ -638,9 +646,9 @@ function PosterScreen({ onBack, onAssessment }: { onBack: () => void; onAssessme
         )}
       </div>
 
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
         {/* sidebar */}
-        <div style={{ width: 200, flexShrink: 0, overflowY: 'auto', borderRight: `0.5px solid ${C.border}`, background: C.card, padding: '8px 0' }}>
+        <div style={{ width: isMobile ? '100%' : 200, maxHeight: isMobile ? 160 : 'none', flexShrink: 0, overflowY: 'auto', borderRight: isMobile ? 'none' : `0.5px solid ${C.border}`, borderBottom: isMobile ? `0.5px solid ${C.border}` : 'none', background: C.card, padding: '8px 0' }}>
           {TRAINING_SECTIONS.map((s, i) => {
             const isActive = trainSectionIdx === i
             return (
@@ -700,7 +708,7 @@ function PosterScreen({ onBack, onAssessment }: { onBack: () => void; onAssessme
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 600, color: C.text, marginBottom: 4 }}>Acknowledge DSP Training Manual</div>
                     <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>By acknowledging, you confirm you have read the DSP Training Manual and understand your responsibilities.</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 12, marginBottom: 12 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>Full Name <span style={{ color: C.danger }}>*</span></label>
                         <input type="text" value={empName} onChange={e => { setEmpName(e.target.value); setIntakeError('') }} placeholder="Your full name" style={{ ...inputStyle }} />
@@ -791,7 +799,7 @@ function ModulesScreen({ onBack, onModule, onAssessment, onCertificate, onOrient
         </p>
 
         {/* stat cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 16, marginBottom: 32 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 16, marginBottom: 32 }}>
           {statCards.map(({ Icon, label, value }, i) => (
             <div key={i} style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', padding: '22px 24px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
@@ -811,7 +819,7 @@ function ModulesScreen({ onBack, onModule, onAssessment, onCertificate, onOrient
         {loading ? (
           <div style={{ textAlign: 'center', color: '#64748b', fontSize: 14, padding: 48 }}>Loading modules…</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 14, marginBottom: 24 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14, marginBottom: 24 }}>
             {modules.map((m, idx) => {
               const done     = progress.has(m.id)
               const prevDone = idx === 0 || progress.has(modules[idx - 1]?.id)
@@ -859,7 +867,7 @@ function ModulesScreen({ onBack, onModule, onAssessment, onCertificate, onOrient
               </div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 14 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 14 }}>
             {RESOURCE_CATEGORIES.map(cat => (
               <div key={cat.name} style={{ borderRadius: 12, border: '1px solid #e2e8f0', background: '#f8fafc', padding: '16px 18px' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#4a7da4', marginBottom: 12 }}>{cat.name}</div>
@@ -1302,7 +1310,7 @@ function AssessmentScreen({ onBack, onCertificate }: { onBack: () => void; onCer
                   32 randomly selected questions from a 60-question bank. You need <strong>26 correct</strong> (80%) to pass and earn your Certificate of Completion.
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
+              <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 16 }}>
                 <FormField label="Employee Full Name" required error={errors.employee_name}>
                   <input type="text" value={intake.employee_name}
                     onChange={e => setIntake(s => ({ ...s, employee_name: e.target.value }))}
@@ -1590,6 +1598,14 @@ function OrientationScreen({ onBack }: { onBack: () => void }) {
 
   const contentRef = useRef<HTMLDivElement>(null)
 
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
   const section = MANUAL_SECTIONS[sectionIdx]
   const isLast  = sectionIdx === MANUAL_SECTIONS.length - 1
 
@@ -1641,9 +1657,9 @@ function OrientationScreen({ onBack }: { onBack: () => void }) {
         )}
       </div>
 
-      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: isMobile ? 'column' : 'row', minHeight: 0 }}>
         {/* sidebar */}
-        <div style={{ width: 220, flexShrink: 0, overflowY: 'auto', borderRight: `0.5px solid ${C.border}`, background: C.card, padding: '8px 0' }}>
+        <div style={{ width: isMobile ? '100%' : 220, maxHeight: isMobile ? 160 : 'none', flexShrink: 0, overflowY: 'auto', borderRight: isMobile ? 'none' : `0.5px solid ${C.border}`, borderBottom: isMobile ? `0.5px solid ${C.border}` : 'none', background: C.card, padding: '8px 0' }}>
           {MANUAL_SECTIONS.map((s, i) => {
             const isVisited = visited.has(s.id)
             const isActive  = sectionIdx === i
@@ -1694,7 +1710,7 @@ function OrientationScreen({ onBack }: { onBack: () => void }) {
               {isLast && !acknowledged && (
                 <div style={{ marginTop: 24, borderTop: `0.5px solid ${C.border}`, paddingTop: 20 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 12 }}>Your electronic acknowledgement</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, marginBottom: 12 }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 12, marginBottom: 12 }}>
                     <div>
                       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 5 }}>
                         Full Name <span style={{ color: C.danger }}>*</span>

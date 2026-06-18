@@ -322,7 +322,7 @@ export default function AdminSchedulingPage() {
       {panelOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200 }}>
           <div onClick={() => setPanelOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.25)' }} />
-          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 400, background: '#fff', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 'min(400px, 100vw)', background: '#fff', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column' }}>
             <div style={{ padding: '20px 24px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center' }}>
               <span style={{ fontSize: 15, fontWeight: 600, color: '#111', flex: 1 }}>New Schedule</span>
               <button onClick={() => setPanelOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#6b7280', padding: 4 }}>
