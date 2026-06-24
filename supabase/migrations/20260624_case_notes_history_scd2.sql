@@ -1,27 +1,13 @@
--- 1. The DSP "edit/delete a rejected case note" policies added in
---    20260617_tighten_rls_policies.sql only matched status = 'draft'. The UI lets a
---    DSP reopen a *rejected* note, but the UPDATE/DELETE silently affects 0 rows
---    under RLS (no error is raised) — the data never actually changes. Widen both
---    policies to also cover 'rejected', and add a WITH CHECK on the update policy so
---    a DSP can move a rejected note back to 'submitted' but can never self-approve
---    or re-reject their own note.
-DROP POLICY IF EXISTS "dsp_update_own_draft_case_notes" ON public.case_notes;
-DROP POLICY IF EXISTS "dsp_delete_own_draft_case_notes" ON public.case_notes;
-
-CREATE POLICY "dsp_update_own_case_notes" ON public.case_notes
-  FOR UPDATE USING (dsp_id = auth.uid() AND status IN ('draft', 'rejected'))
-  WITH CHECK (dsp_id = auth.uid() AND status IN ('draft', 'submitted'));
-
-CREATE POLICY "dsp_delete_own_case_notes" ON public.case_notes
-  FOR DELETE USING (dsp_id = auth.uid() AND status IN ('draft', 'rejected'));
-
--- 2. SCD Type 2 history for case_notes. Admin and DSP staff can now both rewrite
---    every section of a case note (client, week, strategies, entries, status), so we
---    keep a full version trail rather than only the latest state. The live row in
---    case_notes stays the "current" version (every existing read/approve/reject/
---    edit/delete code path keeps working against a stable id); a BEFORE UPDATE/DELETE
---    trigger archives the version being replaced into case_notes_history with its
---    [valid_from, valid_to) window, who closed it, and why.
+-- SCD Type 2 history for case_notes. Admin and DSP staff can now both rewrite
+-- every section of a case note (client, week, strategies, entries, status), so we
+-- keep a full version trail rather than only the latest state. The live row in
+-- case_notes stays the "current" version (every existing read/approve/reject/
+-- edit/delete code path keeps working against a stable id); a BEFORE UPDATE/DELETE
+-- trigger archives the version being replaced into case_notes_history with its
+-- [valid_from, valid_to) window, who closed it, and why.
+--
+-- Independent of, and safe to apply separately from, 20260624_case_notes_dsp_rejected_fix.sql.
+-- Safe to re-run: every CREATE below is idempotent.
 CREATE TABLE IF NOT EXISTS public.case_notes_history (
   history_id    UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   case_note_id  UUID NOT NULL,
@@ -46,9 +32,11 @@ CREATE INDEX IF NOT EXISTS idx_case_notes_history_dsp ON public.case_notes_histo
 
 ALTER TABLE public.case_notes_history ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "dsp_select_own_case_notes_history" ON public.case_notes_history;
 CREATE POLICY "dsp_select_own_case_notes_history" ON public.case_notes_history
   FOR SELECT USING (dsp_id = auth.uid());
 
+DROP POLICY IF EXISTS "admin_select_all_case_notes_history" ON public.case_notes_history;
 CREATE POLICY "admin_select_all_case_notes_history" ON public.case_notes_history
   FOR SELECT USING (public.is_admin_or_hr());
 
