@@ -116,32 +116,6 @@ function formatTime12h(t: string): string {
   return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`
 }
 
-type DayRecord = {
-  date: string
-  entries: (Entry & { clientName: string; clientId: string })[]
-  strategies: string[]
-}
-
-function buildDayRecords(notes: HistoryNote[]): DayRecord[] {
-  const map = new Map<string, DayRecord>()
-  for (const note of notes) {
-    for (const entry of note.entries) {
-      const d = entry.date || '_nodate'
-      if (!map.has(d)) map.set(d, { date: d, entries: [], strategies: [] })
-      const rec = map.get(d)!
-      rec.entries.push({ ...entry, clientName: note.client_name, clientId: note.client_id })
-      for (const s of note.strategies) {
-        if (!rec.strategies.includes(s)) rec.strategies.push(s)
-      }
-    }
-  }
-  const result = [...map.values()].sort((a, b) => a.date.localeCompare(b.date))
-  for (const day of result) {
-    day.entries.sort((a, b) => (a.start || '').localeCompare(b.start || ''))
-  }
-  return result
-}
-
 function addOneHour(t: string): string {
   if (!t) return ''
   const [h, m] = t.split(':').map(Number)
@@ -163,7 +137,6 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
   rejected:  { bg: 'rgba(220,38,38,0.1)',   color: '#dc2626', label: 'Rejected'  },
   draft:     { bg: 'rgba(107,114,128,0.1)', color: '#6b7280', label: 'Draft'     },
 }
-void STATUS_STYLE
 
 type AssignedClient = { id: string; name: string; isp_outcome: string }
 type Entry = { id: number; date: string; start: string; end: string; endDate: string; strategy: string; desc: string }
@@ -861,7 +834,6 @@ export default function CaseNotesPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {weeksSorted.map(weekLabel => {
                   const weekNotes = weekGroups[weekLabel]
-                  const dayRecords = buildDayRecords(weekNotes)
                   const isDownloading = downloadingWeek === weekLabel
                   return (
                     <div key={weekLabel}>
@@ -870,7 +842,7 @@ export default function CaseNotesPage() {
                         <div>
                           <div style={{ fontSize: 14, fontWeight: 700, color: 'white' }}>{weekLabel}</div>
                           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
-                            {dayRecords.length} {dayRecords.length === 1 ? 'day' : 'days'}
+                            {weekNotes.length} {weekNotes.length === 1 ? 'note' : 'notes'}
                           </div>
                         </div>
                         <button
@@ -890,51 +862,53 @@ export default function CaseNotesPage() {
                         </button>
                       </div>
 
-                      {/* Day record cards */}
+                      {/* Per-note cards */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        {dayRecords.map(day => {
-                          const dayDate = day.date !== '_nodate' ? new Date(day.date + 'T00:00:00') : null
-                          const dateLabel = dayDate
-                            ? dayDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
-                            : 'No date'
-                          const totalHrs = day.entries.filter(e => e.start && e.end).length
-                          const isExpanded = expandedId === day.date
+                        {weekNotes.map(note => {
+                          const ss = STATUS_STYLE[note.status] ?? STATUS_STYLE.submitted
+                          const totalHrs = note.entries.filter(e => e.start && e.end).length
+                          const isExpanded = expandedId === note.id
+                          const canEdit = note.status !== 'approved'
+                          const isDeleting = deletingId === note.id
 
                           return (
-                            <div key={day.date} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-                              <div onClick={() => setExpandedId(isExpanded ? null : day.date)} style={{ padding: '18px 22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div>
-                                  <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 5 }}>{dateLabel}</div>
+                            <div key={note.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                              <div onClick={() => setExpandedId(isExpanded ? null : note.id)} style={{ padding: '18px 22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14 }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 5 }}>{note.client_name}</div>
                                   <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
                                     <span style={{ fontSize: 13, color: '#6b7280' }}>
-                                      {day.entries.length} {day.entries.length === 1 ? 'entry' : 'entries'}
+                                      {note.entries.length} {note.entries.length === 1 ? 'entry' : 'entries'}
                                     </span>
                                     <span style={{ fontSize: 13, color: '#6b7280' }}>·</span>
                                     <span style={{ fontSize: 13, fontWeight: 600, color: '#004050' }}>
                                       {totalHrs} {totalHrs === 1 ? 'hr' : 'hrs'}
                                     </span>
-                                    {day.strategies.slice(0, 1).map(s => (
+                                    {note.strategies.slice(0, 1).map(s => (
                                       <span key={s} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: 'rgba(0,64,80,0.08)', color: '#004050', fontWeight: 500 }}>
                                         {s.split('Assistance with ')[1] ?? s}
                                       </span>
                                     ))}
-                                    {day.strategies.length > 1 && (
-                                      <span style={{ fontSize: 11, color: '#9ca3af' }}>+{day.strategies.length - 1} more</span>
+                                    {note.strategies.length > 1 && (
+                                      <span style={{ fontSize: 11, color: '#9ca3af' }}>+{note.strategies.length - 1} more</span>
                                     )}
                                   </div>
                                 </div>
+                                <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: ss.bg, color: ss.color, fontWeight: 600, flexShrink: 0 }}>{ss.label}</span>
                                 <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 16, color: '#d1d5db', flexShrink: 0 }} />
                               </div>
 
                               {isExpanded && (
                                 <div style={{ borderTop: '1px solid #f3f4f6', padding: '16px 22px', background: '#fafafa' }}>
-                                  {day.entries.map((e, ei) => (
+                                  {note.entries.map((e, ei) => (
                                     <div key={ei} style={{ background: '#fff', borderRadius: 10, padding: '12px 16px', marginBottom: 10, border: '1px solid #e5e7eb' }}>
                                       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: e.desc ? 8 : 0 }}>
                                         <span style={{ fontSize: 13, fontWeight: 700, color: '#374151' }}>
+                                          {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                                        </span>
+                                        <span style={{ fontSize: 13, color: '#6b7280' }}>
                                           {e.start && e.end ? `${formatTime12h(e.start)} – ${formatTime12h(e.end)}` : '—'}
                                         </span>
-                                        <span style={{ fontSize: 12, color: '#6b7280' }}>{e.clientName}</span>
                                         {e.strategy && (
                                           <span style={{ fontSize: 11, padding: '2px 9px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>
                                             {e.strategy.split('Assistance with ')[1] ?? e.strategy}
@@ -944,6 +918,25 @@ export default function CaseNotesPage() {
                                       {e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.65 }}>{e.desc}</div>}
                                     </div>
                                   ))}
+
+                                  <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                                    {canEdit ? (
+                                      <>
+                                        <button onClick={() => startEdit(note)}
+                                          style={{ fontSize: 13, padding: '7px 16px', borderRadius: 7, border: '1px solid #004050', background: 'white', color: '#004050', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+                                          <i className="ti ti-edit" /> Edit
+                                        </button>
+                                        <button onClick={() => handleDelete(note.id)} disabled={isDeleting}
+                                          style={{ fontSize: 13, padding: '7px 16px', borderRadius: 7, border: '1px solid #fca5a5', background: 'white', color: '#dc2626', cursor: isDeleting ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', opacity: isDeleting ? 0.5 : 1 }}>
+                                          <i className={`ti ${isDeleting ? 'ti-loader-2' : 'ti-trash'}`} /> {isDeleting ? 'Deleting…' : 'Delete'}
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <span style={{ fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <i className="ti ti-lock" /> Approved — no further changes allowed
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>

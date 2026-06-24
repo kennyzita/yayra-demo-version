@@ -78,6 +78,57 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
   draft:     { bg: 'rgba(107,114,128,0.1)', color: '#6b7280', label: 'Draft'    },
 }
 
+// ── Full-section editor helpers (manual create / edit-all-sections) ────────
+
+function toLocalISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function addOneHour(t: string): string {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+function addOneHourWithDate(dateStr: string, t: string): { end: string; endDate: string } {
+  if (!t) return { end: '', endDate: dateStr }
+  if (!dateStr) return { end: addOneHour(t), endDate: dateStr }
+  const [h, m] = t.split(':').map(Number)
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setHours(h + 1, m)
+  return { end: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`, endDate: toLocalISO(d) }
+}
+
+type EditorEntry = { id: number; date: string; start: string; end: string; endDate: string; strategy: string; desc: string }
+
+function editorEntryRange(e: EditorEntry): { startMs: number; endMs: number } | null {
+  if (!e.date || !e.start || !e.end) return null
+  const [sh, sm] = e.start.split(':').map(Number)
+  const [eh, em] = e.end.split(':').map(Number)
+  const start = new Date(e.date + 'T00:00:00')
+  start.setHours(sh, sm, 0, 0)
+  const end = new Date((e.endDate || e.date) + 'T00:00:00')
+  end.setHours(eh, em, 0, 0)
+  return { startMs: start.getTime(), endMs: end.getTime() }
+}
+
+function findEditorEntryOverlap(entries: EditorEntry[]): { a: EditorEntry; b: EditorEntry } | null {
+  const ranged = entries.map(e => ({ entry: e, range: editorEntryRange(e) })).filter(x => x.range)
+  for (let i = 0; i < ranged.length; i++) {
+    for (let j = i + 1; j < ranged.length; j++) {
+      const A = ranged[i].range!, B = ranged[j].range!
+      if (A.startMs < B.endMs && B.startMs < A.endMs) return { a: ranged[i].entry, b: ranged[j].entry }
+    }
+  }
+  return null
+}
+
+function fmtEditorEntryLabel(e: EditorEntry): string {
+  const d = new Date(e.date + 'T00:00:00')
+  const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${dateStr}, ${e.start}–${e.end}`
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function AdminCaseNotesPage() {
@@ -98,8 +149,20 @@ export default function AdminCaseNotesPage() {
   const [actioning,       setActioning]       = useState<string | null>(null)
   const [rejectingId,     setRejectingId]     = useState<string | null>(null)
   const [toast,           setToast]           = useState('')
-  const [editingEntry,    setEditingEntry]    = useState<{ noteId: string; entryIndex: number; desc: string } | null>(null)
   const [downloadingWeek, setDownloadingWeek] = useState<string | null>(null)
+  const [deletingId,      setDeletingId]      = useState<string | null>(null)
+
+  // Full-section editor (manual create / edit-all-sections)
+  const [editorOpen,       setEditorOpen]       = useState(false)
+  const [editorMode,       setEditorMode]       = useState<'create' | 'edit'>('create')
+  const [editorNoteId,     setEditorNoteId]     = useState<string | null>(null)
+  const [editorDspId,      setEditorDspId]      = useState('')
+  const [editorClientId,   setEditorClientId]   = useState('')
+  const [editorWeekLabel,  setEditorWeekLabel]  = useState('')
+  const [editorStrategies, setEditorStrategies] = useState<string[]>([])
+  const [editorEntries,    setEditorEntries]    = useState<EditorEntry[]>([{ id: 1, date: '', start: '', end: '', endDate: '', strategy: '', desc: '' }])
+  const [editorSaving,     setEditorSaving]     = useState(false)
+  const editorNextId = useRef(2)
 
   // Upload modal
   const [showUpload,     setShowUpload]     = useState(false)
@@ -169,12 +232,94 @@ export default function AdminCaseNotesPage() {
     setActioning(null)
   }
 
-  async function saveEntryEdit(noteId: string, updatedEntries: any[]) {
-    const { error } = await supabase.from('case_notes').update({ entries: updatedEntries }).eq('id', noteId)
-    if (error) { showToast('Error: ' + error.message); return }
-    showToast('Entry updated ✓')
-    setRecords(prev => prev.map(r => r.id === noteId ? { ...r, entries: updatedEntries } : r))
-    setEditingEntry(null)
+  async function handleDeleteNote(id: string) {
+    if (!confirm('Delete this case note? This cannot be undone.')) return
+    setDeletingId(id)
+    const { error } = await supabase.from('case_notes').delete().eq('id', id)
+    if (error) showToast('Error: ' + error.message)
+    else { showToast('Case note deleted'); setRecords(prev => prev.filter(r => r.id !== id)) }
+    setDeletingId(null)
+  }
+
+  // ── Full-section editor ─────────────────────────────────────────────────
+
+  function openCreateEditor() {
+    setEditorMode('create'); setEditorNoteId(null)
+    setEditorDspId(''); setEditorClientId(''); setEditorWeekLabel('')
+    setEditorStrategies([])
+    setEditorEntries([{ id: 1, date: '', start: '', end: '', endDate: '', strategy: '', desc: '' }])
+    editorNextId.current = 2
+    setEditorOpen(true)
+  }
+
+  function openEditEditor(note: CnRecord) {
+    setEditorMode('edit'); setEditorNoteId(note.id)
+    setEditorDspId(note.dsp_id); setEditorClientId(note.client_id); setEditorWeekLabel(note.week_label)
+    setEditorStrategies([...note.strategies])
+    const restored = (note.entries ?? []).map((e: any, i: number) => {
+      const date = e.date ?? '', start = e.start ?? ''
+      const computed = addOneHourWithDate(date, start)
+      return {
+        id: i + 1, date, start,
+        end: e.end || computed.end, endDate: e.endDate || computed.endDate,
+        strategy: e.strategy ?? '', desc: e.desc ?? '',
+      }
+    })
+    setEditorEntries(restored.length > 0 ? restored : [{ id: 1, date: '', start: '', end: '', endDate: '', strategy: '', desc: '' }])
+    editorNextId.current = (restored.length || 1) + 1
+    setEditorOpen(true)
+  }
+
+  function toggleEditorStrategy(title: string) {
+    setEditorStrategies(prev => prev.includes(title) ? prev.filter(t => t !== title) : [...prev, title])
+  }
+
+  function editorAddEntry() {
+    setEditorEntries(prev => [...prev, { id: editorNextId.current++, date: '', start: '', end: '', endDate: '', strategy: '', desc: '' }])
+  }
+
+  function editorRemoveEntry(id: number) {
+    setEditorEntries(prev => prev.filter(e => e.id !== id))
+  }
+
+  function editorUpdateEntry(id: number, field: keyof EditorEntry, val: string) {
+    setEditorEntries(prev => prev.map(e => {
+      if (e.id !== id) return e
+      if (field === 'start') { const c = addOneHourWithDate(e.date, val); return { ...e, start: val, end: c.end, endDate: c.endDate } }
+      if (field === 'date') { const c = addOneHourWithDate(val, e.start); return { ...e, date: val, end: c.end, endDate: c.endDate } }
+      return { ...e, [field]: val }
+    }))
+  }
+
+  async function saveEditor() {
+    if (editorMode === 'create' && !editorDspId) { showToast('Please select a staff member'); return }
+    if (!editorClientId) { showToast('Please select a client'); return }
+    if (!editorWeekLabel.trim()) { showToast('Please enter a service week label'); return }
+    if (editorEntries.length === 0) { showToast('Add at least one activity entry'); return }
+    const overlap = findEditorEntryOverlap(editorEntries)
+    if (overlap) {
+      showToast(`Overlap hours: entry on ${fmtEditorEntryLabel(overlap.a)} overlaps with entry on ${fmtEditorEntryLabel(overlap.b)}`)
+      return
+    }
+    setEditorSaving(true)
+    if (editorMode === 'edit' && editorNoteId) {
+      const { error } = await supabase.from('case_notes')
+        .update({ client_id: editorClientId, week_label: editorWeekLabel, strategies: editorStrategies, entries: editorEntries })
+        .eq('id', editorNoteId)
+      if (error) { showToast('Error: ' + error.message); setEditorSaving(false); return }
+      showToast('Case note updated ✓')
+    } else {
+      const { error } = await supabase.from('case_notes').insert({
+        dsp_id: editorDspId, client_id: editorClientId, week_label: editorWeekLabel,
+        strategies: editorStrategies, entries: editorEntries, status: 'submitted',
+        submitted_at: new Date().toISOString(),
+      })
+      if (error) { showToast('Error: ' + error.message); setEditorSaving(false); return }
+      showToast('Case note created ✓')
+    }
+    setEditorOpen(false)
+    setEditorSaving(false)
+    await loadAll()
   }
 
   // ── PDF Download ─────────────────────────────────────────────────────────
@@ -531,6 +676,7 @@ export default function AdminCaseNotesPage() {
   // ── Render ───────────────────────────────────────────────────────────────
 
   const ipt: React.CSSProperties = { fontSize: 13, color: '#111', background: 'white', border: '1px solid #d1d5db', borderRadius: 7, padding: '9px 12px', outline: 'none', fontFamily: 'inherit', width: '100%' }
+  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: '#374151', marginBottom: 6 }
 
   return (
     <>
@@ -561,6 +707,14 @@ export default function AdminCaseNotesPage() {
           <input type="text" placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)}
             style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#111', outline: 'none', width: '100%' }} />
         </div>
+
+        {/* New case note button */}
+        <button
+          onClick={openCreateEditor}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16a34a', color: 'white', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+        >
+          <i className="ti ti-plus" /> New Case Note
+        </button>
 
         {/* Upload button */}
         <button
@@ -658,7 +812,7 @@ export default function AdminCaseNotesPage() {
                   {isWeekOpen && (
                     <div style={{ borderTop: '1px solid #f3f4f6', padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10, background: '#fafafa' }}>
                       {weekRecords.map(r => (
-                        <NoteCard key={r.id} r={r} expandedId={expandedId} setExpandedId={setExpandedId} rejectingId={rejectingId} setRejectingId={setRejectingId} actioning={actioning} editingEntry={editingEntry} setEditingEntry={setEditingEntry} handleApprove={handleApprove} handleReject={handleReject} saveEntryEdit={saveEntryEdit} />
+                        <NoteCard key={r.id} r={r} expandedId={expandedId} setExpandedId={setExpandedId} rejectingId={rejectingId} setRejectingId={setRejectingId} actioning={actioning} deletingId={deletingId} handleApprove={handleApprove} handleReject={handleReject} onEdit={openEditEditor} onDelete={handleDeleteNote} />
                       ))}
                     </div>
                   )}
@@ -810,6 +964,136 @@ export default function AdminCaseNotesPage() {
         </div>
       )}
 
+      {/* ── Full-section Editor Modal (create / edit-all-sections) ──────── */}
+      {editorOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={e => { if (e.target === e.currentTarget) setEditorOpen(false) }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 720, maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>{editorMode === 'create' ? 'New Case Note' : 'Edit Case Note'}</div>
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>
+                  {editorMode === 'create' ? 'Manually create a case note for a DSP staff member' : 'Update any section of this case note — client, week, strategies, and entries'}
+                </div>
+              </div>
+              <button onClick={() => setEditorOpen(false)} style={{ background: 'none', border: 'none', fontSize: 20, color: '#9ca3af', cursor: 'pointer', padding: 4 }}>✕</button>
+            </div>
+
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: editorMode === 'create' ? '1fr 1fr' : '1fr', gap: 14, marginBottom: 16 }}>
+                {editorMode === 'create' && (
+                  <div>
+                    <div style={labelStyle}>Staff Member <span style={{ color: '#e24b4a' }}>*</span></div>
+                    <div style={{ position: 'relative' }}>
+                      <select value={editorDspId} onChange={e => setEditorDspId(e.target.value)} style={{ ...ipt, paddingRight: 30, appearance: 'none', cursor: 'pointer' }}>
+                        <option value="">— Select staff —</option>
+                        {dspStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                      <i className="ti ti-chevron-down" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#6b7280', pointerEvents: 'none' }} />
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <div style={labelStyle}>Client <span style={{ color: '#e24b4a' }}>*</span></div>
+                  <div style={{ position: 'relative' }}>
+                    <select value={editorClientId} onChange={e => setEditorClientId(e.target.value)} style={{ ...ipt, paddingRight: 30, appearance: 'none', cursor: 'pointer' }}>
+                      <option value="">— Select client —</option>
+                      {allClients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <i className="ti ti-chevron-down" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#6b7280', pointerEvents: 'none' }} />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 18 }}>
+                <div style={labelStyle}>Service Week Label <span style={{ color: '#e24b4a' }}>*</span></div>
+                <input value={editorWeekLabel} onChange={e => setEditorWeekLabel(e.target.value)} placeholder="e.g. Jun 8, 2025 – Jun 14, 2025" style={ipt} />
+              </div>
+
+              <div style={{ marginBottom: 18 }}>
+                <div style={labelStyle}>Service Strategies</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {STRATEGIES_TITLES.map(title => {
+                    const isChecked = editorStrategies.includes(title)
+                    return (
+                      <button key={title} type="button" onClick={() => toggleEditorStrategy(title)}
+                        style={{ fontSize: 12, padding: '6px 12px', borderRadius: 20, border: isChecked ? '1px solid #004050' : '1px solid #d1d5db', background: isChecked ? '#004050' : 'white', color: isChecked ? 'white' : '#374151', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        {isChecked && '✓ '}{title}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ ...labelStyle, marginBottom: 8 }}>Activity Entries</div>
+                {editorEntries.map((entry, i) => (
+                  <div key={entry.id} style={{ border: '1px solid #d1d5db', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+                    <div style={{ background: '#f3f4f6', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#004050' }}>Entry #{i + 1}</span>
+                      {editorEntries.length > 1 && (
+                        <button onClick={() => editorRemoveEntry(entry.id)} style={{ fontSize: 12, fontWeight: 600, color: '#dc2626', background: '#fff0f0', border: '1px solid #fca5a5', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                          ✕ Remove
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ padding: 14, background: 'white' }}>
+                      <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                        <div style={{ flex: '1 1 150px' }}>
+                          <div style={{ ...labelStyle, fontSize: 10 }}>Start date</div>
+                          <input type="date" value={entry.date} onChange={e => editorUpdateEntry(entry.id, 'date', e.target.value)} style={ipt} />
+                        </div>
+                        <div style={{ flex: '1 1 110px' }}>
+                          <div style={{ ...labelStyle, fontSize: 10 }}>Start time</div>
+                          <input type="time" value={entry.start} onChange={e => editorUpdateEntry(entry.id, 'start', e.target.value)} style={ipt} />
+                        </div>
+                        <div style={{ flex: '1 1 150px' }}>
+                          <div style={{ ...labelStyle, fontSize: 10 }}>End date</div>
+                          <input type="date" value={entry.endDate} onChange={e => editorUpdateEntry(entry.id, 'endDate', e.target.value)} style={ipt} />
+                        </div>
+                        <div style={{ flex: '1 1 110px' }}>
+                          <div style={{ ...labelStyle, fontSize: 10 }}>End time</div>
+                          <input type="time" value={entry.end} onChange={e => editorUpdateEntry(entry.id, 'end', e.target.value)} style={ipt} />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ ...labelStyle, fontSize: 10 }}>Strategy</div>
+                        <div style={{ position: 'relative' }}>
+                          <select value={entry.strategy} onChange={e => editorUpdateEntry(entry.id, 'strategy', e.target.value)} style={{ ...ipt, paddingRight: 30, appearance: 'none', cursor: 'pointer' }}>
+                            <option value="">— Select strategy —</option>
+                            {STRATEGIES_TITLES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                          <i className="ti ti-chevron-down" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 12, color: '#6b7280', pointerEvents: 'none' }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ ...labelStyle, fontSize: 10 }}>Description</div>
+                        <textarea value={entry.desc} onChange={e => editorUpdateEntry(entry.id, 'desc', e.target.value)} rows={2}
+                          style={{ ...ipt, resize: 'vertical', minHeight: 60, lineHeight: 1.5 }} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={editorAddEntry} style={{ width: '100%', padding: 12, border: '2px dashed #1a56db', borderRadius: 10, background: '#f0f5ff', color: '#004050', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  + Add Activity Entry
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={saveEditor} disabled={editorSaving}
+                  style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', background: editorSaving ? '#9ca3af' : '#16a34a', color: 'white', fontSize: 14, fontWeight: 600, cursor: editorSaving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: 'inherit' }}>
+                  <i className={`ti ${editorSaving ? 'ti-loader-2' : 'ti-device-floppy'}`} />
+                  {editorSaving ? 'Saving…' : editorMode === 'create' ? 'Create Case Note' : 'Save Changes'}
+                </button>
+                <button onClick={() => setEditorOpen(false)}
+                  style={{ padding: '12px 18px', borderRadius: 8, border: '1px solid #d1d5db', background: 'white', color: '#374151', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {toast && (
         <div style={{ position: 'fixed', bottom: 20, right: 20, background: '#004050', color: '#fff', fontSize: 13, padding: '10px 18px', borderRadius: 8, zIndex: 200, boxShadow: '0 4px 12px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', gap: 8 }}>
           ✓ {toast}
@@ -821,21 +1105,22 @@ export default function AdminCaseNotesPage() {
 
 // ── NoteCard sub-component ────────────────────────────────────────────────────
 
-function NoteCard({ r, expandedId, setExpandedId, rejectingId, setRejectingId, actioning, editingEntry, setEditingEntry, handleApprove, handleReject, saveEntryEdit }: {
+function NoteCard({ r, expandedId, setExpandedId, rejectingId, setRejectingId, actioning, deletingId, handleApprove, handleReject, onEdit, onDelete }: {
   r: CnRecord
   expandedId: string | null; setExpandedId: (id: string | null) => void
   rejectingId: string | null; setRejectingId: (id: string | null) => void
   actioning: string | null
-  editingEntry: { noteId: string; entryIndex: number; desc: string } | null
-  setEditingEntry: (v: any) => void
+  deletingId: string | null
   handleApprove: (id: string) => void
   handleReject:  (id: string) => void
-  saveEntryEdit: (noteId: string, entries: any[]) => void
+  onEdit: (r: CnRecord) => void
+  onDelete: (id: string) => void
 }) {
   const ss = STATUS_STYLE[r.status] ?? STATUS_STYLE.draft
   const isExpanded  = expandedId  === r.id
   const isActioning = actioning   === r.id
   const isRejecting = rejectingId === r.id
+  const isDeleting  = deletingId  === r.id
   const initials    = r.staff_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
 
   return (
@@ -874,72 +1159,63 @@ function NoteCard({ r, expandedId, setExpandedId, rejectingId, setRejectingId, a
           {r.entries.length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Activity Log</div>
-              {r.entries.map((e: any, ei: number) => {
-                const isEditingThis = editingEntry?.noteId === r.id && editingEntry?.entryIndex === ei
-                return (
-                  <div key={ei} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: `1px solid ${isEditingThis ? '#008080' : '#e5e7eb'}` }}>
-                    <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
-                        {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
-                      </span>
-                      <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
-                      {e.strategy && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
-                      {!isEditingThis && (
-                        <button onClick={ev => { ev.stopPropagation(); setEditingEntry({ noteId: r.id, entryIndex: ei, desc: e.desc ?? '' }) }}
-                          style={{ marginLeft: 'auto', fontSize: 11, padding: '2px 9px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'white', color: '#6b7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <i className="ti ti-pencil" style={{ fontSize: 11 }} /> Edit
-                        </button>
-                      )}
-                    </div>
-                    {isEditingThis ? (
-                      <div>
-                        <textarea autoFocus value={editingEntry.desc}
-                          onChange={ev => setEditingEntry((prev: any) => prev ? { ...prev, desc: ev.target.value } : prev)}
-                          rows={3}
-                          style={{ width: '100%', fontSize: 13, color: '#374151', lineHeight: 1.6, border: '1px solid #008080', borderRadius: 6, padding: '8px 10px', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
-                        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                          <button onClick={() => { const u = r.entries.map((ent: any, i: number) => i === ei ? { ...ent, desc: editingEntry.desc } : ent); saveEntryEdit(r.id, u) }}
-                            style={{ fontSize: 12, padding: '5px 14px', borderRadius: 6, border: 'none', background: '#008080', color: 'white', cursor: 'pointer', fontWeight: 600 }}>Save</button>
-                          <button onClick={() => setEditingEntry(null)}
-                            style={{ fontSize: 12, padding: '5px 12px', borderRadius: 6, border: '0.5px solid #d1d5db', background: 'white', color: '#374151', cursor: 'pointer' }}>Cancel</button>
-                        </div>
-                      </div>
-                    ) : (
-                      e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{e.desc}</div>
-                    )}
+              {r.entries.map((e: any, ei: number) => (
+                <div key={ei} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #e5e7eb' }}>
+                  <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: e.desc ? 6 : 0, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                      {e.date ? new Date(e.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '—'}
+                    </span>
+                    <span style={{ fontSize: 12, color: '#6b7280' }}>{e.start} – {e.end}</span>
+                    {e.strategy && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(0,64,80,0.07)', color: '#004050' }}>{e.strategy}</span>}
                   </div>
-                )
-              })}
+                  {e.desc && <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.5 }}>{e.desc}</div>}
+                </div>
+              ))}
             </div>
           )}
 
-          {r.status === 'submitted' && (
-            isRejecting ? (
-              <div style={{ background: '#fff8f8', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 14px' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', marginBottom: 10 }}>Confirm rejection?</div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => handleReject(r.id)} disabled={!!isActioning}
-                    style={{ fontSize: 13, padding: '7px 18px', borderRadius: 7, border: 'none', background: '#dc2626', color: 'white', cursor: 'pointer', fontWeight: 600, opacity: isActioning ? 0.6 : 1 }}>
-                    {isActioning ? 'Rejecting…' : 'Confirm Reject'}
-                  </button>
-                  <button onClick={() => setRejectingId(null)} style={{ fontSize: 13, padding: '7px 14px', borderRadius: 7, border: '0.5px solid #d1d5db', background: 'white', color: '#374151', cursor: 'pointer' }}>Cancel</button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            {r.status === 'submitted' && (
+              isRejecting ? (
+                <div style={{ background: '#fff8f8', border: '1px solid #fca5a5', borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#dc2626', marginBottom: 10 }}>Confirm rejection?</div>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button onClick={() => handleReject(r.id)} disabled={!!isActioning}
+                      style={{ fontSize: 13, padding: '7px 18px', borderRadius: 7, border: 'none', background: '#dc2626', color: 'white', cursor: 'pointer', fontWeight: 600, opacity: isActioning ? 0.6 : 1 }}>
+                      {isActioning ? 'Rejecting…' : 'Confirm Reject'}
+                    </button>
+                    <button onClick={() => setRejectingId(null)} style={{ fontSize: 13, padding: '7px 14px', borderRadius: 7, border: '0.5px solid #d1d5db', background: 'white', color: '#374151', cursor: 'pointer' }}>Cancel</button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => handleApprove(r.id)} disabled={!!isActioning}
-                  style={{ fontSize: 13, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#16a34a', color: 'white', cursor: isActioning ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, opacity: isActioning ? 0.6 : 1 }}>
-                  <i className="ti ti-circle-check" /> {isActioning ? 'Approving…' : 'Approve'}
+              ) : (
+                <>
+                  <button onClick={() => handleApprove(r.id)} disabled={!!isActioning}
+                    style={{ fontSize: 13, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#16a34a', color: 'white', cursor: isActioning ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, opacity: isActioning ? 0.6 : 1 }}>
+                    <i className="ti ti-circle-check" /> {isActioning ? 'Approving…' : 'Approve'}
+                  </button>
+                  <button onClick={() => setRejectingId(r.id)}
+                    style={{ fontSize: 13, padding: '8px 20px', borderRadius: 7, border: '1px solid #fca5a5', background: 'white', color: '#dc2626', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <i className="ti ti-x" /> Reject
+                  </button>
+                </>
+              )
+            )}
+            {r.status === 'approved' && <span style={{ fontSize: 13, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 6 }}><i className="ti ti-circle-check" /> Approved</span>}
+            {r.status === 'rejected' && <span style={{ fontSize: 13, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}><i className="ti ti-x" /> Rejected</span>}
+
+            {!isRejecting && (
+              <>
+                <button onClick={() => onEdit(r)}
+                  style={{ fontSize: 13, padding: '8px 18px', borderRadius: 7, border: '1px solid #004050', background: 'white', color: '#004050', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+                  <i className="ti ti-edit" /> Edit
                 </button>
-                <button onClick={() => setRejectingId(r.id)}
-                  style={{ fontSize: 13, padding: '8px 20px', borderRadius: 7, border: '1px solid #fca5a5', background: 'white', color: '#dc2626', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <i className="ti ti-x" /> Reject
+                <button onClick={() => onDelete(r.id)} disabled={isDeleting}
+                  style={{ fontSize: 13, padding: '8px 18px', borderRadius: 7, border: '1px solid #fca5a5', background: 'white', color: '#dc2626', cursor: isDeleting ? 'wait' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit', opacity: isDeleting ? 0.5 : 1 }}>
+                  <i className={`ti ${isDeleting ? 'ti-loader-2' : 'ti-trash'}`} /> {isDeleting ? 'Deleting…' : 'Delete'}
                 </button>
-              </div>
-            )
-          )}
-          {r.status === 'approved' && <span style={{ fontSize: 13, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 6 }}><i className="ti ti-circle-check" /> Approved</span>}
-          {r.status === 'rejected' && <span style={{ fontSize: 13, color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}><i className="ti ti-x" /> Rejected</span>}
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
