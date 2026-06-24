@@ -236,8 +236,9 @@ export default function AdminCaseNotesPage() {
   async function handleDeleteNote(id: string) {
     if (!confirm('Delete this case note? This cannot be undone.')) return
     setDeletingId(id)
-    const { error } = await supabase.from('case_notes').delete().eq('id', id)
+    const { data, error } = await supabase.from('case_notes').delete().eq('id', id).select('id')
     if (error) showToast('Error: ' + error.message)
+    else if (!data || data.length === 0) showToast("Couldn't delete — note not found or not permitted")
     else { showToast('Case note deleted'); setRecords(prev => prev.filter(r => r.id !== id)) }
     setDeletingId(null)
   }
@@ -305,14 +306,16 @@ export default function AdminCaseNotesPage() {
     setEditorSaving(true)
     if (editorMode === 'edit' && editorNoteId) {
       const reopening = editorOrigStatus === 'rejected'
-      const { error } = await supabase.from('case_notes')
+      const { data, error } = await supabase.from('case_notes')
         .update({
           client_id: editorClientId, week_label: editorWeekLabel, strategies: editorStrategies, entries: editorEntries,
           updated_at: new Date().toISOString(),
           ...(reopening ? { status: 'submitted', submitted_at: new Date().toISOString() } : {}),
         })
         .eq('id', editorNoteId)
+        .select('id')
       if (error) { showToast('Error: ' + error.message); setEditorSaving(false); return }
+      if (!data || data.length === 0) { showToast("Couldn't save — note not found or not permitted"); setEditorSaving(false); return }
       showToast(reopening ? 'Case note updated — moved to Pending review ✓' : 'Case note updated ✓')
     } else {
       const { error } = await supabase.from('case_notes').insert({

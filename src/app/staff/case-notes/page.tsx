@@ -323,8 +323,9 @@ export default function CaseNotesPage() {
   async function handleDelete(noteId: string) {
     if (!confirm('Delete this case note? This cannot be undone.')) return
     setDeletingId(noteId)
-    const { error } = await supabase.from('case_notes').delete().eq('id', noteId)
+    const { data, error } = await supabase.from('case_notes').delete().eq('id', noteId).select('id')
     if (error) showToast('Error: ' + error.message)
+    else if (!data || data.length === 0) showToast("Couldn't delete — this note can no longer be modified")
     else { showToast('Case note deleted'); setHistory(prev => prev.filter(n => n.id !== noteId)) }
     setDeletingId(null)
   }
@@ -381,11 +382,18 @@ export default function CaseNotesPage() {
     setSubmitting(true)
 
     if (editingNoteId) {
-      const { error } = await supabase.from('case_notes')
+      const { data, error } = await supabase.from('case_notes')
         .update({ client_id: clientId, week_label: week, strategies: selectedStrategies, entries, status: 'submitted', submitted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq('id', editingNoteId)
+        .select('id')
       if (error) showToast('Error: ' + error.message)
-      else { showToast('Case note resubmitted ✓'); setEditingNoteId(null); resetForm() }
+      else if (!data || data.length === 0) showToast("Couldn't save — this note can no longer be modified")
+      else {
+        showToast('Case note resubmitted ✓')
+        setEditingNoteId(null); resetForm()
+        setShowHistory(true)
+        await loadHistory()
+      }
     } else if (draftNoteId) {
       const { error } = await supabase.from('case_notes')
         .update({ client_id: clientId, week_label: week, strategies: selectedStrategies, entries, status: 'submitted', submitted_at: new Date().toISOString() })
