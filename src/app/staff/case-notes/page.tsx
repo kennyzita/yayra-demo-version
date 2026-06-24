@@ -382,10 +382,10 @@ export default function CaseNotesPage() {
 
     if (editingNoteId) {
       const { error } = await supabase.from('case_notes')
-        .update({ client_id: clientId, week_label: week, strategies: selectedStrategies, entries, updated_at: new Date().toISOString() })
+        .update({ client_id: clientId, week_label: week, strategies: selectedStrategies, entries, status: 'submitted', submitted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq('id', editingNoteId)
       if (error) showToast('Error: ' + error.message)
-      else { showToast('Case note updated ✓'); setEditingNoteId(null); resetForm() }
+      else { showToast('Case note resubmitted ✓'); setEditingNoteId(null); resetForm() }
     } else if (draftNoteId) {
       const { error } = await supabase.from('case_notes')
         .update({ client_id: clientId, week_label: week, strategies: selectedStrategies, entries, status: 'submitted', submitted_at: new Date().toISOString() })
@@ -868,7 +868,7 @@ export default function CaseNotesPage() {
                           const ss = STATUS_STYLE[note.status] ?? STATUS_STYLE.submitted
                           const totalHrs = note.entries.filter(e => e.start && e.end).length
                           const isExpanded = expandedId === note.id
-                          const canEdit = note.status !== 'approved'
+                          const canEdit = note.status === 'rejected'
                           const isDeleting = deletingId === note.id
 
                           return (
@@ -932,8 +932,9 @@ export default function CaseNotesPage() {
                                         </button>
                                       </>
                                     ) : (
-                                      <span style={{ fontSize: 12, color: '#16a34a', display: 'flex', alignItems: 'center', gap: 5 }}>
-                                        <i className="ti ti-lock" /> Approved — no further changes allowed
+                                      <span style={{ fontSize: 12, color: note.status === 'approved' ? '#16a34a' : '#854d0e', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                        <i className="ti ti-lock" />
+                                        {note.status === 'approved' ? 'Approved — no further changes allowed' : 'Pending admin review — locked until approved or rejected'}
                                       </span>
                                     )}
                                   </div>

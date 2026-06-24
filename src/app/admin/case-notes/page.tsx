@@ -156,6 +156,7 @@ export default function AdminCaseNotesPage() {
   const [editorOpen,       setEditorOpen]       = useState(false)
   const [editorMode,       setEditorMode]       = useState<'create' | 'edit'>('create')
   const [editorNoteId,     setEditorNoteId]     = useState<string | null>(null)
+  const [editorOrigStatus, setEditorOrigStatus] = useState<string | null>(null)
   const [editorDspId,      setEditorDspId]      = useState('')
   const [editorClientId,   setEditorClientId]   = useState('')
   const [editorWeekLabel,  setEditorWeekLabel]  = useState('')
@@ -244,7 +245,7 @@ export default function AdminCaseNotesPage() {
   // ── Full-section editor ─────────────────────────────────────────────────
 
   function openCreateEditor() {
-    setEditorMode('create'); setEditorNoteId(null)
+    setEditorMode('create'); setEditorNoteId(null); setEditorOrigStatus(null)
     setEditorDspId(''); setEditorClientId(''); setEditorWeekLabel('')
     setEditorStrategies([])
     setEditorEntries([{ id: 1, date: '', start: '', end: '', endDate: '', strategy: '', desc: '' }])
@@ -253,7 +254,7 @@ export default function AdminCaseNotesPage() {
   }
 
   function openEditEditor(note: CnRecord) {
-    setEditorMode('edit'); setEditorNoteId(note.id)
+    setEditorMode('edit'); setEditorNoteId(note.id); setEditorOrigStatus(note.status)
     setEditorDspId(note.dsp_id); setEditorClientId(note.client_id); setEditorWeekLabel(note.week_label)
     setEditorStrategies([...note.strategies])
     const restored = (note.entries ?? []).map((e: any, i: number) => {
@@ -303,11 +304,16 @@ export default function AdminCaseNotesPage() {
     }
     setEditorSaving(true)
     if (editorMode === 'edit' && editorNoteId) {
+      const reopening = editorOrigStatus === 'rejected'
       const { error } = await supabase.from('case_notes')
-        .update({ client_id: editorClientId, week_label: editorWeekLabel, strategies: editorStrategies, entries: editorEntries })
+        .update({
+          client_id: editorClientId, week_label: editorWeekLabel, strategies: editorStrategies, entries: editorEntries,
+          updated_at: new Date().toISOString(),
+          ...(reopening ? { status: 'submitted', submitted_at: new Date().toISOString() } : {}),
+        })
         .eq('id', editorNoteId)
       if (error) { showToast('Error: ' + error.message); setEditorSaving(false); return }
-      showToast('Case note updated ✓')
+      showToast(reopening ? 'Case note updated — moved to Pending review ✓' : 'Case note updated ✓')
     } else {
       const { error } = await supabase.from('case_notes').insert({
         dsp_id: editorDspId, client_id: editorClientId, week_label: editorWeekLabel,
