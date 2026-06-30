@@ -245,6 +245,14 @@ export default function HiringPage() {
   useEffect(() => { load() }, [])
 
   useEffect(() => {
+    const channel = supabase
+      .channel('billing_staff_data_hiring')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'billing_staff_data' }, () => load(true))
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [])
+
+  useEffect(() => {
     if (!viewingId) return
     const r = records.find(x => x.staffId === viewingId)
     if (!r?.formData) return
