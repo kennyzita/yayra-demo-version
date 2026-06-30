@@ -144,6 +144,7 @@ export default function HiringPage() {
   const [search,     setSearch]     = useState('')
   const [filter,     setFilter]     = useState('All')
   const [loading,    setLoading]    = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [toast,      setToast]      = useState<string | null>(null)
   const [viewingId,  setViewingId]  = useState<string | null>(null)
   const [docUrls,    setDocUrls]    = useState<Record<string, string>>({})
@@ -199,46 +200,49 @@ export default function HiringPage() {
     setTimeout(() => setToast(null), 3500)
   }
 
-  useEffect(() => {
-    async function load() {
-      const [usersRes, staffDataRes] = await Promise.all([
-        supabase.from('users').select('id, first_name, last_name, email, phone, created_at, role:roles(name)'),
-        supabase.from('billing_staff_data').select('staff_id, data'),
-      ])
+  async function load(isRefresh = false) {
+    if (isRefresh) setRefreshing(true)
+    else setLoading(true)
 
-      const users = usersRes.data ?? []
-      const staffRows = staffDataRes.data ?? []
+    const [usersRes, staffDataRes] = await Promise.all([
+      supabase.from('users').select('id, first_name, last_name, email, phone, created_at, role:roles(name)'),
+      supabase.from('billing_staff_data').select('staff_id, data'),
+    ])
 
-      const submitted = staffRows.filter(row => (row.data as Record<string, string>)?.application_submitted === 'true')
+    const users = usersRes.data ?? []
+    const staffRows = staffDataRes.data ?? []
 
-      const built: AppRecord[] = submitted.map(row => {
-        const data = row.data as Record<string, string>
-        const user = users.find((u: { id: string }) => u.id === row.staff_id)
-        const firstName = (user as { first_name?: string } | undefined)?.first_name ?? ''
-        const lastName = (user as { last_name?: string } | undefined)?.last_name ?? ''
-        const email = (user as { email?: string } | undefined)?.email ?? ''
-        const phone = (user as { phone?: string } | undefined)?.phone ?? ''
-        const createdAt = (user as { created_at?: string } | undefined)?.created_at ?? ''
-        const roleObj = (user as { role?: unknown } | undefined)?.role
-        const roleName = (roleObj as { name?: string } | null)?.name ?? 'DSP'
-        return {
-          staffId: row.staff_id,
-          name: `${firstName} ${lastName}`.trim() || 'Unknown',
-          email,
-          phone,
-          role: roleName,
-          submittedAt: data.application_submitted_at ?? '',
-          status: data.application_status ?? 'pending',
-          createdAt,
-          formData: (data.form as unknown as AppFormState | null) ?? null,
-        }
-      })
+    const submitted = staffRows.filter(row => (row.data as Record<string, string>)?.application_submitted === 'true')
 
-      setRecords(built)
-      setLoading(false)
-    }
-    load()
-  }, [])
+    const built: AppRecord[] = submitted.map(row => {
+      const data = row.data as Record<string, string>
+      const user = users.find((u: { id: string }) => u.id === row.staff_id)
+      const firstName = (user as { first_name?: string } | undefined)?.first_name ?? ''
+      const lastName = (user as { last_name?: string } | undefined)?.last_name ?? ''
+      const email = (user as { email?: string } | undefined)?.email ?? ''
+      const phone = (user as { phone?: string } | undefined)?.phone ?? ''
+      const createdAt = (user as { created_at?: string } | undefined)?.created_at ?? ''
+      const roleObj = (user as { role?: unknown } | undefined)?.role
+      const roleName = (roleObj as { name?: string } | null)?.name ?? 'DSP'
+      return {
+        staffId: row.staff_id,
+        name: `${firstName} ${lastName}`.trim() || 'Unknown',
+        email,
+        phone,
+        role: roleName,
+        submittedAt: data.application_submitted_at ?? '',
+        status: data.application_status ?? 'pending',
+        createdAt,
+        formData: (data.form as unknown as AppFormState | null) ?? null,
+      }
+    })
+
+    setRecords(built)
+    if (isRefresh) setRefreshing(false)
+    else setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
 
   useEffect(() => {
     if (!viewingId) return
@@ -467,10 +471,18 @@ export default function HiringPage() {
 
       {/* Topbar */}
       <div style={{ background: '#fff', borderBottom: '0.5px solid #e5e7eb', padding: '0 24px', height: 56, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0, position: 'sticky', top: 0, zIndex: 10 }}>
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ fontSize: 16, fontWeight: 600, color: '#111' }}>Hiring</div>
           <div style={{ fontSize: 12, color: '#6b7280', marginTop: 1 }}>DSP application submissions</div>
         </div>
+        <button
+          onClick={() => load(true)}
+          disabled={refreshing || loading}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', color: '#374151', fontSize: 13, fontWeight: 500, cursor: (refreshing || loading) ? 'default' : 'pointer', fontFamily: 'inherit', opacity: (refreshing || loading) ? 0.6 : 1 }}
+        >
+          <i className={`ti ${refreshing ? 'ti-loader-2' : 'ti-refresh'}`} style={{ fontSize: 14, animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
       </div>
 
       {/* Content */}
