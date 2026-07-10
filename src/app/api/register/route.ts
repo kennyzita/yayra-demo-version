@@ -86,13 +86,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create user profile. Please try again.' }, { status: 500 })
   }
 
-  // Generate confirmation link — embed in welcome email so the user confirms
-  // email and gets logged in from a single click.
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://yourdomain.com'
+  // Generate confirmation link — after Supabase verifies the email it redirects
+  // to /login?confirmed=1 so the DSP sees a success banner and signs in manually.
+  // (Previously went to /auth/callback which auto-logged the user in and skipped
+  // the login page entirely.)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rcsconnect.reliancecareservicesllc.com'
   const { data: linkData } = await db.auth.admin.generateLink({
     type: 'signup',
     email: normalizedEmail,
-    options: { redirectTo: `${appUrl}/auth/callback` },
+    options: { redirectTo: `${appUrl}/login?confirmed=1` },
   })
   const confirmUrl = linkData?.properties?.action_link ?? `${appUrl}/login`
 
@@ -107,13 +109,13 @@ export async function POST(req: NextRequest) {
       <div style="padding:32px">
         <h2 style="margin:0 0 8px;font-size:22px;color:#111">Welcome, ${firstName.trim()}!</h2>
         <p style="color:#374151;font-size:15px;line-height:1.7;margin:0 0 20px">
-          Your DSP account has been created. Click the button below to confirm your email address and activate your account.
+          Your DSP account has been created. Click the button below to confirm your email address — you'll then be taken to the login page to sign in.
         </p>
         <a href="${confirmUrl}" style="display:inline-block;padding:12px 28px;background:#008080;color:#fff;text-decoration:none;border-radius:8px;font-size:15px;font-weight:600">
-          Confirm your email
+          Confirm email &amp; go to login
         </a>
         <p style="color:#6b7280;font-size:13px;line-height:1.7;margin:24px 0 0">
-          Once confirmed you can log in to access your onboarding forms, schedule, case notes, and more.
+          After confirming, sign in at <a href="${appUrl}/login" style="color:#008080">${appUrl}/login</a> using the email and password you set during registration.
           If you did not create this account, you can safely ignore this email.
         </p>
       </div>

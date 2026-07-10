@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: 'Sign In — Reliance Care Services' 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { timeout?: string; error?: string }
+  searchParams: { timeout?: string; error?: string; confirmed?: string }
 }) {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -26,6 +26,11 @@ export default async function LoginPage({
           <p className="text-gray-500 mt-1 text-sm">HIPAA-Compliant Care Management</p>
         </div>
 
+        {searchParams.confirmed && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+            Email confirmed! You can now sign in with your email and password.
+          </div>
+        )}
         {searchParams.timeout && (
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-700 text-sm">
             Your session expired due to inactivity. Please sign in again.
