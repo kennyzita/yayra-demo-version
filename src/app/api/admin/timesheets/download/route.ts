@@ -93,6 +93,7 @@ async function buildDocx(
     week_start: string
     week_end: string
     total_hours: number
+    submitted_at: string | null
     entries: Array<{ day?: string; date?: string; start?: string; end?: string }>
   },
 ): Promise<Buffer> {
@@ -125,6 +126,26 @@ async function buildDocx(
   docXml = replaceTextNode(docXml,
     'Total Weekly Hours: __________________________',
     `Total Weekly Hours: ${ts.total_hours}`)
+
+  // ── Signature fields ────────────────────────────────────────────────────
+  const submittedDateStr = ts.submitted_at
+    ? new Date(ts.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : ''
+
+  // Employee signature line is a single <w:t> run — straightforward replacement
+  docXml = replaceTextNode(docXml,
+    'Employee Signature: _____________________________ Date: ____________',
+    `Employee Signature: ${ts.staff_name}     Date: ${submittedDateStr}`)
+
+  // Client signature is fragmented across 6 runs — replace the whole runs block
+  // by finding the paragraph and swapping everything after </w:pPr> with one clean run
+  const clientSigRun =
+    `<w:r><w:rPr><w:rFonts w:eastAsia="Times New Roman"/></w:rPr>` +
+    `<w:t xml:space="preserve">Client Signature: ${esc(ts.client_name)}     Date: ${esc(submittedDateStr)}</w:t></w:r>`
+  docXml = docXml.replace(
+    /<w:p [^>]*paraId="6DC530FB"[^>]*>[\s\S]*?<\/w:pPr>([\s\S]*?)<\/w:p>/,
+    (m) => m.replace(/<\/w:pPr>[\s\S]*?<\/w:p>/, `</w:pPr>${clientSigRun}</w:p>`),
+  )
 
   // Update title to include the week range
   const weekRange = `${fmtDate(ts.week_start)} – ${fmtDate(ts.week_end)}`
@@ -221,13 +242,14 @@ export async function GET(req: NextRequest) {
 
   // Build records
   const records = tsRows.map((t: any) => ({
-    id:          t.id as string,
-    staff_name:  userMap.get(t.dsp_id)     ?? 'Unknown',
-    client_name: clientMap.get(t.client_id) ?? 'Unknown',
-    week_start:  t.week_start as string,
-    week_end:    t.week_end   as string,
-    total_hours: t.total_hours ?? 0,
-    entries:     (t.entries ?? []) as any[],
+    id:           t.id as string,
+    staff_name:   userMap.get(t.dsp_id)     ?? 'Unknown',
+    client_name:  clientMap.get(t.client_id) ?? 'Unknown',
+    week_start:   t.week_start as string,
+    week_end:     t.week_end   as string,
+    total_hours:  t.total_hours ?? 0,
+    submitted_at: (t.submitted_at ?? null) as string | null,
+    entries:      (t.entries ?? []) as any[],
   }))
 
   // ── Single timesheet → return DOCX directly ─────────────────────────────
