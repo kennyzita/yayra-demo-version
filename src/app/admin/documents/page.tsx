@@ -60,11 +60,48 @@ interface AllDocEntry {
   signedUrl: string
 }
 
+// Maps the docKey used in filenames under the "application" folder to human labels
+const DOC_KEY_LABELS: Record<string, string> = {
+  photo_id:         "Driver's License / ID",
+  ssn:              'SSN Card',
+  resume:           'Resume',
+  ead:              'EAD / Green Card',
+  'ead-front':      'EAD / Green Card - Front',
+  'ead-back':       'EAD / Green Card - Back',
+  i9:               'Form I-9',
+  w4:               'W4',
+  nj_w4:            'NJ W4',
+  direct_deposit:   'Direct Deposit Form',
+  cro_consent:      'CRO Consent',
+  drivers_license:  "Driver's License",
+  'dl-front':       "Driver's License - Front",
+  'dl-back':        "Driver's License - Back",
+  cpr:              'CPR Certificate',
+  cpr_cert:         'CPR Certificate',
+  danielles_law:    "Danielle's Law Sign-off",
+  stephen_komninos: "Stephen Komnino's Law",
+  appendix_a:       'Appendix A',
+  cari:             'CARI Clearance',
+  background_check: 'Background Check',
+  identogo:         'IdentoGO',
+  reference_letter: 'Reference Letter',
+  other:            'Other',
+}
+
+function resolveDocLabel(fileName: string, docType: string): string {
+  if (docType !== 'application') return docType
+  // Filename pattern for application uploads: {docKey}_{timestamp}.{ext}
+  // Strip the timestamp suffix to recover the docKey
+  const base = fileName.replace(/\.[^.]+$/, '') // remove extension
+  const key  = base.replace(/_\d{10,}$/, '')     // remove trailing _<timestamp>
+  return DOC_KEY_LABELS[key] ?? key.replace(/_/g, ' ')
+}
+
 function makeDisplayName(fileName: string, docType: string, staffName: string, index: number, total: number): string {
-  const parts = fileName.split('.')
-  const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : ''
+  const ext    = fileName.includes('.') ? fileName.split('.').pop()!.toLowerCase() : ''
+  const label  = resolveDocLabel(fileName, docType)
   const suffix = total > 1 ? `_${index + 1}` : ''
-  const base = `${docType}_${staffName}${suffix}`
+  const base   = `${label}_${staffName}${suffix}`
   return ext ? `${base}.${ext}` : base
 }
 
