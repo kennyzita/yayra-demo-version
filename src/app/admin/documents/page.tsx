@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { EmployeeOnboardingSection } from '@/components/onboarding/EmployeeOnboardingSection'
 
 const DOCUMENT_TYPES = [
   'W4',
@@ -422,6 +423,13 @@ export default function AdminDocumentsPage() {
           </div>
         )}
       </div>
+
+      {/* Employee Onboarding Document — shown inline when "Onboarding Forms" is selected */}
+      {selectedStaff && docType === 'Onboarding Forms' && (
+        <div style={{ marginBottom: 20 }}>
+          <EmployeeOnboardingSection employeeId={selectedStaff} mode="admin" />
+        </div>
+      )}
 
       {/* Per-staff document view (shown when a staff is selected) */}
       {selectedStaff && (
