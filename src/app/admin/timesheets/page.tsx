@@ -18,7 +18,7 @@ function calcDuration(start: string, end: string): number | null {
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
   let mn = (eh * 60 + em) - (sh * 60 + sm)
-  if (mn < 0) mn += 24 * 60 // shift crosses midnight (e.g. 11 PM start -> 7 AM end)
+  if (mn < 0) mn += 24 * 60
   return mn > 0 ? Math.round(mn / 60 * 10) / 10 : null
 }
 
@@ -27,6 +27,24 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
   approved:  { bg: 'rgba(22,163,74,0.1)',   color: '#16a34a', label: 'Approved' },
   rejected:  { bg: 'rgba(220,38,38,0.1)',   color: '#dc2626', label: 'Rejected' },
   draft:     { bg: 'rgba(107,114,128,0.1)', color: '#6b7280', label: 'Draft'    },
+}
+
+async function triggerDownload(url: string) {
+  const res = await fetch(url)
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}))
+    throw new Error((j as any).error ?? 'Download failed')
+  }
+  const blob = await res.blob()
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  const cd = res.headers.get('content-disposition') ?? ''
+  const match = cd.match(/filename="([^"]+)"/)
+  a.download = match ? match[1] : 'timesheet.docx'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(a.href), 60_000)
 }
 
 export default function AdminTimesheetsPage() {
@@ -40,6 +58,10 @@ export default function AdminTimesheetsPage() {
   const [actioning, setActioning]       = useState<string | null>(null)
   const [rejectingId, setRejectingId]   = useState<string | null>(null)
   const [toast, setToast]               = useState('')
+
+  // Download UI state
+  const [dlStaffId,   setDlStaffId]   = useState<string>('')
+  const [downloading, setDownloading] = useState<string | null>(null) // 'all' | 'staff' | tsId
 
   useEffect(() => { load() }, [])
 
@@ -85,6 +107,17 @@ export default function AdminTimesheetsPage() {
     setActioning(null)
   }
 
+  async function handleDownload(key: string, url: string) {
+    setDownloading(key)
+    try {
+      await triggerDownload(url)
+    } catch (e: any) {
+      showToast(e.message ?? 'Download failed')
+    } finally {
+      setDownloading(null)
+    }
+  }
+
   const filtered = records.filter(r => {
     const matchSearch = search === '' ||
       r.staff_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -97,8 +130,25 @@ export default function AdminTimesheetsPage() {
   const approved = records.filter(r => r.status === 'approved').length
   const rejected = records.filter(r => r.status === 'rejected').length
 
+  // Build unique staff list who have at least one submitted timesheet
+  const staffWithTimesheets: { id: string; name: string }[] = []
+  const seen = new Set<string>()
+  for (const r of records) {
+    if (!seen.has(r.dsp_id)) {
+      seen.add(r.dsp_id)
+      staffWithTimesheets.push({ id: r.dsp_id, name: r.staff_name })
+    }
+  }
+  staffWithTimesheets.sort((a, b) => a.name.localeCompare(b.name))
+
   const fmtDate = (s: string) =>
     new Date(s + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+  const btnBase: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px',
+    borderRadius: 7, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+    border: 'none', fontFamily: 'inherit',
+  }
 
   return (
     <>
@@ -114,6 +164,17 @@ export default function AdminTimesheetsPage() {
           <input type="text" placeholder="Search staff or client…" value={search} onChange={e => setSearch(e.target.value)}
             style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#111', outline: 'none', width: '100%' }} />
         </div>
+        {/* Download all approved timesheets for all staff */}
+        <button
+          onClick={() => handleDownload('all', '/api/admin/timesheets/download?all=true')}
+          disabled={!!downloading || approved === 0}
+          style={{ ...btnBase, background: '#004050', color: '#fff', opacity: (downloading === 'all' || approved === 0) ? 0.6 : 1 }}
+        >
+          {downloading === 'all'
+            ? <><i className="ti ti-loader-2" style={{ fontSize: 14, animation: 'spin 1s linear infinite' }} />Building…</>
+            : <><i className="ti ti-download" style={{ fontSize: 14 }} />Download All Approved Timesheets</>
+          }
+        </button>
       </div>
 
       <div style={{ padding: '24px', background: '#f5f4ef', minHeight: 'calc(100% - 56px)' }}>
@@ -133,8 +194,8 @@ export default function AdminTimesheetsPage() {
           ))}
         </div>
 
-        {/* Filter pills */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {/* Filter pills + staff download row */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16, alignItems: 'center' }}>
           {['All', 'submitted', 'approved', 'rejected'].map(f => (
             <button key={f} onClick={() => setFilterStatus(f)}
               style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 500, cursor: 'pointer', border: 'none',
@@ -143,6 +204,34 @@ export default function AdminTimesheetsPage() {
               {f === 'All' ? 'All' : f === 'submitted' ? 'Pending' : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
+
+          {/* Staff dropdown + download button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <select
+              value={dlStaffId}
+              onChange={e => setDlStaffId(e.target.value)}
+              style={{ padding: '6px 10px', borderRadius: 7, border: '1px solid #d1d5db', fontSize: 13, color: dlStaffId ? '#111' : '#9ca3af', background: '#fff', cursor: 'pointer', fontFamily: 'inherit', height: 34 }}
+            >
+              <option value="">— Select staff —</option>
+              {staffWithTimesheets.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => dlStaffId && handleDownload('staff', `/api/admin/timesheets/download?staffId=${dlStaffId}`)}
+              disabled={!dlStaffId || !!downloading}
+              title="Download all approved timesheets for selected staff"
+              style={{ ...btnBase, background: '#008080', color: '#fff', opacity: (!dlStaffId || !!downloading) ? 0.5 : 1 }}
+            >
+              {downloading === 'staff'
+                ? <><i className="ti ti-loader-2" style={{ fontSize: 14, animation: 'spin 1s linear infinite' }} />Building…</>
+                : <><i className="ti ti-download" style={{ fontSize: 14 }} />Download All Approved Timesheets</>
+              }
+            </button>
+          </div>
         </div>
 
         {/* List */}
@@ -163,6 +252,7 @@ export default function AdminTimesheetsPage() {
               const isActioning = actioning   === r.id
               const isRejecting = rejectingId === r.id
               const initials    = r.staff_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+              const isDlThis    = downloading === r.id
               return (
                 <div key={r.id} style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #e5e7eb', overflow: 'hidden' }}>
                   {/* Summary row */}
@@ -181,6 +271,21 @@ export default function AdminTimesheetsPage() {
                     <div style={{ fontSize: 11, color: '#9ca3af', flexShrink: 0, minWidth: 72, textAlign: 'right' }}>
                       {r.submitted_at ? new Date(r.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
                     </div>
+                    {/* Per-row download button (approved only) — stop propagation so it doesn't expand the row */}
+                    {r.status === 'approved' && (
+                      <button
+                        onClick={e => { e.stopPropagation(); handleDownload(r.id, `/api/admin/timesheets/download?timesheetId=${r.id}`) }}
+                        disabled={!!downloading}
+                        title="Download this timesheet as DOCX"
+                        style={{ ...btnBase, padding: '5px 10px', background: 'rgba(0,128,128,0.08)', color: '#008080', border: '1px solid rgba(0,128,128,0.25)', opacity: !!downloading ? 0.6 : 1 }}
+                      >
+                        {isDlThis
+                          ? <i className="ti ti-loader-2" style={{ fontSize: 13, animation: 'spin 1s linear infinite' }} />
+                          : <i className="ti ti-download" style={{ fontSize: 13 }} />
+                        }
+                        {isDlThis ? 'Building…' : 'Download Timesheet'}
+                      </button>
+                    )}
                     <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} style={{ fontSize: 14, color: '#9ca3af', flexShrink: 0 }} />
                   </div>
 
@@ -287,6 +392,8 @@ export default function AdminTimesheetsPage() {
           {toast}
         </div>
       )}
+
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </>
   )
 }
