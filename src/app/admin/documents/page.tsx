@@ -60,6 +60,14 @@ interface AllDocEntry {
   signedUrl: string
 }
 
+function makeDisplayName(fileName: string, docType: string, staffName: string, index: number, total: number): string {
+  const parts = fileName.split('.')
+  const ext = parts.length > 1 ? parts[parts.length - 1].toLowerCase() : ''
+  const suffix = total > 1 ? `_${index + 1}` : ''
+  const base = `${docType}_${staffName}${suffix}`
+  return ext ? `${base}.${ext}` : base
+}
+
 function fmtSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -424,13 +432,6 @@ export default function AdminDocumentsPage() {
         )}
       </div>
 
-      {/* Employee Onboarding Document — shown inline when "Onboarding Forms" is selected */}
-      {selectedStaff && docType === 'Onboarding Forms' && (
-        <div style={{ marginBottom: 20 }}>
-          <EmployeeOnboardingSection employeeId={selectedStaff} mode="admin" />
-        </div>
-      )}
-
       {/* Per-staff document view (shown when a staff is selected) */}
       {selectedStaff && (
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', marginBottom: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
@@ -471,9 +472,10 @@ export default function AdminDocumentsPage() {
                     <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 20, background: 'rgba(0,128,128,0.1)', color: '#008080', fontWeight: 600 }}>{files.length}</span>
                     {expiryBadge(dt)}
                   </div>
-                  {files.map(f => {
+                  {files.map((f, fIdx) => {
                     const fi = fileIcon(f.name)
                     const isDeleting = deleting === `${selectedStaff}/${dt}/${f.name}`
+                    const dName = makeDisplayName(f.name, dt, `${selectedUser?.first_name} ${selectedUser?.last_name}`, fIdx, files.length)
                     return (
                       <div key={f.name} style={{ padding: '12px 20px', borderBottom: '1px solid #f9fafb', display: 'flex', alignItems: 'center', gap: 12 }}>
                         <div style={{ width: 36, height: 36, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 18, color: fi.color }}>
@@ -481,7 +483,7 @@ export default function AdminDocumentsPage() {
                         </div>
                         <div style={{ flex: 1, overflow: 'hidden' }}>
                           <div style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {f.name.replace(/^\d+_/, '')}
+                            {dName}
                           </div>
                           <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
                             {f.metadata?.size ? fmtSize(f.metadata.size) : ''}{f.created_at ? ` · ${fmtDate(f.created_at)}` : ''}
@@ -508,6 +510,13 @@ export default function AdminDocumentsPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Employee Onboarding Document — always visible when a staff member is selected */}
+      {selectedStaff && (
+        <div style={{ marginBottom: 24 }}>
+          <EmployeeOnboardingSection employeeId={selectedStaff} mode="admin" />
         </div>
       )}
 
@@ -592,9 +601,10 @@ export default function AdminDocumentsPage() {
                         <span style={{ fontSize: 11, padding: '0px 6px', borderRadius: 20, background: 'rgba(0,128,128,0.08)', color: '#008080', fontWeight: 600 }}>{docEntries.length}</span>
                       </div>
 
-                      {docEntries.map(entry => {
+                      {docEntries.map((entry, eIdx) => {
                         const fi = fileIcon(entry.fileName)
                         const isDeleting = deleting === `${entry.staffId}/${entry.docType}/${entry.fileName}`
+                        const dName = makeDisplayName(entry.fileName, entry.docType, entry.staffName, eIdx, docEntries.length)
                         return (
                           <div key={entry.fileName} style={{ padding: '10px 20px 10px 58px', borderBottom: '1px solid #f9fafb', display: 'flex', alignItems: 'center', gap: 12 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 7, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 16, color: fi.color }}>
@@ -602,7 +612,7 @@ export default function AdminDocumentsPage() {
                             </div>
                             <div style={{ flex: 1, overflow: 'hidden' }}>
                               <div style={{ fontSize: 13, fontWeight: 500, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {entry.displayName}
+                                {dName}
                               </div>
                               <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>
                                 {entry.size ? fmtSize(entry.size) : ''}{entry.createdAt ? ` · ${fmtDate(entry.createdAt)}` : ''}
