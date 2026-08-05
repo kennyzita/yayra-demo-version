@@ -58,6 +58,8 @@ type CnRecord = {
   staff_name: string; client_name: string
   week_label: string; status: string
   submitted_at: string | null
+  approved_at: string | null
+  approved_by_name: string | null
   strategies: string[]; entries: any[]
 }
 
@@ -151,6 +153,7 @@ export default function AdminCaseNotesPage() {
   const [toast,           setToast]           = useState('')
   const [downloadingWeek, setDownloadingWeek] = useState<string | null>(null)
   const [deletingId,      setDeletingId]      = useState<string | null>(null)
+  const [currentUserName, setCurrentUserName] = useState('')
 
   // Full-section editor (manual create / edit-all-sections)
   const [editorOpen,       setEditorOpen]       = useState(false)
@@ -192,6 +195,13 @@ export default function AdminCaseNotesPage() {
     const clientMap = new Map((clientsData ?? []).map((c: any) => [c.id, c.full_name as string]))
     const roleMap   = new Map((rolesData   ?? []).map((r: any) => [r.id, r.name as string]))
 
+    // Capture current admin's name for approval attribution
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    if (authUser) {
+      const u = userMap.get(authUser.id)
+      if (u) setCurrentUserName(u.name)
+    }
+
     // DSP Staff users only
     const dsp: StaffUser[] = []
     userMap.forEach((v, id) => {
@@ -210,6 +220,8 @@ export default function AdminCaseNotesPage() {
       client_name: clientMap.get(n.client_id)     ?? 'Unknown client',
       week_label: n.week_label, status: n.status ?? 'submitted',
       submitted_at: n.submitted_at,
+      approved_at: n.approved_at ?? null,
+      approved_by_name: n.approved_by_name ?? null,
       strategies: n.strategies ?? [], entries: n.entries ?? [],
     })))
     setLoading(false)
@@ -219,9 +231,19 @@ export default function AdminCaseNotesPage() {
 
   async function handleApprove(id: string) {
     setActioning(id)
-    const { error } = await supabase.from('case_notes').update({ status: 'approved' }).eq('id', id)
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('case_notes').update({
+      status: 'approved',
+      approved_at: now,
+      approved_by_name: currentUserName || null,
+    }).eq('id', id)
     if (error) showToast('Error: ' + error.message)
-    else { showToast('Case note approved ✓'); setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'approved' } : r)) }
+    else {
+      showToast('Case note approved ✓')
+      setRecords(prev => prev.map(r => r.id === id
+        ? { ...r, status: 'approved', approved_at: now, approved_by_name: currentUserName || null }
+        : r))
+    }
     setActioning(null)
   }
 
@@ -336,7 +358,7 @@ export default function AdminCaseNotesPage() {
   async function downloadWeekPDF(weekLabel: string, weekRecords: CnRecord[], staffFullName: string) {
     setDownloadingWeek(weekLabel)
     try {
-      const uniqueClientIds = [...new Set(weekRecords.map(r => r.client_id))]
+      const uniqueClientIds = Array.from(new Set(weekRecords.map(r => r.client_id)))
       const ispMap: Record<string, string> = {}
       await Promise.all(uniqueClientIds.map(async (cid) => {
         try {
@@ -346,7 +368,11 @@ export default function AdminCaseNotesPage() {
         } catch { ispMap[cid] = '' }
       }))
 
-      type PageData = { clientName: string; clientId: string; ispOutcome: string; strategies: string[]; date: string; entries: any[] }
+      type PageData = {
+        clientName: string; clientId: string; ispOutcome: string
+        strategies: string[]; date: string; entries: any[]
+        status: string; approved_at: string | null; approved_by_name: string | null
+      }
       const pages: PageData[] = []
 
       for (const record of weekRecords) {
@@ -365,11 +391,14 @@ export default function AdminCaseNotesPage() {
             }
           } else {
             pages.push({
-              clientName:  record.client_name,
-              clientId:    record.client_id,
-              ispOutcome:  ispMap[record.client_id] ?? '',
-              strategies:  [...record.strategies],
-              date, entries: [...dateEntries],
+              clientName:      record.client_name,
+              clientId:        record.client_id,
+              ispOutcome:      ispMap[record.client_id] ?? '',
+              strategies:      [...record.strategies],
+              date, entries:   [...dateEntries],
+              status:          record.status,
+              approved_at:     record.approved_at,
+              approved_by_name: record.approved_by_name,
             })
           }
         }
@@ -380,7 +409,7 @@ export default function AdminCaseNotesPage() {
 
       const { jsPDF } = await import('jspdf')
       const doc = new jsPDF({ unit: 'mm', format: 'letter' })
-      const LM = 14, RM = 14, PW = 215.9
+      const LM = 14, RM = 14, PW = 215.9, PH = 279.4
       const usable = PW - LM - RM
 
       // Fetch logos from /public (same-origin, no CORS)
@@ -395,12 +424,39 @@ export default function AdminCaseNotesPage() {
         ;[njSealB64, dddLogoB64] = await Promise.all([toB64('/nj-seal.jpeg'), toB64('/ddd-logo.jpeg')])
       } catch { /* logos optional — fall back to placeholders */ }
 
+      const dlDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
       pages.forEach((page, pageIdx) => {
         if (pageIdx > 0) doc.addPage()
-        let y  = 8
+        let y = 8
         const cx = PW / 2
 
-        // Logo boxes — NJ Seal (left) and DDD logo (right)
+        // ── Status / approval info block — top right corner ───────────────
+        const isApproved = page.status === 'approved'
+        const statusLabel = isApproved ? 'APPROVED' : page.status === 'submitted' ? 'PENDING' : page.status.toUpperCase()
+        const infoLines: Array<{ text: string; bold?: boolean; r: number; g: number; b: number }> = []
+        infoLines.push({ text: `Status: ${statusLabel}`, bold: true, r: isApproved ? 21 : 146, g: isApproved ? 128 : 64, b: isApproved ? 61 : 14 })
+        infoLines.push({ text: `Downloaded as of: ${dlDate}`, r: 80, g: 80, b: 80 })
+        if (isApproved && page.approved_at) {
+          const apDate = new Date(page.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          infoLines.push({ text: `Date of Approval: ${apDate}`, r: 80, g: 80, b: 80 })
+        }
+        if (isApproved && page.approved_by_name) {
+          infoLines.push({ text: `Approved by: ${page.approved_by_name}`, r: 80, g: 80, b: 80 })
+        }
+        const infoBoxW = 80, infoLineH = 4.2
+        const infoBoxH = infoLines.length * infoLineH + 4
+        const infoX = PW - RM - infoBoxW
+        doc.setFillColor(245, 247, 250); doc.setDrawColor(200, 210, 215); doc.setLineWidth(0.2)
+        doc.rect(infoX, y, infoBoxW, infoBoxH, 'FD')
+        infoLines.forEach((line, li) => {
+          doc.setFont('helvetica', line.bold ? 'bold' : 'normal')
+          doc.setFontSize(6.8); doc.setTextColor(line.r, line.g, line.b)
+          doc.text(line.text, infoX + 2.5, y + 3.5 + li * infoLineH)
+        })
+        doc.setTextColor(0, 0, 0)
+
+        // ── Logo boxes — NJ Seal (left) and DDD logo (right) ─────────────
         if (njSealB64) {
           doc.addImage(`data:image/jpeg;base64,${njSealB64}`, 'JPEG', LM, y, 22, 22)
         } else {
@@ -409,7 +465,6 @@ export default function AdminCaseNotesPage() {
           doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(130, 130, 130)
           doc.text('[NJ Seal]', LM + 11, y + 12, { align: 'center' })
         }
-        // DDD logo is portrait (165×261) — display at 14×22mm to preserve ratio
         if (dddLogoB64) {
           doc.addImage(`data:image/jpeg;base64,${dddLogoB64}`, 'JPEG', PW - RM - 14, y, 14, 22)
         } else {
@@ -426,7 +481,7 @@ export default function AdminCaseNotesPage() {
         doc.text('www.nj.gov/humanservices/ddd', cx, y + 16, { align: 'center' })
         doc.setTextColor(0, 0, 0)
 
-        y = 36
+        y = Math.max(36, y + infoBoxH + 6)
         doc.setFont('helvetica', 'bold'); doc.setFontSize(12)
         doc.text('Community Based / Individual Supports', cx, y, { align: 'center' })
         y += 5
@@ -475,59 +530,94 @@ export default function AdminCaseNotesPage() {
         })
         y += 2
 
-        const C_DATE = 22, C_START = 14, C_END = 14, C_ACT = 58, C_DESC = usable - 22 - 14 - 14 - 58
+        const C_DATE = 22, C_START = 14, C_END = 14, C_ACT = 50, C_DESC = usable - C_DATE - C_START - C_END - C_ACT
         const colX = [LM, LM + C_DATE, LM + C_DATE + C_START, LM + C_DATE + C_START + C_END, LM + C_DATE + C_START + C_END + C_ACT]
         const drawCols = (ry: number, rh: number) => { for (let ci = 1; ci < colX.length; ci++) doc.line(colX[ci], ry, colX[ci], ry + rh) }
 
-        const HDR_H = 10
+        // Table header — auto-height to fit the long desc column header
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5)
+        const descHdrLines = doc.splitTextToSize('Tell us about the day, and how the activities will help the individual reach the above outcome', C_DESC - 3) as string[]
+        const actHdrLines  = doc.splitTextToSize('Individualized Activity', C_ACT - 2) as string[]
+        const HDR_H = Math.max(10, descHdrLines.length * 3.5 + 4)
         doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3)
         doc.rect(LM, y, usable, HDR_H, 'S'); drawCols(y, HDR_H)
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5)
-        doc.text('Date', colX[0] + C_DATE / 2, y + HDR_H / 2 + 1, { align: 'center' })
+        doc.text('Date',  colX[0] + C_DATE  / 2, y + HDR_H / 2 + 1, { align: 'center' })
         doc.text('Start', colX[1] + C_START / 2, y + 3.5, { align: 'center' })
         doc.text('Time',  colX[1] + C_START / 2, y + 7,   { align: 'center' })
-        doc.text('End',  colX[2] + C_END / 2,  y + 3.5, { align: 'center' })
-        doc.text('Time', colX[2] + C_END / 2,  y + 7,   { align: 'center' })
-        const actHdr = doc.splitTextToSize('Individualized Activity', C_ACT - 2) as string[]
-        doc.text(actHdr, colX[3] + C_ACT / 2, y + 3, { align: 'center' })
-        const descHdr = doc.splitTextToSize('Tell us about the day, and how the activities will help the individual reach the above outcome', C_DESC - 2) as string[]
-        doc.text(descHdr, colX[4] + C_DESC / 2, y + 2, { align: 'center' })
+        doc.text('End',   colX[2] + C_END   / 2, y + 3.5, { align: 'center' })
+        doc.text('Time',  colX[2] + C_END   / 2, y + 7,   { align: 'center' })
+        doc.text(actHdrLines,  colX[3] + C_ACT  / 2, y + 3, { align: 'center' })
+        doc.text(descHdrLines, colX[4] + C_DESC / 2, y + 3, { align: 'center' })
         y += HDR_H
 
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setLineWidth(0.2)
         doc.setTextColor(0, 0, 0)
-        // Sort entries ascending by start time
         page.entries.sort((a: any, b: any) => (a.start || '').localeCompare(b.start || ''))
         const dateStr = fmtMDY(page.date)
-        const ROW_H = 7.5
+        const MIN_ROW_H = 7.5
+        const LINE_H    = 3.5   // mm per line at fontSize 8
+        const PAD_V     = 1.8   // vertical padding above first text line
         const totalRows = Math.max(10, page.entries.length + 2)
         let dateRendered = false
 
         for (let ri = 0; ri < totalRows; ri++) {
           const entry = page.entries[ri]
-          doc.setDrawColor(0, 0, 0); doc.rect(LM, y, usable, ROW_H, 'S'); drawCols(y, ROW_H)
+          let rowH = MIN_ROW_H
+
           if (entry) {
-            const midY = y + ROW_H / 2 + 1.2
+            const actTxt  = (entry.strategy ?? '').trim()
+            const descTxt = (entry.desc     ?? '').trim()
+            const actLines  = actTxt  ? (doc.splitTextToSize(actTxt,  C_ACT  - 3) as string[]).length : 1
+            const descLines = descTxt ? (doc.splitTextToSize(descTxt, C_DESC - 3) as string[]).length : 1
+            rowH = Math.max(MIN_ROW_H, Math.max(actLines, descLines) * LINE_H + PAD_V * 2)
+          }
+
+          // Page overflow — start a new page
+          if (y + rowH > PH - 18) {
+            doc.addPage()
+            y = 8
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5)
+            doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3)
+            doc.rect(LM, y, usable, HDR_H, 'S'); drawCols(y, HDR_H)
+            doc.text('Date',  colX[0] + C_DATE  / 2, y + HDR_H / 2 + 1, { align: 'center' })
+            doc.text('Start', colX[1] + C_START / 2, y + 3.5, { align: 'center' })
+            doc.text('Time',  colX[1] + C_START / 2, y + 7,   { align: 'center' })
+            doc.text('End',   colX[2] + C_END   / 2, y + 3.5, { align: 'center' })
+            doc.text('Time',  colX[2] + C_END   / 2, y + 7,   { align: 'center' })
+            doc.text(actHdrLines,  colX[3] + C_ACT  / 2, y + 3, { align: 'center' })
+            doc.text(descHdrLines, colX[4] + C_DESC / 2, y + 3, { align: 'center' })
+            y += HDR_H
+            doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setLineWidth(0.2)
+          }
+
+          doc.setDrawColor(0, 0, 0); doc.rect(LM, y, usable, rowH, 'S'); drawCols(y, rowH)
+
+          if (entry) {
+            const textY = y + PAD_V + LINE_H * 0.85   // first line baseline
             if (!dateRendered && dateStr) {
-              doc.setFontSize(7.5); doc.text(dateStr, colX[0] + 1, midY); dateRendered = true
+              doc.setFontSize(7.5)
+              doc.text(dateStr, colX[0] + 1, textY)
+              doc.setFontSize(8)
+              dateRendered = true
             }
-            doc.setFontSize(8)
             const startTxt = formatTimePDF(entry.start ?? '')
             const endTxt   = formatTimePDF(entry.end   ?? '')
+            const midY = y + rowH / 2 + 1.2
             if (startTxt) doc.text(startTxt, colX[1] + C_START / 2, midY, { align: 'center' })
             if (endTxt)   doc.text(endTxt,   colX[2] + C_END   / 2, midY, { align: 'center' })
+
             const actTxt = (entry.strategy ?? '').trim()
             if (actTxt) {
-              const actL = doc.splitTextToSize(actTxt, C_ACT - 2) as string[]
-              if (actL[0]) doc.text(actL[0], colX[3] + 1, midY)
+              const actL = doc.splitTextToSize(actTxt, C_ACT - 3) as string[]
+              doc.text(actL, colX[3] + 1.5, textY)
             }
             const descTxt = (entry.desc ?? '').trim()
             if (descTxt) {
-              const descL = doc.splitTextToSize(descTxt, C_DESC - 2) as string[]
-              if (descL[0]) doc.text(descL[0], colX[4] + 1, midY)
+              const descL = doc.splitTextToSize(descTxt, C_DESC - 3) as string[]
+              doc.text(descL, colX[4] + 1.5, textY)
             }
           }
-          y += ROW_H
+          y += rowH
         }
         y += 7
         doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
