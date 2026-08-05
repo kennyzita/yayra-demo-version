@@ -344,11 +344,10 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
 
         {/* Logo */}
         {!isMobile && (
-          <div style={{ padding: '20px 18px 16px', borderBottom: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: 'linear-gradient(135deg,#008080,#30B060)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
-            </div>
-            <span style={{ fontSize: 14, fontWeight: 500, color: '#fff', letterSpacing: -0.3 }}>Reliance Care Services</span>
+          <div style={{ padding: '16px 18px 14px', borderBottom: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <img src="/rcs-logo.png" alt="Reliance Care Services LLC"
+              style={{ width: 44, height: 44, objectFit: 'contain', borderRadius: 6, background: 'white', padding: 3, flexShrink: 0 }} />
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#fff', letterSpacing: -0.3, lineHeight: 1.3 }}>Reliance Care<br/>Services LLC</span>
           </div>
         )}
 

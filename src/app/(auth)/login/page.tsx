@@ -19,10 +19,7 @@ export default async function LoginPage({
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#004050] mb-4">
-            <span className="text-white text-3xl font-bold">Y</span>
-          </div>
-          <h1 className="text-2xl font-bold text-[#004050]">Reliance Care Services</h1>
+          <img src="/rcs-logo.png" alt="Reliance Care Services LLC" className="w-32 h-32 object-contain mx-auto mb-2" />
           <p className="text-gray-500 mt-1 text-sm">HIPAA-Compliant Care Management</p>
         </div>
 
