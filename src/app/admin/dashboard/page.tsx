@@ -69,6 +69,7 @@ export default function AdminDashboardPage() {
   const supabase = createClient()
   const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 
+  const [notifOpen,       setNotifOpen]       = useState(false)
   const [loading,         setLoading]         = useState(true)
   const [clientCount,     setClientCount]     = useState(0)
   const [newClients,      setNewClients]      = useState(0)
@@ -272,17 +273,67 @@ export default function AdminDashboardPage() {
           <Search size={15} color="#6b7280" />
           <input type="text" placeholder="Search staff, clients…" style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#111', outline: 'none', width: '100%' }} />
         </div>
+        {/* Bell notification */}
         <div style={{ position: 'relative' }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+          <div
+            onClick={() => setNotifOpen(o => !o)}
+            style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: notifOpen ? '#008080' : '#6b7280', background: notifOpen ? 'rgba(0,128,128,0.08)' : 'transparent' }}
+          >
             <Bell size={18} />
           </div>
           {pendingTs + pendingCn > 0 && (
-            <div style={{ position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #fff' }} />
+            <div style={{ position: 'absolute', top: 4, right: 4, width: 7, height: 7, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #fff', pointerEvents: 'none' }} />
+          )}
+          {notifOpen && (
+            <>
+              {/* backdrop */}
+              <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setNotifOpen(false)} />
+              <div style={{ position: 'absolute', top: 38, right: 0, width: 280, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 50, overflow: 'hidden' }}>
+                <div style={{ padding: '12px 16px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>Notifications</span>
+                  {pendingTs + pendingCn > 0 && (
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(239,68,68,0.1)', color: '#dc2626', fontWeight: 600 }}>{pendingTs + pendingCn} pending</span>
+                  )}
+                </div>
+                {pendingTs + pendingCn === 0 ? (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>
+                    <Bell size={22} style={{ display: 'block', margin: '0 auto 8px', opacity: 0.4 }} />
+                    All caught up — nothing pending
+                  </div>
+                ) : (
+                  <div>
+                    {pendingTs > 0 && (
+                      <Link href="/admin/timesheets" onClick={() => setNotifOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', textDecoration: 'none', borderBottom: pendingCn > 0 ? '1px solid #f9fafb' : 'none' }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1', flexShrink: 0 }}>
+                          <ClipboardList size={16} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{pendingTs} timesheet{pendingTs !== 1 ? 's' : ''} to approve</div>
+                          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Tap to review</div>
+                        </div>
+                      </Link>
+                    )}
+                    {pendingCn > 0 && (
+                      <Link href="/admin/case-notes" onClick={() => setNotifOpen(false)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '13px 16px', textDecoration: 'none' }}>
+                        <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(168,85,247,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a855f7', flexShrink: 0 }}>
+                          <FileEdit size={16} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{pendingCn} case note{pendingCn !== 1 ? 's' : ''} to review</div>
+                          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>Tap to review</div>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
-        <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280' }}>
+        {/* Settings link */}
+        <Link href="/admin/settings" style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6b7280', textDecoration: 'none' }} title="Settings">
           <Settings size={18} />
-        </div>
+        </Link>
       </div>
 
       {/* Content */}

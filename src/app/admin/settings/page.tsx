@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 type TwoFAStatus = 'loading' | 'disabled' | 'enrolling' | 'verifying' | 'enabled'
@@ -19,6 +19,12 @@ export default function StaffSettingsPage() {
   const [unenrolling,  setUnenrolling]  = useState(false)
   const [toast,        setToast]        = useState<{ msg: string; ok: boolean } | null>(null)
 
+  const [currentAvatar,   setCurrentAvatar]   = useState<string | null>(null)
+  const [previewAvatar,   setPreviewAvatar]   = useState<string | null>(null)
+  const [avatarFile,      setAvatarFile]      = useState<File | null>(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
+
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok })
     setTimeout(() => setToast(null), 4000)
@@ -35,8 +41,47 @@ export default function StaffSettingsPage() {
         setTwoFAStatus('disabled')
       }
     }
+    async function loadAvatar() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: bsd } = await supabase
+        .from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
+      const avatarPath = (bsd?.data as Record<string, unknown> | null)?.avatar_path as string | null
+      if (!avatarPath) return
+      const { data: signed } = await supabase.storage.from('staff-documents').createSignedUrl(avatarPath, 3600)
+      if (signed?.signedUrl) setCurrentAvatar(signed.signedUrl)
+    }
     check()
+    loadAvatar()
   }, [])
+
+  function onAvatarSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarFile(file)
+    setPreviewAvatar(URL.createObjectURL(file))
+  }
+
+  async function uploadAvatar() {
+    if (!avatarFile) return
+    setAvatarUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', avatarFile)
+      const res = await fetch('/api/update-avatar', { method: 'POST', body: fd })
+      const j   = await res.json()
+      if (!res.ok) { showToast(j.error ?? 'Upload failed', false); return }
+      setCurrentAvatar(j.signedUrl ?? previewAvatar)
+      setPreviewAvatar(null)
+      setAvatarFile(null)
+      if (avatarInputRef.current) avatarInputRef.current.value = ''
+      showToast('Profile photo updated!')
+    } catch {
+      showToast('Upload failed', false)
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
 
   async function startEnroll() {
     setEnrolling(true)
@@ -115,6 +160,45 @@ export default function StaffSettingsPage() {
       </div>
 
       <div style={{ padding: '24px 32px', maxWidth: 680 }}>
+
+        {/* Avatar card */}
+        <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', marginBottom: 20 }}>
+          <div style={{ padding: '18px 24px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(0,128,128,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, color: '#008080', flexShrink: 0 }}>
+              <i className="ti ti-user-circle" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#111' }}>Profile Photo</div>
+              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 2 }}>Upload a photo that appears in your sidebar. JPEG, PNG, or WebP — max 5 MB.</div>
+            </div>
+          </div>
+          <div style={{ padding: 24, display: 'flex', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
+            <div style={{ flexShrink: 0 }}>
+              {(previewAvatar ?? currentAvatar) ? (
+                <img src={previewAvatar ?? currentAvatar!} alt="Profile" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid #e5e7eb' }} />
+              ) : (
+                <div style={{ width: 96, height: 96, borderRadius: '50%', background: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, color: '#fff', fontWeight: 700, border: '3px solid #e5e7eb' }}>
+                  <i className="ti ti-user" />
+                </div>
+              )}
+            </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={onAvatarSelect} style={{ display: 'none' }} />
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => avatarInputRef.current?.click()} style={{ padding: '9px 18px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13, fontWeight: 500, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'inherit' }}>
+                  <i className="ti ti-photo" /> Choose photo
+                </button>
+                {avatarFile && (
+                  <button type="button" onClick={uploadAvatar} disabled={avatarUploading} style={{ padding: '9px 18px', background: avatarUploading ? '#6b7280' : '#008080', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, color: '#fff', cursor: avatarUploading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 7, fontFamily: 'inherit' }}>
+                    <i className={`ti ${avatarUploading ? 'ti-loader-2' : 'ti-upload'}`} style={avatarUploading ? { animation: 'spin 1s linear infinite' } : {}} />
+                    {avatarUploading ? 'Uploading…' : 'Save photo'}
+                  </button>
+                )}
+              </div>
+              {avatarFile && <div style={{ marginTop: 10, fontSize: 12, color: '#6b7280' }}>Selected: <strong>{avatarFile.name}</strong> ({(avatarFile.size / 1024).toFixed(0)} KB)</div>}
+            </div>
+          </div>
+        </div>
 
         {/* 2FA card */}
         <div style={{ background: '#fff', borderRadius: 14, border: '1px solid #e5e7eb', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
@@ -211,6 +295,7 @@ export default function StaffSettingsPage() {
           </div>
         </div>
 
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     </div>
   )

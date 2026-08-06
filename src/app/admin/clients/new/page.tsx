@@ -815,7 +815,7 @@ export default function ClientsPage() {
             {/* Clients table */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             <div style={{ minWidth: 760 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 80px 156px', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 96px 156px', columnGap: 8, padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
                 {['Name', 'Medicaid ID', 'Date of Birth', 'County', 'Sex', 'Diagnosis', 'ISP', 'Actions'].map(h => (
                   <div key={h} style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
                 ))}
@@ -832,7 +832,7 @@ export default function ClientsPage() {
                 </div>
               ) : (
                 filtered.map((c, i) => (
-                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 80px 156px', padding: '13px 20px', borderBottom: i < filtered.length - 1 ? '1px solid #f9fafb' : 'none', alignItems: 'center' }}>
+                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 96px 156px', columnGap: 8, padding: '13px 20px', borderBottom: i < filtered.length - 1 ? '1px solid #f9fafb' : 'none', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#004050', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{initials(c.full_name)}</div>
                       <div>

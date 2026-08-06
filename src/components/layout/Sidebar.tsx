@@ -154,9 +154,8 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
   const [isMobile,   setIsMobile]   = useState(false)
   const [avatarUrl,  setAvatarUrl]  = useState<string | null>(null)
 
-  // Load avatar for staff users
+  // Load avatar for all users
   useEffect(() => {
-    if (role !== 'staff') return
     async function loadAvatar() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
