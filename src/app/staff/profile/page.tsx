@@ -60,10 +60,10 @@ export default function StaffProfilePage() {
           .order('created_at', { ascending: true }),
       ])
 
-      const avatarPath = (billingData?.data as Record<string, unknown> | null)?.avatar_path as string | null
-      if (avatarPath) {
-        const { data: signed } = await supabase.storage.from('staff-documents').createSignedUrl(avatarPath, 3600)
-        if (signed?.signedUrl) setAvatarUrl(signed.signedUrl)
+      const avatarRes = await fetch('/api/get-avatar-url')
+      if (avatarRes.ok) {
+        const { signedUrl } = await avatarRes.json()
+        if (signedUrl) setAvatarUrl(signedUrl)
       }
 
       if (userData) {

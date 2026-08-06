@@ -154,19 +154,12 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
   const [isMobile,   setIsMobile]   = useState(false)
   const [avatarUrl,  setAvatarUrl]  = useState<string | null>(null)
 
-  // Load avatar for all users
+  // Load avatar for all users via server-side API (service role signs the URL)
   useEffect(() => {
-    async function loadAvatar() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: bsd } = await supabase
-        .from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
-      const avatarPath = (bsd?.data as Record<string, unknown> | null)?.avatar_path as string | null
-      if (!avatarPath) return
-      const { data: signed } = await supabase.storage.from('staff-documents').createSignedUrl(avatarPath, 3600)
-      if (signed?.signedUrl) setAvatarUrl(signed.signedUrl)
-    }
-    loadAvatar()
+    fetch('/api/get-avatar-url')
+      .then(r => r.ok ? r.json() : null)
+      .then(j => { if (j?.signedUrl) setAvatarUrl(j.signedUrl) })
+      .catch(() => {})
   }, [role])
 
   // Live badge counts — 0 means hidden

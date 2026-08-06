@@ -40,14 +40,11 @@ export default function StaffSettingsPage() {
       else setTwoFAStatus('disabled')
     }
     async function loadAvatar() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: bsd } = await supabase
-        .from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
-      const avatarPath = (bsd?.data as Record<string, unknown> | null)?.avatar_path as string | null
-      if (!avatarPath) return
-      const { data: signed } = await supabase.storage.from('staff-documents').createSignedUrl(avatarPath, 3600)
-      if (signed?.signedUrl) setCurrentAvatar(signed.signedUrl)
+      const res = await fetch('/api/get-avatar-url')
+      if (res.ok) {
+        const { signedUrl } = await res.json()
+        if (signedUrl) setCurrentAvatar(signedUrl)
+      }
     }
     check()
     loadAvatar()
