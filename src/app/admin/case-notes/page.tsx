@@ -29,6 +29,26 @@ function parseWeekRange(weekLabel: string): { start: Date; end: Date } | null {
   return { start, end }
 }
 
+// Word-wrap that never breaks at hyphens (jsPDF's splitTextToSize does, causing overflow).
+// Uses doc.getTextWidth() so measurements always match the current font/size.
+function wrapText(doc: { getTextWidth: (t: string) => number }, text: string, maxWidth: number): string[] {
+  if (!text) return []
+  const words = text.split(' ')
+  const lines: string[] = []
+  let cur = ''
+  for (const word of words) {
+    const test = cur ? `${cur} ${word}` : word
+    if (cur && doc.getTextWidth(test) > maxWidth) {
+      lines.push(cur)
+      cur = word
+    } else {
+      cur = test
+    }
+  }
+  if (cur) lines.push(cur)
+  return lines
+}
+
 function formatTimePDF(t: string): string {
   if (!t) return ''
   const [h, m] = t.split(':').map(Number)
@@ -569,8 +589,8 @@ export default function AdminCaseNotesPage() {
           if (entry) {
             const actTxt  = (entry.strategy ?? '').trim()
             const descTxt = (entry.desc     ?? '').trim()
-            const actLines  = actTxt  ? (doc.splitTextToSize(actTxt,  C_ACT  - 6) as string[]).length : 1
-            const descLines = descTxt ? (doc.splitTextToSize(descTxt, C_DESC - 10) as string[]).length : 1
+            const actLines  = actTxt  ? wrapText(doc, actTxt,  C_ACT  - 6).length : 1
+            const descLines = descTxt ? wrapText(doc, descTxt, C_DESC - 10).length : 1
             rowH = Math.max(MIN_ROW_H, Math.max(actLines, descLines) * LINE_H + PAD_V * 2)
           }
 
@@ -609,13 +629,11 @@ export default function AdminCaseNotesPage() {
 
             const actTxt = (entry.strategy ?? '').trim()
             if (actTxt) {
-              const actL = doc.splitTextToSize(actTxt, C_ACT - 6) as string[]
-              doc.text(actL, colX[3] + 1.5, textY)
+              doc.text(wrapText(doc, actTxt, C_ACT - 6), colX[3] + 1.5, textY)
             }
             const descTxt = (entry.desc ?? '').trim()
             if (descTxt) {
-              const descL = doc.splitTextToSize(descTxt, C_DESC - 10) as string[]
-              doc.text(descL, colX[4] + 1.5, textY)
+              doc.text(wrapText(doc, descTxt, C_DESC - 10), colX[4] + 1.5, textY)
             }
           }
           y += rowH
