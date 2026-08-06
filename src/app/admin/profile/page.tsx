@@ -24,6 +24,7 @@ export default function AdminProfilePage() {
   const [saving,           setSaving]           = useState(false)
   const [toast,            setToast]            = useState<{ msg: string; ok: boolean } | null>(null)
   const [staffId,          setStaffId]          = useState('—')
+  const [avatarUrl,        setAvatarUrl]        = useState<string | null>(null)
   const [firstName,        setFirstName]        = useState('')
   const [lastName,         setLastName]         = useState('')
   const [phone,            setPhone]            = useState('')
@@ -54,6 +55,12 @@ export default function AdminProfilePage() {
           .select('id, first_name, last_name')
           .order('created_at', { ascending: true }),
       ])
+
+      const avatarPath = (billingData?.data as Record<string, unknown> | null)?.avatar_path as string | null
+      if (avatarPath) {
+        const { data: signed } = await supabase.storage.from('staff-documents').createSignedUrl(avatarPath, 3600)
+        if (signed?.signedUrl) setAvatarUrl(signed.signedUrl)
+      }
 
       if (userData) {
         const extra = (billingData?.data as Record<string, string>) ?? {}
@@ -160,9 +167,13 @@ export default function AdminProfilePage() {
         <div style={{ position: 'absolute', right: -40, top: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', right: 60, bottom: -60, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
 
-        <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 700, color: '#fff', flexShrink: 0, border: '3px solid rgba(255,255,255,0.15)' }}>
-          {initials}
-        </div>
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={initials} style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '3px solid rgba(255,255,255,0.15)' }} />
+        ) : (
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 700, color: '#fff', flexShrink: 0, border: '3px solid rgba(255,255,255,0.15)' }}>
+            {initials}
+          </div>
+        )}
 
         <div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', marginBottom: 4 }}>
