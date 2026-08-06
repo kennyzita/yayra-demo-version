@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   })
 
   const ext  = file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
-  const path = `${user.id}/profile/avatar.${ext}` // fixed name — upsert overwrites previous
+  const path = `${user.id}/profile/avatar.${ext}`
 
   const bytes  = await file.arrayBuffer()
   const buffer = Buffer.from(bytes)
@@ -38,13 +38,18 @@ export async function POST(req: NextRequest) {
   })
   if (uploadErr) return NextResponse.json({ error: uploadErr.message }, { status: 500 })
 
-  // Store path in billing_staff_data JSONB
+  // Store path in auth user_metadata — works for every user type (admin, staff, DSP)
+  await db.auth.admin.updateUserById(user.id, {
+    user_metadata: { avatar_path: path },
+  })
+
+  // Also try billing_staff_data as secondary store (best-effort, ignore failure)
   const { data: existing } = await db
     .from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
   await db.from('billing_staff_data').upsert(
     { staff_id: user.id, data: { ...((existing?.data as Record<string, unknown>) ?? {}), avatar_path: path } },
     { onConflict: 'staff_id' },
-  )
+  ).catch(() => {})
 
   const { data: signed } = await db.storage.from(BUCKET).createSignedUrl(path, 86400)
   return NextResponse.json({ path, signedUrl: signed?.signedUrl })

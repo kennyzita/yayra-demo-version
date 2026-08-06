@@ -14,10 +14,16 @@ export async function GET() {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  const { data: bsd } = await db
-    .from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
+  // Primary: read from auth user_metadata (set by update-avatar, works for all user types)
+  let avatarPath: string | null = (user.user_metadata?.avatar_path as string) || null
 
-  const avatarPath = (bsd?.data as Record<string, unknown> | null)?.avatar_path as string | null
+  // Fallback: read from billing_staff_data JSONB
+  if (!avatarPath) {
+    const { data: bsd } = await db
+      .from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
+    avatarPath = ((bsd?.data as Record<string, unknown> | null)?.avatar_path as string) || null
+  }
+
   if (!avatarPath) return NextResponse.json({ error: 'No avatar' }, { status: 404 })
 
   const { data: signed, error } = await db.storage
