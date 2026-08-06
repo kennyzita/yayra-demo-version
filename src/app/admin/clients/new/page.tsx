@@ -846,36 +846,31 @@ export default function ClientsPage() {
                     <div style={{ fontSize: 13, color: '#374151' }}>{c.sex === 'M' ? 'Male' : c.sex === 'F' ? 'Female' : '—'}</div>
                     <div style={{ fontSize: 12, color: c.dx ? '#374151' : '#d1d5db', fontFamily: 'monospace' }}>{c.dx || '—'}</div>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      {c.isp_doc_path ? (
-                        <>
-                          <button
-                            onClick={() => openIspAction(c.id, 'view', c.full_name)}
-                            disabled={ispActionId === c.id}
-                            title="View ISP"
-                            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,128,128,0.3)', background: 'rgba(0,128,128,0.06)', color: '#008080', cursor: ispActionId === c.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, opacity: ispActionId === c.id ? 0.6 : 1 }}
-                          >
-                            {ispActionId === c.id ? <i className="ti ti-loader-2" style={{ animation: 'spin 1s linear infinite' }} /> : <i className="ti ti-eye" />}
-                          </button>
-                          <button
-                            onClick={() => openIspAction(c.id, 'download', c.full_name)}
-                            disabled={ispActionId === c.id}
-                            title="Download ISP"
-                            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,128,128,0.3)', background: 'rgba(0,128,128,0.06)', color: '#008080', cursor: ispActionId === c.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, opacity: ispActionId === c.id ? 0.6 : 1 }}
-                          >
-                            <i className="ti ti-download" />
-                          </button>
-                          <button
-                            onClick={() => openIspAction(c.id, 'print', c.full_name)}
-                            disabled={ispActionId === c.id}
-                            title="Print ISP"
-                            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,128,128,0.3)', background: 'rgba(0,128,128,0.06)', color: '#008080', cursor: ispActionId === c.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, opacity: ispActionId === c.id ? 0.6 : 1 }}
-                          >
-                            <i className="ti ti-printer" />
-                          </button>
-                        </>
-                      ) : (
-                        <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span>
-                      )}
+                      {(() => {
+                        const hasDoc = !!c.isp_doc_path
+                        const busy   = ispActionId === c.id
+                        const baseStyle = (active: boolean): React.CSSProperties => ({
+                          width: 26, height: 26, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13,
+                          border:  active ? '1px solid rgba(0,128,128,0.3)' : '1px solid #e5e7eb',
+                          background: active ? 'rgba(0,128,128,0.06)' : '#f9fafb',
+                          color:  active ? '#008080' : '#d1d5db',
+                          cursor: active && !busy ? 'pointer' : 'not-allowed',
+                          opacity: busy ? 0.6 : 1,
+                        })
+                        return (
+                          <>
+                            <button onClick={() => hasDoc && openIspAction(c.id, 'view', c.full_name)} disabled={!hasDoc || busy} title={hasDoc ? 'View ISP' : 'No ISP uploaded'} style={baseStyle(hasDoc)}>
+                              {busy ? <i className="ti ti-loader-2" style={{ animation: 'spin 1s linear infinite' }} /> : <i className="ti ti-eye" />}
+                            </button>
+                            <button onClick={() => hasDoc && openIspAction(c.id, 'download', c.full_name)} disabled={!hasDoc || busy} title={hasDoc ? 'Download ISP' : 'No ISP uploaded'} style={baseStyle(hasDoc)}>
+                              <i className="ti ti-download" />
+                            </button>
+                            <button onClick={() => hasDoc && openIspAction(c.id, 'print', c.full_name)} disabled={!hasDoc || busy} title={hasDoc ? 'Print ISP' : 'No ISP uploaded'} style={baseStyle(hasDoc)}>
+                              <i className="ti ti-printer" />
+                            </button>
+                          </>
+                        )
+                      })()}
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => setViewModal(c)} title="View profile" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}><i className="ti ti-eye" /></button>
