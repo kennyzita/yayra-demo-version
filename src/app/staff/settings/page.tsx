@@ -319,7 +319,7 @@ export default function StaffSettingsPage() {
         </div>
 
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
-    <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
   )
 }
