@@ -470,7 +470,7 @@ export default function AdminCaseNotesPage() {
         if (isApproved && page.approved_by_name) {
           infoLines.push({ text: `Approved by: ${page.approved_by_name}`, r: 80, g: 80, b: 80 })
         }
-        const infoBoxW = 58, infoLineH = 4.2
+        const infoBoxW = 45, infoLineH = 4.2
         const infoBoxH = infoLines.length * infoLineH + 4
         // stop before the DDD logo (14mm wide) with a 3mm gap
         const infoX = PW - RM - 14 - 3 - infoBoxW
@@ -569,8 +569,8 @@ export default function AdminCaseNotesPage() {
           if (entry) {
             const actTxt  = (entry.strategy ?? '').trim()
             const descTxt = (entry.desc     ?? '').trim()
-            const actLines  = actTxt  ? (doc.splitTextToSize(actTxt,  C_ACT  - 4) as string[]).length : 1
-            const descLines = descTxt ? (doc.splitTextToSize(descTxt, C_DESC - 6) as string[]).length : 1
+            const actLines  = actTxt  ? (doc.splitTextToSize(actTxt,  C_ACT  - 6) as string[]).length : 1
+            const descLines = descTxt ? (doc.splitTextToSize(descTxt, C_DESC - 10) as string[]).length : 1
             rowH = Math.max(MIN_ROW_H, Math.max(actLines, descLines) * LINE_H + PAD_V * 2)
           }
 
@@ -609,12 +609,12 @@ export default function AdminCaseNotesPage() {
 
             const actTxt = (entry.strategy ?? '').trim()
             if (actTxt) {
-              const actL = doc.splitTextToSize(actTxt, C_ACT - 4) as string[]
+              const actL = doc.splitTextToSize(actTxt, C_ACT - 6) as string[]
               doc.text(actL, colX[3] + 1.5, textY)
             }
             const descTxt = (entry.desc ?? '').trim()
             if (descTxt) {
-              const descL = doc.splitTextToSize(descTxt, C_DESC - 6) as string[]
+              const descL = doc.splitTextToSize(descTxt, C_DESC - 10) as string[]
               doc.text(descL, colX[4] + 1.5, textY)
             }
           }
