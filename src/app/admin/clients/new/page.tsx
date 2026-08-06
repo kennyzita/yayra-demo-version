@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 // ── PDF helpers ──────────────────────────────────────────────────────────────
@@ -62,6 +62,7 @@ interface ClientRow {
   medicaid_id: string
   dx: string
   isp_outcome: string
+  isp_doc_path: string
   source: 'Intake Form' | 'Admin Console'
 }
 
@@ -137,10 +138,15 @@ export default function ClientsPage() {
   const [selected,     setSelected]     = useState<ClientRow | null>(null)
   const [viewModal,    setViewModal]    = useState<ClientRow | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ClientRow | null>(null)
-  const [form,         setForm]         = useState({ ...EMPTY_FORM })
-  const [saving,       setSaving]       = useState(false)
-  const [deleting,     setDeleting]     = useState(false)
-  const [error,        setError]        = useState('')
+  const [form,          setForm]          = useState({ ...EMPTY_FORM })
+  const [saving,        setSaving]        = useState(false)
+  const [deleting,      setDeleting]      = useState(false)
+  const [error,         setError]         = useState('')
+  const [ispFile,       setIspFile]       = useState<File | null>(null)
+  const [ispPreview,    setIspPreview]    = useState<string | null>(null)
+  const [ispUploading,  setIspUploading]  = useState(false)
+  const [ispActionId,   setIspActionId]   = useState<string | null>(null)
+  const ispInputRef = useRef<HTMLInputElement>(null)
 
   // ── Intakes state ────────────────────────────────────────────────────────────
   const [activeTab,      setActiveTab]      = useState<'clients' | 'intakes'>('clients')
@@ -371,7 +377,8 @@ export default function ClientsPage() {
         county:      String(d.county ?? ''),
         medicaid_id: String(d.mid ?? ''),
         dx:          String(d.dx ?? ''),
-        isp_outcome: String(d.isp_outcome ?? ''),
+        isp_outcome:  String(d.isp_outcome  ?? ''),
+        isp_doc_path: String(d.isp_doc_path ?? ''),
         source,
       }
     })
@@ -461,15 +468,68 @@ export default function ClientsPage() {
 
   // ── Client CRUD ───────────────────────────────────────────────────────────────
 
-  function openCreate() { setForm({ ...EMPTY_FORM }); setError(''); setView('create') }
+  function openCreate() {
+    setForm({ ...EMPTY_FORM }); setError('')
+    setIspFile(null); setIspPreview(null)
+    setView('create')
+  }
 
   function openEdit(c: ClientRow) {
     setSelected(c)
     setForm({ full_name: c.full_name, dob: c.dob ?? '', sex: c.sex, county: c.county, medicaid_id: c.medicaid_id, dx: c.dx, isp_outcome: c.isp_outcome })
+    setIspFile(null); setIspPreview(c.isp_doc_path ? 'existing' : null)
     setError(''); setView('edit')
   }
 
-  function cancelForm() { setView('list'); setSelected(null); setError('') }
+  function cancelForm() { setView('list'); setSelected(null); setError(''); setIspFile(null); setIspPreview(null) }
+
+  function onIspSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIspFile(file); setIspPreview('new')
+  }
+
+  async function uploadIspDoc(clientId: string): Promise<string | null> {
+    if (!ispFile) return null
+    setIspUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', ispFile)
+      fd.append('clientId', clientId)
+      const res = await fetch('/api/admin/upload-client-isp', { method: 'POST', body: fd })
+      const j   = await res.json()
+      if (!res.ok) { showToast(j.error ?? 'ISP upload failed'); return null }
+      return j.path as string
+    } catch {
+      showToast('ISP upload failed'); return null
+    } finally {
+      setIspUploading(false)
+    }
+  }
+
+  async function openIspAction(clientId: string, action: 'view' | 'download' | 'print', clientName: string) {
+    setIspActionId(clientId)
+    try {
+      const res = await fetch(`/api/admin/client-isp-url?clientId=${clientId}`)
+      const j   = await res.json()
+      if (!res.ok) { showToast(j.error ?? 'Could not load ISP document'); return }
+      const url = j.signedUrl as string
+      if (action === 'view') {
+        window.open(url, '_blank')
+      } else if (action === 'download') {
+        const a = document.createElement('a')
+        a.href = url; a.download = `ISP_${clientName.replace(/\s+/g, '_')}`
+        document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      } else {
+        const w = window.open(url, '_blank')
+        if (w) { w.focus(); setTimeout(() => w.print(), 1200) }
+      }
+    } catch {
+      showToast('Failed to load ISP document')
+    } finally {
+      setIspActionId(null)
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -494,6 +554,7 @@ export default function ClientsPage() {
         { onConflict: 'client_id' }
       )
       if (bcdInsertErr) throw bcdInsertErr
+      if (ispFile) await uploadIspDoc(row.id)
       await loadClients(); setView('list'); showToast(`${form.full_name.trim()} added successfully.`)
     } catch (err: unknown) {
       setError((err as Error)?.message ?? 'Failed to create client.')
@@ -513,6 +574,7 @@ export default function ClientsPage() {
         { onConflict: 'client_id' }
       )
       if (bcdErr) throw bcdErr
+      if (ispFile) await uploadIspDoc(selected.id)
       await loadClients(); setView('list'); showToast(`${form.full_name.trim()} updated successfully.`)
     } catch (err: unknown) {
       setError((err as Error)?.message ?? 'Failed to update client.')
@@ -622,6 +684,46 @@ export default function ClientsPage() {
                 </div>
               </div>
             </div>
+
+            {/* ISP Document Upload */}
+            <div style={{ background: '#fff', border: '0.5px solid #e5e7eb', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+              <div style={{ padding: '14px 16px', borderBottom: '0.5px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,128,128,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#008080', fontSize: 16 }}>
+                  <i className="ti ti-file-upload" />
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>ISP Document</span>
+                <span style={{ fontSize: 12, color: '#9ca3af', marginLeft: 4 }}>PDF, Word, or image — max 20 MB</span>
+              </div>
+              <div style={{ padding: 16 }}>
+                <input
+                  ref={ispInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+                  onChange={onIspSelect}
+                  style={{ display: 'none' }}
+                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => ispInputRef.current?.click()}
+                    style={{ padding: '8px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 13, fontWeight: 500, color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7 }}
+                  >
+                    <i className="ti ti-upload" /> {ispPreview === 'existing' ? 'Replace ISP doc' : 'Choose ISP file'}
+                  </button>
+                  {ispPreview === 'existing' && !ispFile && (
+                    <span style={{ fontSize: 12, color: '#008080', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <i className="ti ti-circle-check" /> ISP document uploaded
+                    </span>
+                  )}
+                  {ispFile && (
+                    <span style={{ fontSize: 12, color: '#374151' }}>
+                      <strong>{ispFile.name}</strong> ({(ispFile.size / 1024).toFixed(0)} KB) — will upload on save
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {error && <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 8, background: 'rgba(226,75,74,0.08)', border: '0.5px solid rgba(226,75,74,0.4)', fontSize: 13, color: '#E24B4A' }}>{error}</div>}
             <div style={{ display: 'flex', gap: 10 }}>
               <button type="submit" disabled={saving} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#008080', color: '#fff', fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -713,8 +815,8 @@ export default function ClientsPage() {
             {/* Clients table */}
             <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
             <div style={{ minWidth: 760 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 156px', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
-                {['Name', 'Medicaid ID', 'Date of Birth', 'County', 'Sex', 'Diagnosis', 'Actions'].map(h => (
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 80px 156px', padding: '10px 20px', background: '#f9fafb', borderBottom: '1px solid #f0f0f0' }}>
+                {['Name', 'Medicaid ID', 'Date of Birth', 'County', 'Sex', 'Diagnosis', 'ISP', 'Actions'].map(h => (
                   <div key={h} style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
                 ))}
               </div>
@@ -730,7 +832,7 @@ export default function ClientsPage() {
                 </div>
               ) : (
                 filtered.map((c, i) => (
-                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 156px', padding: '13px 20px', borderBottom: i < filtered.length - 1 ? '1px solid #f9fafb' : 'none', alignItems: 'center' }}>
+                  <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 80px 156px', padding: '13px 20px', borderBottom: i < filtered.length - 1 ? '1px solid #f9fafb' : 'none', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#004050', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{initials(c.full_name)}</div>
                       <div>
@@ -743,6 +845,38 @@ export default function ClientsPage() {
                     <div style={{ fontSize: 13, color: '#374151' }}>{c.county || '—'}</div>
                     <div style={{ fontSize: 13, color: '#374151' }}>{c.sex === 'M' ? 'Male' : c.sex === 'F' ? 'Female' : '—'}</div>
                     <div style={{ fontSize: 12, color: c.dx ? '#374151' : '#d1d5db', fontFamily: 'monospace' }}>{c.dx || '—'}</div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {c.isp_doc_path ? (
+                        <>
+                          <button
+                            onClick={() => openIspAction(c.id, 'view', c.full_name)}
+                            disabled={ispActionId === c.id}
+                            title="View ISP"
+                            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,128,128,0.3)', background: 'rgba(0,128,128,0.06)', color: '#008080', cursor: ispActionId === c.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, opacity: ispActionId === c.id ? 0.6 : 1 }}
+                          >
+                            {ispActionId === c.id ? <i className="ti ti-loader-2" style={{ animation: 'spin 1s linear infinite' }} /> : <i className="ti ti-eye" />}
+                          </button>
+                          <button
+                            onClick={() => openIspAction(c.id, 'download', c.full_name)}
+                            disabled={ispActionId === c.id}
+                            title="Download ISP"
+                            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,128,128,0.3)', background: 'rgba(0,128,128,0.06)', color: '#008080', cursor: ispActionId === c.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, opacity: ispActionId === c.id ? 0.6 : 1 }}
+                          >
+                            <i className="ti ti-download" />
+                          </button>
+                          <button
+                            onClick={() => openIspAction(c.id, 'print', c.full_name)}
+                            disabled={ispActionId === c.id}
+                            title="Print ISP"
+                            style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid rgba(0,128,128,0.3)', background: 'rgba(0,128,128,0.06)', color: '#008080', cursor: ispActionId === c.id ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, opacity: ispActionId === c.id ? 0.6 : 1 }}
+                          >
+                            <i className="ti ti-printer" />
+                          </button>
+                        </>
+                      ) : (
+                        <span style={{ fontSize: 11, color: '#d1d5db' }}>—</span>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button onClick={() => setViewModal(c)} title="View profile" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', color: '#6b7280', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}><i className="ti ti-eye" /></button>
                       <button onClick={() => openCnModal(c)} title="View case notes" style={{ width: 30, height: 30, borderRadius: 6, border: '1px solid rgba(0,64,80,0.25)', background: 'rgba(0,64,80,0.05)', color: '#004050', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}><i className="ti ti-notes" /></button>

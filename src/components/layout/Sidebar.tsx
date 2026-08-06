@@ -106,9 +106,10 @@ const staffSections: NavSection[] = [
   {
     label: 'Work',
     items: [
-      { href: '/staff/timesheet',    label: 'My timesheet',  icon: 'ti-clock'    },
-      { href: '/staff/case-notes',   label: 'My case notes', icon: 'ti-notes'    },
-      { href: '/staff/my-schedule',  label: 'My schedule',   icon: 'ti-calendar' },
+      { href: '/staff/timesheet',    label: 'My timesheet',     icon: 'ti-clock'      },
+      { href: '/staff/case-notes',   label: 'My case notes',    icon: 'ti-notes'      },
+      { href: '/staff/my-schedule',  label: 'My schedule',      icon: 'ti-calendar'   },
+      { href: '/staff/isp-docs',     label: 'My ISP Docs',      icon: 'ti-file-text'  },
     ],
   },
   {
@@ -151,6 +152,23 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
   const supabase  = createClient()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile,   setIsMobile]   = useState(false)
+  const [avatarUrl,  setAvatarUrl]  = useState<string | null>(null)
+
+  // Load avatar for staff users
+  useEffect(() => {
+    if (role !== 'staff') return
+    async function loadAvatar() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: bsd } = await supabase
+        .from('billing_staff_data').select('data').eq('staff_id', user.id).maybeSingle()
+      const avatarPath = (bsd?.data as Record<string, unknown> | null)?.avatar_path as string | null
+      if (!avatarPath) return
+      const { data: signed } = await supabase.storage.from('staff-documents').createSignedUrl(avatarPath, 3600)
+      if (signed?.signedUrl) setAvatarUrl(signed.signedUrl)
+    }
+    loadAvatar()
+  }, [role])
 
   // Live badge counts — 0 means hidden
   const [hiringBadge,     setHiringBadge]     = useState(0)
@@ -353,9 +371,13 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
 
         {/* User */}
         <div style={{ padding: '12px 18px', borderBottom: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'white', flexShrink: 0 }}>
-            {userInitials}
-          </div>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={userName} style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.2)' }} />
+          ) : (
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#008080', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 600, color: 'white', flexShrink: 0 }}>
+              {userInitials}
+            </div>
+          )}
           <div style={{ overflow: 'hidden', flex: 1 }}>
             <div style={{ fontSize: 13, color: 'white', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
             <div style={{ fontSize: 11, color: '#a8c8cc' }}>{userRole}</div>
