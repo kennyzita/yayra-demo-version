@@ -32,8 +32,9 @@ function parseWeekRange(weekLabel: string): { start: Date; end: Date } | null {
 function formatTimePDF(t: string): string {
   if (!t) return ''
   const [h, m] = t.split(':').map(Number)
-  const h12 = h % 12 || 12
-  return `${h12}.${String(m).padStart(2, '0')}`
+  const h12  = h % 12 || 12
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
 }
 
 function fmtMDY(dateStr: string): string {
@@ -431,31 +432,6 @@ export default function AdminCaseNotesPage() {
         let y = 8
         const cx = PW / 2
 
-        // ── Status / approval info block — top right corner ───────────────
-        const isApproved = page.status === 'approved'
-        const statusLabel = isApproved ? 'APPROVED' : page.status === 'submitted' ? 'PENDING' : page.status.toUpperCase()
-        const infoLines: Array<{ text: string; bold?: boolean; r: number; g: number; b: number }> = []
-        infoLines.push({ text: `Status: ${statusLabel}`, bold: true, r: isApproved ? 21 : 146, g: isApproved ? 128 : 64, b: isApproved ? 61 : 14 })
-        infoLines.push({ text: `Downloaded as of: ${dlDate}`, r: 80, g: 80, b: 80 })
-        if (isApproved && page.approved_at) {
-          const apDate = new Date(page.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          infoLines.push({ text: `Date of Approval: ${apDate}`, r: 80, g: 80, b: 80 })
-        }
-        if (isApproved && page.approved_by_name) {
-          infoLines.push({ text: `Approved by: ${page.approved_by_name}`, r: 80, g: 80, b: 80 })
-        }
-        const infoBoxW = 80, infoLineH = 4.2
-        const infoBoxH = infoLines.length * infoLineH + 4
-        const infoX = PW - RM - infoBoxW
-        doc.setFillColor(245, 247, 250); doc.setDrawColor(200, 210, 215); doc.setLineWidth(0.2)
-        doc.rect(infoX, y, infoBoxW, infoBoxH, 'FD')
-        infoLines.forEach((line, li) => {
-          doc.setFont('helvetica', line.bold ? 'bold' : 'normal')
-          doc.setFontSize(6.8); doc.setTextColor(line.r, line.g, line.b)
-          doc.text(line.text, infoX + 2.5, y + 3.5 + li * infoLineH)
-        })
-        doc.setTextColor(0, 0, 0)
-
         // ── Logo boxes — NJ Seal (left) and DDD logo (right) ─────────────
         if (njSealB64) {
           doc.addImage(`data:image/jpeg;base64,${njSealB64}`, 'JPEG', LM, y, 22, 22)
@@ -479,6 +455,31 @@ export default function AdminCaseNotesPage() {
         doc.text('Division of Developmental Disabilities',   cx, y + 11, { align: 'center' })
         doc.setTextColor(0, 0, 200)
         doc.text('www.nj.gov/humanservices/ddd', cx, y + 16, { align: 'center' })
+        doc.setTextColor(0, 0, 0)
+
+        // ── Status / approval info block — drawn last so it sits on top ───
+        const isApproved = page.status === 'approved'
+        const statusLabel = isApproved ? 'APPROVED' : page.status === 'submitted' ? 'PENDING' : page.status.toUpperCase()
+        const infoLines: Array<{ text: string; bold?: boolean; r: number; g: number; b: number }> = []
+        infoLines.push({ text: `Status: ${statusLabel}`, bold: true, r: isApproved ? 21 : 146, g: isApproved ? 128 : 64, b: isApproved ? 61 : 14 })
+        infoLines.push({ text: `Downloaded: ${dlDate}`, r: 80, g: 80, b: 80 })
+        if (isApproved && page.approved_at) {
+          const apDate = new Date(page.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          infoLines.push({ text: `Approved on: ${apDate}`, r: 80, g: 80, b: 80 })
+        }
+        if (isApproved && page.approved_by_name) {
+          infoLines.push({ text: `Approved by: ${page.approved_by_name}`, r: 80, g: 80, b: 80 })
+        }
+        const infoBoxW = 65, infoLineH = 4.2
+        const infoBoxH = infoLines.length * infoLineH + 4
+        const infoX = PW - RM - infoBoxW
+        doc.setFillColor(245, 247, 250); doc.setDrawColor(200, 210, 215); doc.setLineWidth(0.2)
+        doc.rect(infoX, y, infoBoxW, infoBoxH, 'FD')
+        infoLines.forEach((line, li) => {
+          doc.setFont('helvetica', line.bold ? 'bold' : 'normal')
+          doc.setFontSize(6.8); doc.setTextColor(line.r, line.g, line.b)
+          doc.text(line.text, infoX + 2.5, y + 3.5 + li * infoLineH)
+        })
         doc.setTextColor(0, 0, 0)
 
         y = Math.max(36, y + infoBoxH + 6)
@@ -602,9 +603,8 @@ export default function AdminCaseNotesPage() {
             }
             const startTxt = formatTimePDF(entry.start ?? '')
             const endTxt   = formatTimePDF(entry.end   ?? '')
-            const midY = y + rowH / 2 + 1.2
-            if (startTxt) doc.text(startTxt, colX[1] + C_START / 2, midY, { align: 'center' })
-            if (endTxt)   doc.text(endTxt,   colX[2] + C_END   / 2, midY, { align: 'center' })
+            if (startTxt) doc.text(startTxt, colX[1] + C_START / 2, textY, { align: 'center' })
+            if (endTxt)   doc.text(endTxt,   colX[2] + C_END   / 2, textY, { align: 'center' })
 
             const actTxt = (entry.strategy ?? '').trim()
             if (actTxt) {
