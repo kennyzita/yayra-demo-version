@@ -53,9 +53,17 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await userSupabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: 'API not configured' }, { status: 500 })
-  }
+  // HIPAA §164.308(b): Anthropic receives PHI (Medicaid IDs, DOBs, diagnoses).
+  // A signed Business Associate Agreement with Anthropic must be in place before
+  // this route is enabled. Sign one at anthropic.com (Enterprise plan), then set
+  // ANTHROPIC_BAA_ACKNOWLEDGED=true in your environment.
+  if (!process.env.ANTHROPIC_API_KEY)
+    return NextResponse.json({ error: 'API not configured' }, { status: 503 })
+  if (!process.env.ANTHROPIC_BAA_ACKNOWLEDGED)
+    return NextResponse.json(
+      { error: 'HIPAA BAA required: set ANTHROPIC_BAA_ACKNOWLEDGED=true after signing BAA with Anthropic (Enterprise)' },
+      { status: 503 }
+    )
 
   const form = await req.formData()
   const file = form.get('file') as File | null

@@ -14,6 +14,18 @@ export async function POST(req: NextRequest) {
     const { ok } = await requireAdminOrHR()
     if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+    // HIPAA §164.308(b): Anthropic receives PHI (client names, activity descriptions).
+    // A signed Business Associate Agreement with Anthropic must be in place before
+    // this route is enabled. Sign one at anthropic.com (Enterprise plan), then set
+    // ANTHROPIC_BAA_ACKNOWLEDGED=true in your environment.
+    if (!process.env.ANTHROPIC_API_KEY)
+      return NextResponse.json({ error: 'Anthropic API not configured' }, { status: 503 })
+    if (!process.env.ANTHROPIC_BAA_ACKNOWLEDGED)
+      return NextResponse.json(
+        { error: 'HIPAA BAA required: set ANTHROPIC_BAA_ACKNOWLEDGED=true after signing BAA with Anthropic (Enterprise)' },
+        { status: 503 }
+      )
+
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
