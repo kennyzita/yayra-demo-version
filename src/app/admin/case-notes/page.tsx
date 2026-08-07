@@ -481,13 +481,14 @@ export default function AdminCaseNotesPage() {
         const isApproved = page.status === 'approved'
         const statusLabel = isApproved ? 'APPROVED' : page.status === 'submitted' ? 'PENDING' : page.status.toUpperCase()
         const infoLines: Array<{ text: string; bold?: boolean; r: number; g: number; b: number }> = []
-        const apDate = page.approved_at
+        const apDate = isApproved && page.approved_at
           ? new Date(page.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
           : '—'
+        const apBy = isApproved && page.approved_by_name ? page.approved_by_name : '—'
         infoLines.push({ text: `Status: ${statusLabel}`, bold: true, r: isApproved ? 21 : 146, g: isApproved ? 128 : 64, b: isApproved ? 61 : 14 })
         infoLines.push({ text: `Downloaded: ${dlDate}`, r: 80, g: 80, b: 80 })
-        infoLines.push({ text: `Approval date: ${apDate}`, r: 80, g: 80, b: 80 })
-        infoLines.push({ text: `Approved by: ${page.approved_by_name ?? '—'}`, r: 80, g: 80, b: 80 })
+        infoLines.push({ text: `Approval date: ${apDate}`, bold: isApproved, r: isApproved ? 21 : 160, g: isApproved ? 128 : 160, b: isApproved ? 61 : 160 })
+        infoLines.push({ text: `Approved by: ${apBy}`, bold: isApproved, r: isApproved ? 21 : 160, g: isApproved ? 128 : 160, b: isApproved ? 61 : 160 })
         const infoBoxW = 45, infoLineH = 4.2
         const infoBoxH = infoLines.length * infoLineH + 4
         // stop before the DDD logo (14mm wide) with a 3mm gap
