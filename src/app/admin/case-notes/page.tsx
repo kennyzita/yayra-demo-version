@@ -253,16 +253,27 @@ export default function AdminCaseNotesPage() {
   async function handleApprove(id: string) {
     setActioning(id)
     const now = new Date().toISOString()
+
+    // Fetch approver name fresh — don't rely on async state which may be empty
+    let approverName = currentUserName
+    if (!approverName) {
+      const { data: { user: au } } = await supabase.auth.getUser()
+      if (au) {
+        const { data: ud } = await supabase.from('users').select('first_name, last_name').eq('id', au.id).maybeSingle()
+        if (ud) approverName = `${ud.first_name} ${ud.last_name}`.trim()
+      }
+    }
+
     const { error } = await supabase.from('case_notes').update({
       status: 'approved',
       approved_at: now,
-      approved_by_name: currentUserName || null,
+      approved_by_name: approverName || null,
     }).eq('id', id)
     if (error) showToast('Error: ' + error.message)
     else {
       showToast('Case note approved ✓')
       setRecords(prev => prev.map(r => r.id === id
-        ? { ...r, status: 'approved', approved_at: now, approved_by_name: currentUserName || null }
+        ? { ...r, status: 'approved', approved_at: now, approved_by_name: approverName || null }
         : r))
     }
     setActioning(null)
@@ -483,8 +494,10 @@ export default function AdminCaseNotesPage() {
         const infoLines: Array<{ text: string; bold?: boolean; r: number; g: number; b: number }> = []
         const apDate = isApproved && page.approved_at
           ? new Date(page.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : isApproved ? 'Not recorded' : '—'
+        const apBy = isApproved
+          ? (page.approved_by_name || 'Not recorded')
           : '—'
-        const apBy = isApproved && page.approved_by_name ? page.approved_by_name : '—'
         infoLines.push({ text: `Status: ${statusLabel}`, bold: true, r: isApproved ? 21 : 146, g: isApproved ? 128 : 64, b: isApproved ? 61 : 14 })
         infoLines.push({ text: `Downloaded: ${dlDate}`, r: 80, g: 80, b: 80 })
         infoLines.push({ text: `Approval date: ${apDate}`, bold: isApproved, r: isApproved ? 21 : 160, g: isApproved ? 128 : 160, b: isApproved ? 61 : 160 })
