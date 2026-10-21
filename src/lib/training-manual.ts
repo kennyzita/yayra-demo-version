@@ -1,12 +1,12 @@
 import type { ManualBlock, ManualSection } from "@/lib/orientation-manual";
 
 export const TRAINING_META = {
-  agency: "Reliance Care Services LLC",
+  agency: "Yayra Care",
   subtitle: "Approved DDD Provider · New Jersey Division of Developmental Disabilities",
   title: "Direct Support Professional Training Manual",
   effective: "January 1, 2025",
   alignment:
-    "Aligned with NJ DDD Provider Standards · N.J.A.C. 10:41 · NJ DSP Core Competency Career Pathway · Document Code RCS-DSP-TM-2025-001",
+    "Aligned with NJ DDD Provider Standards · N.J.A.C. 10:41 · NJ DSP Core Competency Career Pathway · Document Code YC-DSP-TM-2025-001",
 };
 
 const m1: ManualBlock[] = [
@@ -395,7 +395,7 @@ const m9: ManualBlock[] = [
 const m10: ManualBlock[] = [
   { type: "p", text: "Module Code: TM-CIR-010 · NJ DDD Competency Domain 7 (Positive Behavior Support & Crisis Intervention)." },
   { type: "h3", text: "10.1 Positive Behavior Support (PBS)" },
-  { type: "p", text: "PBS is the prevention-first framework used at Reliance Care Services LLC. Behavior is communication. Your first task is to understand what the individual is communicating and what need is unmet — environment, sensory, medical, emotional, relational." },
+  { type: "p", text: "PBS is the prevention-first framework used at Yayra Care. Behavior is communication. Your first task is to understand what the individual is communicating and what need is unmet — environment, sensory, medical, emotional, relational." },
   { type: "h3", text: "10.2 De-escalation Principles" },
   { type: "ul", items: [
     "Lower your voice and slow your pace; manage your own affect first.",

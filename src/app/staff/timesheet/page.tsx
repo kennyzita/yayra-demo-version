@@ -151,11 +151,11 @@ export default function TimesheetPage() {
         } else {
           const fullName = `${prof.first_name} ${prof.last_name}`.trim()
           if (fullName === 'Rasheed Yekini') {
-            setStaffId('RCS-001')
+            setStaffId('YC-001')
           } else {
             const others = (allUsersData ?? []).filter((u: any) => `${u.first_name} ${u.last_name}`.trim() !== 'Rasheed Yekini')
             const pos = others.findIndex((u: any) => u.id === user.id)
-            setStaffId(pos >= 0 ? `RCS-${String(pos + 2).padStart(3, '0')}` : 'RCS-002')
+            setStaffId(pos >= 0 ? `YC-${String(pos + 2).padStart(3, '0')}` : 'YC-002')
           }
         }
       }

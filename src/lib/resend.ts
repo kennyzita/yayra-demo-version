@@ -4,11 +4,11 @@
 //   RESEND_API_KEY   — get from resend.com/api-keys
 //
 // Optional env var:
-//   RESEND_FROM      — verified sender address (e.g. "Reliance Care Services <admin@reliancecareservicesllc.com>")
+//   RESEND_FROM      — verified sender address (e.g. "Yayra Care <info@yellowstrides.com>")
 //                      Defaults to Resend's shared test address which works without domain verification.
 //                      Switch to your own domain once it is verified in the Resend dashboard.
 
-const DEFAULT_FROM = 'Reliance Care Services <onboarding@resend.dev>'
+const DEFAULT_FROM = 'Yayra Care <onboarding@resend.dev>'
 
 interface EmailPayload {
   to: string | string[]

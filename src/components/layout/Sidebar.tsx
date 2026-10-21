@@ -355,9 +355,9 @@ export function Sidebar({ role, userName, userInitials, userRole }: SidebarProps
         {/* Logo */}
         {!isMobile && (
           <div style={{ padding: '16px 18px 14px', borderBottom: '0.5px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="/rcs-logo.png" alt="Reliance Care Services LLC"
+            <img src="/rcs-logo.png" alt="Yayra Care"
               style={{ width: 44, height: 44, objectFit: 'contain', borderRadius: 6, background: 'white', padding: 3, flexShrink: 0 }} />
-            <span style={{ fontSize: 13, fontWeight: 500, color: '#fff', letterSpacing: -0.3, lineHeight: 1.3 }}>Reliance Care<br/>Services LLC</span>
+            <span style={{ fontSize: 13, fontWeight: 500, color: '#fff', letterSpacing: -0.3, lineHeight: 1.3 }}>Yayra Care</span>
           </div>
         )}
 

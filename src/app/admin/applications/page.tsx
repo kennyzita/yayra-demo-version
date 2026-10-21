@@ -349,13 +349,13 @@ export default function HiringPage() {
     const html = `
       <div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#111">
         <div style="background:#004050;padding:24px 28px;border-radius:8px 8px 0 0">
-          <h2 style="color:white;margin:0;font-size:18px">Reliance Care Services</h2>
+          <h2 style="color:white;margin:0;font-size:18px">Yayra Care</h2>
           <p style="color:rgba(255,255,255,0.7);margin:4px 0 0;font-size:13px">Action Required</p>
         </div>
         <div style="border:1px solid #e5e7eb;border-top:none;padding:28px;border-radius:0 0 8px 8px;background:#fff">
           <p style="margin:0 0 16px;font-size:15px">Hi <strong>${name}</strong>,</p>
           <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.7">
-            This is a friendly reminder that your onboarding process with Reliance Care Services is not yet complete.
+            This is a friendly reminder that your onboarding process with Yayra Care is not yet complete.
             Please log in to the portal and complete your outstanding items as soon as possible.
           </p>
           <a href="${typeof window !== 'undefined' ? window.location.origin : ''}/staff/onboarding"
@@ -364,14 +364,14 @@ export default function HiringPage() {
           </a>
           <p style="margin:0;font-size:13px;color:#9ca3af">
             If you have any questions, reply to this email or contact us at
-            <a href="mailto:admin@reliancecareservicesllc.com" style="color:#008080">admin@reliancecareservicesllc.com</a>.
+            <a href="mailto:info@yellowstrides.com" style="color:#008080">info@yellowstrides.com</a>.
           </p>
         </div>
       </div>`
     const res = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: email, subject: 'Action Required: Complete Your Onboarding — Reliance Care Services', html }),
+      body: JSON.stringify({ to: email, subject: 'Action Required: Complete Your Onboarding — Yayra Care', html }),
     })
     if (res.ok) showToast(`Reminder sent to ${name}`)
     else showToast('Failed to send reminder email')

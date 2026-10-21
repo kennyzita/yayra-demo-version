@@ -94,11 +94,11 @@ export default function StaffProfilePage() {
         } else {
           const fullName = `${userData.first_name} ${userData.last_name}`.trim()
           if (fullName === 'Rasheed Yekini') {
-            setStaffId('RCS-001')
+            setStaffId('YC-001')
           } else {
             const others = (allUsersData ?? []).filter((u: any) => `${u.first_name} ${u.last_name}`.trim() !== 'Rasheed Yekini')
             const pos = others.findIndex((u: any) => u.id === user.id)
-            setStaffId(pos >= 0 ? `RCS-${String(pos + 2).padStart(3, '0')}` : 'RCS-???')
+            setStaffId(pos >= 0 ? `YC-${String(pos + 2).padStart(3, '0')}` : 'YC-???')
           }
         }
       }
@@ -218,7 +218,7 @@ export default function StaffProfilePage() {
             {profile ? `${profile.first_name} ${profile.last_name}` : '—'}
           </div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginBottom: 12 }}>
-            {profile?.role} · Reliance Care Services
+            {profile?.role} · Yayra Care
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {[

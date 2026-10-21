@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * RCS Client Intake Form — Next.js App Router page
+ * YC Client Intake Form — Next.js App Router page
  *
  * Drop this file into a Next.js 13+ project at: app/intake/page.tsx
  * Requirements: Tailwind CSS (default install). No other deps.
@@ -113,7 +113,7 @@ export default function IntakePage() {
           </div>
           <h2 className="text-2xl font-semibold text-slate-900 mb-3">Intake Submitted!</h2>
           <p className="text-sm text-slate-600 mb-6">
-            Thank you, <strong>{data.name || "valued client"}</strong>. Your intake form has been received by Reliance Care Services.
+            Thank you, <strong>{data.name || "valued client"}</strong>. Your intake form has been received by Yayra Care.
             A care coordinator will be in touch shortly.
           </p>
           <button
@@ -147,7 +147,7 @@ export default function IntakePage() {
 
       <div className="mx-auto max-w-4xl px-6 py-10">
         <div className="mb-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-indigo-700/80">RCS · Client Intake</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-indigo-700/80">YC · Client Intake</p>
           <h1 className="mt-2 text-4xl font-semibold sm:text-5xl">Let&apos;s get you set up for care.</h1>
           <p className="mt-3 max-w-xl text-sm text-slate-600">
             A short, guided form covering your goals, schedule, risk assessment, service agreement, and emergency plan.
@@ -252,7 +252,7 @@ export default function IntakePage() {
             <Section title="Service Agreement" subtitle="Please review and authorize the terms below.">
               <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-5 text-sm leading-relaxed text-slate-600">
                 <Clause n={1} title="Services Authorization">
-                  I consent to all services authorized by the Support Coordinator and rendered by authorized RCS personnel. Consent is voluntary and services may be stopped at any time.
+                  I consent to all services authorized by the Support Coordinator and rendered by authorized YC personnel. Consent is voluntary and services may be stopped at any time.
                 </Clause>
               </div>
 
@@ -447,8 +447,8 @@ function PrintSummary({ data }: { data: FormData }) {
   ];
   return (
     <div className="hidden print:block">
-      <h2 className="mb-2 text-xl font-semibold">RCS Client Intake — Summary</h2>
-      <p className="mb-4 text-sm">Reliance Care Services · Generated {new Date().toLocaleString()}</p>
+      <h2 className="mb-2 text-xl font-semibold">YC Client Intake — Summary</h2>
+      <p className="mb-4 text-sm">Yayra Care · Generated {new Date().toLocaleString()}</p>
       <table className="w-full border-collapse text-sm">
         <tbody>
           {rows.filter(([, v]) => v !== undefined && v !== "" && v !== null).map(([k, v]) => (

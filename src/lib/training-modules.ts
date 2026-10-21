@@ -23,7 +23,7 @@ export const ALL_TRAININGS: Training[] = [
   {
     icon: 'ti-clipboard-text', iconBg: 'rgba(0,128,128,0.1)', iconColor: '#008080',
     name: 'DSP Training Academy',
-    meta: 'Reliance Care Services · Required · Embedded in portal',
+    meta: 'Yayra Care · Required · Embedded in portal',
     pct: 30, barColor: '#008080', status: 'In progress',
     statusBg: 'rgba(0,128,128,0.1)', statusColor: '#008080',
     tab: 'assess', dspStaffOnly: true,

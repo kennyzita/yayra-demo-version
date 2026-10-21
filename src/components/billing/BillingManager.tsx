@@ -596,13 +596,13 @@ function PrintView({cl,onClose}){
         {/* Header */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",borderBottom:`2px solid ${navy}`,paddingBottom:12,marginBottom:20}}>
           <div>
-            <div style={{fontSize:20,fontWeight:900,color:navy}}>RCS Billing Record</div>
+            <div style={{fontSize:20,fontWeight:900,color:navy}}>YC Billing Record</div>
             <div style={{fontSize:12,color:gray5,marginTop:2}}>Printed: {new Date().toLocaleDateString()}</div>
           </div>
           <div style={{textAlign:"right"}}>
             <div style={{fontSize:16,fontWeight:800,color:navy}}>{cl.name||"Unnamed Client"}</div>
             <div style={{fontSize:11,color:gray5}}>Medicaid ID: {cl.mid||"—"} &nbsp;|&nbsp; DOB: {cl.dob||"—"} &nbsp;|&nbsp; County: {cl.county||"—"}</div>
-            <div style={{fontSize:11,color:gray5}}>Dx: {cl.dx||"—"} &nbsp;|&nbsp; Program: RCS</div>
+            <div style={{fontSize:11,color:gray5}}>Dx: {cl.dx||"—"} &nbsp;|&nbsp; Program: YC</div>
           </div>
         </div>
 
@@ -673,7 +673,7 @@ function PrintView({cl,onClose}){
           </div>;
         })}
         <div style={{marginTop:24,paddingTop:12,borderTop:`1px solid ${gray2}`,fontSize:10,color:gray5,textAlign:"center"}}>
-          RCS Billing Management · Confidential · Generated {new Date().toLocaleString()}
+          YC Billing Management · Confidential · Generated {new Date().toLocaleString()}
         </div>
       </div>
     </div>
@@ -1917,11 +1917,11 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
   function exportToDrive(){
     // Browsers can't push directly to Drive without OAuth, so we download a JSON
     // snapshot and open Drive so the user can drop it in. One click, no auth setup.
-    const payload={exportedAt:new Date().toISOString(),app:"RCS Billing Management",clients,staff};
+    const payload={exportedAt:new Date().toISOString(),app:"YC Billing Management",clients,staff};
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    a.href=url;a.download=`rcs-billing-export-${new Date().toISOString().slice(0,10)}.json`;
+    a.href=url;a.download=`yc-billing-export-${new Date().toISOString().slice(0,10)}.json`;
     document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
     window.open("https://drive.google.com/drive/my-drive","_blank","noopener");
@@ -2019,7 +2019,7 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
       <button onClick={()=>setNavOpen(true)} aria-label="Open menu"
         style={{background:"rgba(255,255,255,.12)",border:"none",color:white,
           borderRadius:8,padding:"7px 10px",fontSize:16,cursor:"pointer",lineHeight:1}}>☰</button>
-      <div style={{fontWeight:800,fontSize:14}}>RCS Billing Management</div>
+      <div style={{fontWeight:800,fontSize:14}}>YC Billing Management</div>
       <div style={{marginLeft:"auto",fontSize:11,opacity:.6}}>{view==="dash"?"Dashboard":mode==="staff"?"Staff":"Client"}</div>
     </div>}
 
@@ -2030,7 +2030,7 @@ export default function App({ sidebarExtra }: { sidebarExtra?: React.ReactNode }
     <div style={sidebarStyle}>
       <div style={{padding:"16px 12px 8px"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:1,gap:6}}>
-          <div style={{fontWeight:900,fontSize:16,color:white}}>RCS Billing Management</div>
+          <div style={{fontWeight:900,fontSize:16,color:white}}>YC Billing Management</div>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             <button onClick={()=>setTheme(theme==="dark"?"light":"dark")} aria-label="Toggle theme" title="Toggle theme"
               style={{background:"rgba(255,255,255,.12)",border:"none",color:white,borderRadius:99,width:28,height:28,cursor:"pointer",fontSize:13,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center"}}>

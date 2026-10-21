@@ -291,7 +291,7 @@ function removeBlock(id){
 
 const stepHTMLs = [
   // Step 1 — Personal
-  `<div class="notice-box">Reliance Care Services LLC is an equal opportunity employer. Applicants are considered without regard to race, age, sex, gender identity, marital status, family status, political or religious conviction, impairment, or pregnancy.</div>
+  `<div class="notice-box">Yayra Care is an equal opportunity employer. Applicants are considered without regard to race, age, sex, gender identity, marital status, family status, political or religious conviction, impairment, or pregnancy.</div>
   <div class="form-section">
     <div class="field-grid col-3">
       <div class="field"><label>First name <span class="req">*</span></label><input type="text" placeholder="First name"/></div>
@@ -357,7 +357,7 @@ const stepHTMLs = [
     <div class="field" style="margin-bottom:12px;"><label>Are you authorized to work in the U.S.? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="auth"/> Yes</label><label class="radio-opt"><input type="radio" name="auth"/> No</label></div></div>
     <div class="field" style="margin-bottom:12px;"><label>Have you ever worked for this company? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="prev"/> Yes</label><label class="radio-opt"><input type="radio" name="prev"/> No</label></div></div>
     <div class="field" style="margin-bottom:12px;"><label>If yes, when?</label><input type="date" style="max-width:200px;"/></div>
-    <div class="field" style="margin-bottom:12px;"><label>Do you authorize RCS to conduct a criminal background check? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="bg"/> Yes</label><label class="radio-opt"><input type="radio" name="bg"/> No</label></div></div>
+    <div class="field" style="margin-bottom:12px;"><label>Do you authorize YC to conduct a criminal background check? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="bg"/> Yes</label><label class="radio-opt"><input type="radio" name="bg"/> No</label></div></div>
     <div class="field" style="margin-bottom:12px;"><label>Please explain (if applicable)</label><textarea placeholder="Provide any relevant details..."></textarea></div>
     <div class="field" style="margin-bottom:12px;"><label>Do you have malpractice insurance? <span class="req">*</span></label><div class="radio-group"><label class="radio-opt"><input type="radio" name="mal"/> Yes</label><label class="radio-opt"><input type="radio" name="mal"/> No</label></div></div>
     <div class="field"><label>If yes, name and address of carrier <span class="req">*</span></label><textarea placeholder="Insurance carrier name and address..."></textarea></div>
@@ -496,7 +496,7 @@ function downloadPDF(){
       <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
     </div>
     <div><div style="font-size:20px;font-weight:500;color:#004050;">YayraCare <span style="color:#30B060;">— DSP Job Application</span></div>
-    <div style="font-size:12px;color:#4A6670;">Reliance Care Services LLC · Printed ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div></div>
+    <div style="font-size:12px;color:#4A6670;">Yayra Care · Printed ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div></div>
   </div>`;
   allDiv.innerHTML=header;
   stepMeta.forEach((m,i)=>{

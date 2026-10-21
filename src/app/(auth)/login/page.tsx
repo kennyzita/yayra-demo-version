@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { LoginForm } from '@/components/auth/LoginForm'
 
-export const metadata: Metadata = { title: 'Sign In — Reliance Care Services' }
+export const metadata: Metadata = { title: 'Sign In — Yayra Care' }
 
 export default async function LoginPage({
   searchParams,
@@ -19,7 +19,7 @@ export default async function LoginPage({
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/rcs-logo.png" alt="Reliance Care Services LLC" className="w-32 h-32 object-contain mx-auto mb-2" />
+          <img src="/rcs-logo.png" alt="Yayra Care" className="w-32 h-32 object-contain mx-auto mb-2" />
           <p className="text-gray-500 mt-1 text-sm">HIPAA-Compliant Care Management</p>
         </div>
 

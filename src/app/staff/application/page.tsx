@@ -374,7 +374,7 @@ function buildApplicationHtml(form: AppFormState): string {
   @media print{body{margin:10px}}
 </style></head><body>
 <h1>DSP Employment Application</h1>
-<p style="color:#6b7280;font-size:11px;margin-bottom:20px">Reliance Care Services · Submitted ${esc(form.signatureDate) || new Date().toLocaleDateString()}</p>
+<p style="color:#6b7280;font-size:11px;margin-bottom:20px">Yayra Care · Submitted ${esc(form.signatureDate) || new Date().toLocaleDateString()}</p>
 
 <h2>Personal Information</h2>
 ${row('Full Name', [form.firstName, form.middleName, form.lastName].filter(Boolean).join(' '))}
@@ -562,7 +562,7 @@ export default function ApplicationPage() {
       case 0: return (
         <div>
           <div style={{ background: 'rgba(0,128,128,0.05)', border: '0.5px solid rgba(0,128,128,0.2)', borderRadius: 8, padding: '12px 14px', fontSize: 12, color: '#374151', lineHeight: 1.6, marginBottom: 20 }}>
-            Reliance Care Services is an equal opportunity employer. Applicants are considered without regard to race, age, sex, gender identity, marital status, family status, political or religious conviction, impairment, or pregnancy.
+            Yayra Care is an equal opportunity employer. Applicants are considered without regard to race, age, sex, gender identity, marital status, family status, political or religious conviction, impairment, or pregnancy.
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 14, marginBottom: 20 }}>
             <Field label="First name" required><input value={form.firstName} onChange={e => sf('firstName', e.target.value)} type="text" placeholder="First name" style={fi} /></Field>
@@ -656,7 +656,7 @@ export default function ApplicationPage() {
             </div>
           )}
           <div style={{ marginBottom: 16 }}>
-            <div style={fLabel}>Do you authorize RCS to conduct a criminal background check?{req}</div>
+            <div style={fLabel}>Do you authorize YC to conduct a criminal background check?{req}</div>
             <RadioGroup name="bg" options={['Yes', 'No']} value={form.bgCheck} onChange={v => sf('bgCheck', v)} />
           </div>
           {form.bgCheck === 'No' && (

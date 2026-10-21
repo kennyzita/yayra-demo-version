@@ -223,8 +223,8 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
             <GraduationCap size={21} color="white" />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: HERO_NAVY, letterSpacing: '-0.3px', lineHeight: 1.2 }}>RCS DSP Academy</div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.18em' }}>Reliance Care Services</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: HERO_NAVY, letterSpacing: '-0.3px', lineHeight: 1.2 }}>YC DSP Academy</div>
+            <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.18em' }}>Yayra Care</div>
           </div>
           <div style={{ flex: 1 }} />
           <button onClick={onBack} style={{ fontSize: 12, padding: '6px 14px', borderRadius: 6, border: '0.5px solid #e2e8f0', background: 'transparent', color: '#64748b', cursor: 'pointer', fontFamily: 'inherit', marginRight: 8 }}>
@@ -250,7 +250,7 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
 
           {/* subtext */}
           <p style={{ fontSize: 'clamp(14px, 1.4vw, 18px)', color: 'rgba(255,255,255,0.65)', lineHeight: 1.65, margin: '0 0 44px', maxWidth: 540 }}>
-            Twelve video-gated modules followed by a final assessment. Complete it and earn your RCS Certificate of Completion.
+            Twelve video-gated modules followed by a final assessment. Complete it and earn your YC Certificate of Completion.
           </p>
 
           {/* CTAs */}
@@ -308,7 +308,7 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
               <label style={{ display: 'block', fontSize: 14, fontWeight: 700, color: HERO_NAVY, marginBottom: 8 }}>Admin Notification Email</label>
               <input type="email" value={adminEmail}
                 onChange={e => { setAdminEmail(e.target.value); setErrors(r => ({ ...r, adminEmail: undefined })) }}
-                placeholder="admin@reliancecareservicesllc.com"
+                placeholder="info@yellowstrides.com"
                 style={{ ...fi, background: '#f8fafc', borderColor: errors.adminEmail ? C.danger : '#e2e8f0' }} />
               {errors.adminEmail
                 ? <div style={{ fontSize: 12, color: C.danger, marginTop: 4 }}>{errors.adminEmail}</div>
@@ -338,8 +338,8 @@ function LandingScreen({ onBack, onPoster, onModules, onAssessment }: {
 
         {/* footer */}
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 700, paddingTop: 16, borderTop: '0.5px solid #e2e8f0' }}>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>© {new Date().getFullYear()} Reliance Care Services</span>
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>RCS DSP Academy</span>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>© {new Date().getFullYear()} Yayra Care</span>
+          <span style={{ fontSize: 12, color: '#94a3b8' }}>YC DSP Academy</span>
         </div>
       </div>
     </div>
@@ -475,7 +475,7 @@ function PosterScreen({ onBack, onAssessment }: { onBack: () => void; onAssessme
           <button onClick={onBack} style={backBtn}><ArrowLeft size={13} /> Exit</button>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Required Onboarding Materials</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Reliance Care Services · Step {step} of {TOTAL_STEPS}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Yayra Care · Step {step} of {TOTAL_STEPS}</div>
           </div>
         </div>
 
@@ -773,7 +773,7 @@ function ModulesScreen({ onBack, onModule, onAssessment, onCertificate, onOrient
             <Award size={20} color="white" />
           </div>
           <div style={{ textAlign: 'left' }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: HERO_NAVY, letterSpacing: '-0.3px', lineHeight: 1.2 }}>RCS DSP Academy</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: HERO_NAVY, letterSpacing: '-0.3px', lineHeight: 1.2 }}>YC DSP Academy</div>
             <div style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Training & Assessment</div>
           </div>
         </button>
@@ -1247,7 +1247,7 @@ function AssessmentScreen({ onBack, onCertificate }: { onBack: () => void; onCer
   if (!unlocked) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
-        <HeaderBar onBack={onBack} title="Final Assessment" subtitle="RCS DSP Academy" />
+        <HeaderBar onBack={onBack} title="Final Assessment" subtitle="YC DSP Academy" />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 }}>
           <Lock size={40} color={C.muted} />
           <div style={{ fontSize: 18, fontWeight: 700, color: C.text }}>Assessment locked</div>
@@ -1265,7 +1265,7 @@ function AssessmentScreen({ onBack, onCertificate }: { onBack: () => void; onCer
     const pct = Math.round((result.score / result.total) * 100)
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
-        <HeaderBar onBack={onBack} title="Final Assessment" subtitle="RCS DSP Academy" />
+        <HeaderBar onBack={onBack} title="Final Assessment" subtitle="YC DSP Academy" />
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ maxWidth: 500, width: '100%', ...card, padding: 40, textAlign: 'center', border: `2px solid ${result.passed ? C.success + '50' : C.danger + '50'}`, background: result.passed ? `${C.success}08` : `${C.danger}08` }}>
             {result.passed ? <Award size={48} color={C.success} style={{ margin: '0 auto 16px' }} /> : <ClipboardCheck size={48} color={C.danger} style={{ margin: '0 auto 16px' }} />}
@@ -1299,7 +1299,7 @@ function AssessmentScreen({ onBack, onCertificate }: { onBack: () => void; onCer
   if (!started) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
-        <HeaderBar onBack={onBack} title="Final Assessment" subtitle="RCS DSP Academy" />
+        <HeaderBar onBack={onBack} title="Final Assessment" subtitle="YC DSP Academy" />
         <div style={scrollable}>
           <div style={{ maxWidth: 680, margin: '0 auto' }}>
             <div style={{ ...card, padding: 36, borderRadius: 16 }}>
@@ -1329,7 +1329,7 @@ function AssessmentScreen({ onBack, onCertificate }: { onBack: () => void; onCer
                 <FormField label="Admin Notification Email" hint="Results sent to this email after submission" error={errors.admin_email} optional>
                   <input type="email" value={intake.admin_email}
                     onChange={e => setIntake(s => ({ ...s, admin_email: e.target.value }))}
-                    placeholder="admin@reliancecareservicesllc.com" style={inputStyle} />
+                    placeholder="info@yellowstrides.com" style={inputStyle} />
                 </FormField>
               </div>
               <div style={{ textAlign: 'center', marginTop: 28 }}>
@@ -1418,7 +1418,7 @@ function CertificateScreen({ onBack }: { onBack: () => void }) {
   if (!stored) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
-        <HeaderBar onBack={onBack} title="Certificate" subtitle="RCS DSP Academy" />
+        <HeaderBar onBack={onBack} title="Certificate" subtitle="YC DSP Academy" />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 }}>
           <Award size={40} color={C.muted} />
           <div style={{ fontSize: 16, fontWeight: 600, color: C.text }}>No certificate yet</div>
@@ -1439,13 +1439,13 @@ function CertificateScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg }}>
-      <HeaderBar onBack={onBack} title="Your Certificate" subtitle="RCS DSP Academy" />
+      <HeaderBar onBack={onBack} title="Your Certificate" subtitle="YC DSP Academy" />
       <div style={{ ...scrollable }}>
         <div style={{ maxWidth: 860, margin: '0 auto' }}>
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 2, color: C.accent }}>Achievement</div>
             <div style={{ fontSize: 22, fontWeight: 700, color: C.text, marginTop: 2 }}>Your certificate</div>
-            <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>Awarded for completing the RCS DSP Training & Assessment program.</div>
+            <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>Awarded for completing the YC DSP Training & Assessment program.</div>
           </div>
 
           {/* The certificate */}
@@ -1465,10 +1465,10 @@ function CertificateScreen({ onBack }: { onBack: () => void }) {
               {/* header */}
               <div style={{ width: '100%' }}>
                 <div style={{ fontSize: 'clamp(11px, 1.6vw, 18px)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.25em', color: C.gold }}>
-                  Reliance Care Services
+                  Yayra Care
                 </div>
                 <div style={{ fontSize: 'clamp(9px, 1.1vw, 12px)', textTransform: 'uppercase', letterSpacing: '0.3em', color: 'rgba(255,255,255,0.55)', marginTop: 4 }}>
-                  RCS DSP Academy
+                  YC DSP Academy
                 </div>
                 <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
                   <span style={{ height: 1, width: 60, background: 'linear-gradient(to right, transparent, rgba(201,162,39,0.7))' }} />
@@ -1511,7 +1511,7 @@ function CertificateScreen({ onBack }: { onBack: () => void }) {
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ width: 64, height: 64, borderRadius: '50%', margin: '0 auto', background: 'radial-gradient(circle at 30% 30%, rgba(201,162,39,0.6), rgba(201,162,39,0.2) 50%, transparent 75%)', boxShadow: 'inset 0 2px 2px rgba(255,255,255,0.25), inset 0 -2px 4px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                     <div style={{ position: 'absolute', inset: 3, borderRadius: '50%', border: '1px solid rgba(201,162,39,0.6)', pointerEvents: 'none' }} />
-                    <img src="/rcs-logo-seal.png" alt="RCS" style={{ width: '75%', height: '75%', objectFit: 'contain', filter: 'brightness(0) saturate(100%) invert(72%) sepia(45%) saturate(520%) hue-rotate(2deg) brightness(96%) contrast(92%)' }} />
+                    <img src="/rcs-logo-seal.png" alt="YC" style={{ width: '75%', height: '75%', objectFit: 'contain', filter: 'brightness(0) saturate(100%) invert(72%) sepia(45%) saturate(520%) hue-rotate(2deg) brightness(96%) contrast(92%)' }} />
                   </div>
                   <div style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '0.25em', color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>Official Seal</div>
                 </div>

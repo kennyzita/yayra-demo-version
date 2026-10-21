@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
   // to /login?confirmed=1 so the DSP sees a success banner and signs in manually.
   // (Previously went to /auth/callback which auto-logged the user in and skipped
   // the login page entirely.)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://rcsconnect.reliancecareservicesllc.com'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://yayracare.yellowstrides.com'
   const { data: linkData } = await db.auth.admin.generateLink({
     type: 'signup',
     email: normalizedEmail,
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
         <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#008080,#30B060);display:flex;align-items:center;justify-content:center;flex-shrink:0">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
         </div>
-        <span style="font-size:18px;font-weight:600;color:#fff">Reliance Care Services</span>
+        <span style="font-size:18px;font-weight:600;color:#fff">Yayra Care</span>
       </div>
       <div style="padding:32px">
         <h2 style="margin:0 0 8px;font-size:22px;color:#111">Welcome, ${firstName.trim()}!</h2>
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
   `
   const emailResult = await sendEmail({
     to: normalizedEmail,
-    subject: 'Confirm your Reliance Care Services account',
+    subject: 'Confirm your Yayra Care account',
     html: welcomeHtml,
   })
   if (!emailResult.ok && !emailResult.skipped) {

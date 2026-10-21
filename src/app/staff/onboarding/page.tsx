@@ -81,8 +81,8 @@ export default function OnboardingFormsPage() {
           </div>
           <div style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.75, marginBottom: 20 }}>
             Your onboarding forms have been submitted. We will reach out to you shortly. If you have any questions, email{' '}
-            <a href="mailto:admin@reliancecareservicesllc.com" style={{ color: '#008080', fontWeight: 600, textDecoration: 'none' }}>
-              admin@reliancecareservicesllc.com
+            <a href="mailto:info@yellowstrides.com" style={{ color: '#008080', fontWeight: 600, textDecoration: 'none' }}>
+              info@yellowstrides.com
             </a>
           </div>
           {signedDate && (

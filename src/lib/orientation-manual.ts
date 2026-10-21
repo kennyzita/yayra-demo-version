@@ -15,7 +15,7 @@ export type ManualSection = {
 }
 
 export const MANUAL_META = {
-  agency: 'Reliance Care Services LLC',
+  agency: 'Yayra Care',
   subtitle: 'New Jersey Home and Community Based Services (HCBS) Provider',
   title: 'Staff Orientation Manual — Provider Developed Orientation',
   effective: 'January 1, 2025',
@@ -29,15 +29,15 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     title: 'Welcome & Introduction',
     blocks: [
       { type: 'h3', text: '1.1 Welcome Letter from Agency Leadership' },
-      { type: 'p', text: 'Dear New Member of the Reliance Care Services LLC Team,' },
-      { type: 'p', text: 'On behalf of the entire leadership team and the individuals we are privileged to serve, welcome to Reliance Care Services LLC. We are genuinely delighted that you have joined our organization, and we look forward to building a partnership with you grounded in compassion, professionalism, and a shared commitment to excellence in care.' },
-      { type: 'p', text: 'At Reliance Care Services LLC, we believe that the work you are about to undertake is among the most meaningful and impactful work a person can do. As a Direct Support Professional (DSP) or agency staff member, you will play a central role in the lives of individuals with intellectual and developmental disabilities — individuals who deserve nothing less than the highest quality of support, delivered with dignity, respect, and genuine regard for their unique personhood.' },
+      { type: 'p', text: 'Dear New Member of the Yayra Care Team,' },
+      { type: 'p', text: 'On behalf of the entire leadership team and the individuals we are privileged to serve, welcome to Yayra Care. We are genuinely delighted that you have joined our organization, and we look forward to building a partnership with you grounded in compassion, professionalism, and a shared commitment to excellence in care.' },
+      { type: 'p', text: 'At Yayra Care, we believe that the work you are about to undertake is among the most meaningful and impactful work a person can do. As a Direct Support Professional (DSP) or agency staff member, you will play a central role in the lives of individuals with intellectual and developmental disabilities — individuals who deserve nothing less than the highest quality of support, delivered with dignity, respect, and genuine regard for their unique personhood.' },
       { type: 'p', text: 'Our agency is built on a simple but powerful belief: every individual we support is a full and equal member of their community. They have dreams, goals, preferences, and rights. Your role is not to manage or control — it is to walk alongside, to empower, and to support. The difference between those two approaches is everything.' },
-      { type: 'p', text: 'This orientation manual has been developed to introduce you to who we are, what we do, and how we do it. It outlines the values, policies, and professional standards that define Reliance Care Services LLC. We ask that you read every section carefully, ask questions freely, and approach this information with the seriousness and open-mindedness it deserves. This is not paperwork — it is the foundation of your professional practice here.' },
-      { type: 'p', text: 'Thank you for choosing Reliance Care Services LLC. Thank you for choosing to make a difference. We are honored to have you on this team.' },
-      { type: 'p', text: 'Warm regards, Agency Leadership & Administration — Reliance Care Services LLC, New Jersey HCBS Provider.' },
+      { type: 'p', text: 'This orientation manual has been developed to introduce you to who we are, what we do, and how we do it. It outlines the values, policies, and professional standards that define Yayra Care. We ask that you read every section carefully, ask questions freely, and approach this information with the seriousness and open-mindedness it deserves. This is not paperwork — it is the foundation of your professional practice here.' },
+      { type: 'p', text: 'Thank you for choosing Yayra Care. Thank you for choosing to make a difference. We are honored to have you on this team.' },
+      { type: 'p', text: 'Warm regards, Agency Leadership & Administration — Yayra Care, New Jersey HCBS Provider.' },
       { type: 'h3', text: '1.2 About This Manual' },
-      { type: 'p', text: 'This Staff Orientation Manual is a formally developed orientation document prepared by Reliance Care Services LLC in fulfillment of the NJ Division of Developmental Disabilities (NJDDD) Provider Developed Orientation requirement. All new employees and contractors who provide direct support services to individuals enrolled in NJDDD programs are required to review this manual in its entirety prior to or concurrent with their first days of employment.' },
+      { type: 'p', text: 'This Staff Orientation Manual is a formally developed orientation document prepared by Yayra Care in fulfillment of the NJ Division of Developmental Disabilities (NJDDD) Provider Developed Orientation requirement. All new employees and contractors who provide direct support services to individuals enrolled in NJDDD programs are required to review this manual in its entirety prior to or concurrent with their first days of employment.' },
       { type: 'quote', variant: 'info', text: 'Completion of this orientation manual, together with the signed Acknowledgment Form (Section 10), constitutes fulfillment of the NJDDD Provider Developed Orientation requirement. This document must be reviewed before a new DSP assumes sole responsibility for supporting any individual.' },
       { type: 'p', text: 'This manual covers agency background, mission and values, service descriptions, professional standards, personnel policies, regulatory compliance, and emergency procedures. It is a living document, reviewed and updated at least annually or as required by changes in NJDDD regulations, state law, or agency policy.' },
     ],
@@ -47,13 +47,13 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     number: 'Section 2',
     title: 'Agency Overview',
     blocks: [
-      { type: 'h3', text: '2.1 About Reliance Care Services LLC' },
-      { type: 'p', text: 'Reliance Care Services LLC is a New Jersey-licensed Home and Community Based Services (HCBS) provider dedicated to serving individuals with intellectual and developmental disabilities (IDD). The agency is enrolled as an approved provider under the New Jersey Division of Developmental Disabilities (NJDDD) and operates within the following programs:' },
+      { type: 'h3', text: '2.1 About Yayra Care' },
+      { type: 'p', text: 'Yayra Care is a New Jersey-licensed Home and Community Based Services (HCBS) provider dedicated to serving individuals with intellectual and developmental disabilities (IDD). The agency is enrolled as an approved provider under the New Jersey Division of Developmental Disabilities (NJDDD) and operates within the following programs:' },
       { type: 'ul', items: [
         'Supports Program — Providing individualized, community-based supports to eligible adults with IDD',
         'Community Care Program — Offering a broad range of residential and day services in community settings',
       ]},
-      { type: 'p', text: 'Reliance Care Services LLC is headquartered in New Jersey and serves individuals across New Jersey communities. Every service we provide is delivered in community-integrated settings in keeping with the federal HCBS Final Rule and NJ state standards.' },
+      { type: 'p', text: 'Yayra Care is headquartered in New Jersey and serves individuals across New Jersey communities. Every service we provide is delivered in community-integrated settings in keeping with the federal HCBS Final Rule and NJ state standards.' },
       { type: 'quote', variant: 'tip', text: 'DSP Tip — Your role as a DSP places you at the heart of our agency\'s mission. Every interaction you have with an individual matters — your consistency, your professionalism, and your genuine care make all the difference in the life of the person you support.' },
       { type: 'h3', text: '2.2 Organizational Structure' },
       { type: 'table', headers: ['Role / Position', 'Primary Responsibilities'], rows: [
@@ -63,7 +63,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
         ['Administrative / Support Staff', 'Billing, human resources, records management, scheduling support, compliance documentation'],
       ]},
       { type: 'h3', text: '2.3 Licensing & Accreditation' },
-      { type: 'p', text: 'Reliance Care Services LLC operates in full compliance with all applicable state and federal regulatory requirements governing HCBS providers in New Jersey:' },
+      { type: 'p', text: 'Yayra Care operates in full compliance with all applicable state and federal regulatory requirements governing HCBS providers in New Jersey:' },
       { type: 'ul', items: [
         'NJ Division of Developmental Disabilities (NJDDD) — Provider approval and ongoing compliance monitoring',
         'NJ Administrative Code N.J.A.C. 10:44 — Standards for community care programs serving individuals with developmental disabilities',
@@ -79,7 +79,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     title: 'Mission, Vision & Philosophy',
     blocks: [
       { type: 'h3', text: '3.1 Mission Statement' },
-      { type: 'quote', text: 'Reliance Care Services LLC is dedicated to empowering individuals with intellectual and developmental disabilities to live fulfilling, self-determined lives through compassionate, person-centered support, community inclusion, and unwavering commitment to dignity and respect.' },
+      { type: 'quote', text: 'Yayra Care is dedicated to empowering individuals with intellectual and developmental disabilities to live fulfilling, self-determined lives through compassionate, person-centered support, community inclusion, and unwavering commitment to dignity and respect.' },
       { type: 'h3', text: '3.2 Vision Statement' },
       { type: 'quote', text: 'A community where every individual with a disability has the opportunity, support, and freedom to thrive on their own terms.' },
       { type: 'h3', text: '3.3 Core Values' },
@@ -98,7 +98,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
       { type: 'h4', text: '◆ Cultural Competence' },
       { type: 'p', text: 'We value and respect the diverse cultural, linguistic, religious, and personal backgrounds of every individual we serve and every colleague we work with.' },
       { type: 'h3', text: '3.4 Agency Philosophy' },
-      { type: 'p', text: 'Reliance Care Services LLC operates under a clear and principled philosophy: individuals with intellectual and developmental disabilities are equal, full members of their communities, with the same rights, opportunities, and inherent dignity as any other person. This philosophy is foundational. It shapes every service we deliver, every policy we write, and every interaction our staff have with individuals.' },
+      { type: 'p', text: 'Yayra Care operates under a clear and principled philosophy: individuals with intellectual and developmental disabilities are equal, full members of their communities, with the same rights, opportunities, and inherent dignity as any other person. This philosophy is foundational. It shapes every service we deliver, every policy we write, and every interaction our staff have with individuals.' },
       { type: 'p', text: 'We firmly reject a deficit-based model of disability. Instead, we embrace a strength-based, person-first, and trauma-informed approach to service delivery. This means we:' },
       { type: 'ul', items: [
         'See the whole person — their strengths, gifts, experiences, and potential',
@@ -107,7 +107,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
         'Honor the impact of past experiences, including trauma, on an individual\'s current life',
         'Treat every interaction as an opportunity to build trust, safety, and connection',
       ]},
-      { type: 'p', text: 'Support at Reliance Care Services LLC is individualized, flexible, and driven by each person\'s Individualized Support Plan (ISP). Staff are partners in the individual\'s journey — not caretakers controlling outcomes.' },
+      { type: 'p', text: 'Support at Yayra Care is individualized, flexible, and driven by each person\'s Individualized Support Plan (ISP). Staff are partners in the individual\'s journey — not caretakers controlling outcomes.' },
     ],
   },
   {
@@ -122,7 +122,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
       { type: 'h4', text: 'Goal 3: Hire, Train, and Retain Highly Qualified and Compassionate DSPs' },
       { type: 'p', text: 'We invest in robust training, ongoing professional development, and a supportive work environment because the quality of care we provide is directly tied to the quality of our staff.' },
       { type: 'h4', text: 'Goal 4: Ensure Full Compliance with All Applicable Regulations' },
-      { type: 'p', text: 'Reliance Care Services LLC maintains full compliance with all NJDDD requirements, Medicaid waiver standards, federal HCBS Final Rule obligations, and NJ Administrative Code provisions.' },
+      { type: 'p', text: 'Yayra Care maintains full compliance with all NJDDD requirements, Medicaid waiver standards, federal HCBS Final Rule obligations, and NJ Administrative Code provisions.' },
       { type: 'h4', text: 'Goal 5: Foster a Workplace Culture of Respect, Accountability, and Continuous Improvement' },
       { type: 'p', text: 'We hold ourselves to high standards of accountability — leadership included. We foster open communication, professional growth, and mutual respect at all levels.' },
       { type: 'h4', text: 'Goal 6: Support the Well-Being of Every Individual Served' },
@@ -136,7 +136,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     number: 'Section 5',
     title: 'Services Provided',
     blocks: [
-      { type: 'p', text: 'Reliance Care Services LLC is approved to provide the following NJDDD-funded HCBS. All services are delivered in accordance with the individual\'s ISP, NJDDD service definitions, and applicable Medicaid waiver requirements.' },
+      { type: 'p', text: 'Yayra Care is approved to provide the following NJDDD-funded HCBS. All services are delivered in accordance with the individual\'s ISP, NJDDD service definitions, and applicable Medicaid waiver requirements.' },
       { type: 'h3', text: '5.1 Community Based Supports (CBS)' },
       { type: 'table', headers: ['Component', 'Details'], rows: [
         ['Description', 'Individualized assistance in community settings, focused on daily living skills, community participation, and personal independence.'],
@@ -267,7 +267,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     title: 'Personnel Policies',
     blocks: [
       { type: 'h3', text: '7.1 Equal Employment Opportunity (EEO)' },
-      { type: 'p', text: 'Reliance Care Services LLC is an Equal Opportunity Employer. The agency does not discriminate on the basis of race, color, religion, sex (including pregnancy and gender identity), national origin, age, disability, genetic information, sexual orientation, marital status, or any other protected characteristic. Retaliation against anyone who reports discrimination in good faith is strictly prohibited.' },
+      { type: 'p', text: 'Yayra Care is an Equal Opportunity Employer. The agency does not discriminate on the basis of race, color, religion, sex (including pregnancy and gender identity), national origin, age, disability, genetic information, sexual orientation, marital status, or any other protected characteristic. Retaliation against anyone who reports discrimination in good faith is strictly prohibited.' },
       { type: 'p', text: 'ADA Accommodations — Reasonable accommodations will be provided to qualified employees with disabilities, unless doing so would pose an undue hardship. Contact Administration to initiate the interactive accommodation process.' },
       { type: 'h3', text: '7.2 Code of Conduct & Professional Ethics' },
       { type: 'h4', text: 'Professional Appearance' },
@@ -468,15 +468,15 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     title: 'Acknowledgment & Attestation',
     blocks: [
       { type: 'h3', text: 'Staff Orientation Acknowledgment & Agreement' },
-      { type: 'p', text: 'RELIANCE CARE SERVICES LLC — Provider Developed Orientation — NJ Division of Developmental Disabilities (NJDDD) Compliant.' },
+      { type: 'p', text: 'YAYRA CARE — Provider Developed Orientation — NJ Division of Developmental Disabilities (NJDDD) Compliant.' },
       { type: 'p', text: 'By completing this orientation, I acknowledge and attest to the following:' },
       { type: 'ol', items: [
-        'I have received, read, and reviewed the Reliance Care Services LLC Staff Orientation Manual in its entirety, including all ten (10) sections.',
+        'I have received, read, and reviewed the Yayra Care Staff Orientation Manual in its entirety, including all ten (10) sections.',
         'I understand that this manual represents agency policies, procedures, and professional expectations to which I am held accountable.',
         'I understand my obligations as a mandatory reporter under New Jersey law and my responsibilities related to HIPAA, confidentiality, and NJDDD regulatory compliance.',
         'I will implement each individual\'s Individualized Support Plan (ISP) and Behavior Support Plan (BSP) with fidelity and professionalism.',
         'I understand the Electronic Visit Verification (EVV) requirements applicable to my position and agree to comply in full.',
-        'I agree to uphold the mission, vision, core values, and professional standards of Reliance Care Services LLC.',
+        'I agree to uphold the mission, vision, core values, and professional standards of Yayra Care.',
         'I will direct questions about policies or procedures to my supervisor and will seek clarification rather than acting on assumptions.',
         'I understand this manual satisfies the NJDDD Provider Developed Orientation training requirement, and I must complete additional required trainings within the timeframes in Section 7.6.',
       ]},

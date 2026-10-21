@@ -69,7 +69,7 @@ export default function ResetPasswordPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#004050] mb-4">
             <span className="text-white text-3xl font-bold">Y</span>
           </div>
-          <h1 className="text-2xl font-bold text-[#004050]">Reliance Care Services</h1>
+          <h1 className="text-2xl font-bold text-[#004050]">Yayra Care</h1>
           <p className="text-gray-500 mt-1 text-sm">HIPAA-Compliant Care Management</p>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">

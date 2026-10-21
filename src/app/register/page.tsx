@@ -74,8 +74,8 @@ export default function RegisterPage() {
           </Link>
           <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 20 }}>
             Questions? Email{' '}
-            <a href="mailto:admin@reliancecareservicesllc.com" style={{ color: '#008080', textDecoration: 'none' }}>
-              admin@reliancecareservicesllc.com
+            <a href="mailto:info@yellowstrides.com" style={{ color: '#008080', textDecoration: 'none' }}>
+              info@yellowstrides.com
             </a>
           </p>
         </div>
@@ -92,7 +92,7 @@ export default function RegisterPage() {
           <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg,#008080,#30B060)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
           </div>
-          <span style={{ fontSize: 16, fontWeight: 600, color: '#002830' }}>Reliance Care Services</span>
+          <span style={{ fontSize: 16, fontWeight: 600, color: '#002830' }}>Yayra Care</span>
         </div>
 
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#111', margin: '0 0 4px' }}>Create your DSP account</h1>

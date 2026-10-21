@@ -1,4 +1,4 @@
-# Reliance Care Services Portal — User Guide
+# Yayra Care Portal — User Guide
 
 > This guide covers how to use the portal for each role.
 > Roles: **Admin**, **HR**, **DSP Staff**, **DSP**

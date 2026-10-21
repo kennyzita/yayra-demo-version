@@ -830,7 +830,7 @@ export default function StaffProgressPage() {
                   </tr>
                   {/* Portal access */}
                   <tr style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={{ ...tdStyle, fontWeight: 500 }}>Reliance Care Services portal access</td>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>Yayra Care portal access</td>
                     <td style={tdStyle}>
                       <BinPill state={portalAccess} onChange={() => setPortalAccess(p => p === 'yes' ? 'no' : 'yes')} />
                     </td>

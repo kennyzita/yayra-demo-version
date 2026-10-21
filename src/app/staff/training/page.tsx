@@ -128,7 +128,7 @@ export default function TrainingPage() {
           <div style={panel}>
             <div style={{ background: '#004050', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>Training modules</span>
-              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Reliance Care Services</span>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Yayra Care</span>
             </div>
             {userRole === null ? (
               <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: 13 }}>Loading…</div>

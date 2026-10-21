@@ -95,7 +95,7 @@ export default function ReferenceFormPage() {
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(48,176,96,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 28, color: '#30B060' }}>✓</div>
           <h2 style={{ fontSize: 20, fontWeight: 600, color: '#111', margin: '0 0 12px' }}>Thank you for your response</h2>
           <p style={{ fontSize: 14, color: '#6b7280', lineHeight: 1.6, margin: 0 }}>
-            Your reference has been submitted successfully. We appreciate you taking the time to support this candidate's application with Reliance Care Services.
+            Your reference has been submitted successfully. We appreciate you taking the time to support this candidate's application with Yayra Care.
           </p>
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function ReferenceFormPage() {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14l-4-4 1.41-1.41L11 13.17l6.59-6.59L19 8l-8 8z"/></svg>
           </div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'white' }}>Reliance Care Services</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: 'white' }}>Yayra Care</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Employment Reference Form</div>
           </div>
         </div>
@@ -234,7 +234,7 @@ export default function ReferenceFormPage() {
           </button>
 
           <p style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', marginTop: 16 }}>
-            Reliance Care Services · admin@reliancecareservicesllc.com
+            Yayra Care · info@yellowstrides.com
           </p>
         </form>
       </div>

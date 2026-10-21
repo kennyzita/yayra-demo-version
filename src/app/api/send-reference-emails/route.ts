@@ -22,12 +22,12 @@ export async function POST(req: NextRequest) {
     const html = `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#111">
         <div style="background:#004050;padding:24px 32px;border-radius:8px 8px 0 0">
-          <p style="color:white;font-size:18px;font-weight:600;margin:0">Reliance Care Services</p>
+          <p style="color:white;font-size:18px;font-weight:600;margin:0">Yayra Care</p>
         </div>
         <div style="background:#fff;padding:32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px">
           <p style="font-size:15px;margin:0 0 16px">Dear ${ref.name},</p>
           <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 16px">
-            We are reaching out on behalf of <strong>${applicantName}</strong>, who has recently submitted an employment application with Reliance Care Services for a Direct Support Professional (DSP) position. They have listed you as a professional reference.
+            We are reaching out on behalf of <strong>${applicantName}</strong>, who has recently submitted an employment application with Yayra Care for a Direct Support Professional (DSP) position. They have listed you as a professional reference.
           </p>
           <p style="font-size:14px;color:#374151;line-height:1.6;margin:0 0 24px">
             We would greatly appreciate it if you could take a few minutes to complete a brief reference form. Your response will help us better understand ${applicantName.split(' ')[0]}'s qualifications and suitability for this role.
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
           </p>
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0"/>
           <p style="font-size:12px;color:#9ca3af;margin:0">
-            This email was sent by Reliance Care Services.<br/>
+            This email was sent by Yayra Care.<br/>
             If you believe you received this in error, please disregard this message.
           </p>
         </div>
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     const result = await sendEmail({
       to: ref.email,
-      subject: `Reference Request for ${applicantName} — Reliance Care Services`,
+      subject: `Reference Request for ${applicantName} — Yayra Care`,
       html,
     })
     results.push({ email: ref.email, ok: result.ok, error: result.error })

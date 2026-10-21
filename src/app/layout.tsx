@@ -6,8 +6,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Reliance Care Services — HIPAA-Compliant Home Health Management',
-  description: 'Manage your DDD and home health agency with Reliance Care Services.',
+  title: 'Yayra Care — HIPAA-Compliant Home Health Management',
+  description: 'Manage your DDD and home health agency with Yayra Care.',
 }
 
 export const viewport: Viewport = {
